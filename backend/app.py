@@ -3,8 +3,37 @@ import subprocess
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from sqlalchemy import or_
 from models import db, User
 from config import Config
+
+import re
+
+EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+def validate_registration(username, email, password):
+    if not username or not email or not password:
+        return 'Username, email, and password are required.'
+    if len(username.strip()) < 3:
+        return 'Username must be at least 3 characters long.'
+    if not EMAIL_REGEX.match(email):
+        return 'Enter a valid email address.'
+    if len(password) < 6:
+        return 'Password must be at least 6 characters long.'
+    if ' ' in password:
+        return 'Password must not contain spaces.'
+    return None
+
+
+def validate_login(username, password):
+    if not username or not password:
+        return 'Username/email and password are required.'
+    if len(username.strip()) < 3:
+        return 'Please supply a valid username or email.'
+    if len(password) < 6:
+        return 'Password must be at least 6 characters long.'
+    return None
 
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
 frontend_build_dir = os.path.join(frontend_dir, 'dist')
@@ -50,13 +79,17 @@ def index(path):
 
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
 
+    validation_error = validate_registration(username, email, password)
+    if validation_error:
+        return jsonify({'message': validation_error}), 400
+
     if User.query.filter_by(username=username).first() or User.query.filter_by(email=email).first():
-        return jsonify({'message': 'User already exists'}), 400
+        return jsonify({'message': 'User already exists with this username or email'}), 400
 
     user = User(username=username, email=email)
     user.set_password(password)
@@ -67,16 +100,20 @@ def register():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
 
-    user = User.query.filter_by(username=username).first()
-    if user and user.check_password(password):
-        access_token = create_access_token(identity=username)
-        return jsonify({'access_token': access_token}), 200
+    validation_error = validate_login(username, password)
+    if validation_error:
+        return jsonify({'message': validation_error}), 400
 
-    return jsonify({'message': 'Invalid credentials'}), 401
+    user = User.query.filter(or_(User.username == username, User.email == username)).first()
+    if user and user.check_password(password):
+        access_token = create_access_token(identity=user.username)
+        return jsonify({'access_token': access_token, 'message': 'Logged in successfully'}), 200
+
+    return jsonify({'message': 'Invalid username/email or password'}), 401
 
 @app.route('/protected', methods=['GET'])
 @jwt_required()
