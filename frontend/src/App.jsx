@@ -1,149 +1,227 @@
-import { useState } from 'react'
-import axios from 'axios'
 import './App.css'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+import StudentDashboard from './components/StudentDashboard'
+import LibrarianDashboard from './components/LibrarianDashboard'
+import AdminDashboard from './components/AdminDashboard'
 
 function App() {
+  const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: ''
-  })
+  const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'student' })
   const [message, setMessage] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userRole, setUserRole] = useState('')
+  const [user, setUser] = useState(null)
+  const [statsData, setStatsData] = useState({ total_books: 0, available_books: 0, borrowed_books: 0, total_members: 0 })
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      fetchUser()
+    }
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get('/stats')
+      setStatsData(response.data)
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
   }
 
-  const validateFrontEnd = () => {
-    const trimmedUsername = formData.username.trim()
-    const trimmedEmail = formData.email.trim()
-
-    if (!trimmedUsername || !formData.password) {
-      return 'Username/email and password are required.'
+  const fetchUser = async () => {
+    try {
+      const response = await axios.get('/user')
+      setUser(response.data)
+      setUserRole(response.data.role)
+      setIsAuthenticated(true)
+    } catch (error) {
+      localStorage.removeItem('token')
+      setIsAuthenticated(false)
     }
+  }
 
-    if (trimmedUsername.length < 3) {
-      return 'Username must be at least 3 characters long.'
-    }
+  const stats = [
+    { title: 'Total Books', value: (statsData.total_books || 0).toLocaleString(), suffix: '+' },
+    { title: 'Available Now', value: (statsData.available_books || 0).toLocaleString(), suffix: '' },
+    { title: 'Borrowed', value: (statsData.borrowed_books || 0).toLocaleString(), suffix: '' },
+    { title: 'Members', value: (statsData.total_members || 0).toLocaleString(), suffix: '+' }
+  ]
 
-    if (!isLogin) {
-      if (!trimmedEmail) {
-        return 'Email is required for registration.'
-      }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(trimmedEmail)) {
-        return 'Please enter a valid email address.'
-      }
-    }
+  const features = [
+    { icon: '📚', title: 'Wide Collection', desc: 'Thousands of titles across all genres and categories, updated regularly.' },
+    { icon: '🔍', title: 'Easy Search', desc: 'Find exactly what you need with fast, accurate search and filter tools.' },
+    { icon: '📋', title: 'Online Borrowing', desc: 'Borrow books and track due dates — all managed in one place.' }
+  ]
 
-    if (formData.password.length < 6) {
-      return 'Password must be at least 6 characters long.'
-    }
-
-    return null
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    const clientError = validateFrontEnd()
-    if (clientError) {
-      setMessage(clientError)
-      return
-    }
-
+    setMessage('')
     try {
-      const url = isLogin ? 'http://localhost:5000/login' : 'http://localhost:5000/register'
-      const payload = isLogin ? { username: formData.username.trim(), password: formData.password } : {
-        username: formData.username.trim(),
-        email: formData.email.trim(),
-        password: formData.password
-      }
-      const response = await axios.post(url, payload)
-      setMessage(response.data.message || 'Success')
-      if (isLogin && response.data.access_token) {
-        localStorage.setItem('token', response.data.access_token)
-        setMessage('Logged in successfully')
+      const endpoint = isLogin ? '/login' : '/register'
+      const payload = isLogin ? { username: formData.username, password: formData.password } : formData
+      const response = await axios.post(endpoint, payload)
+      setMessage(response.data.message)
+      if (response.status === 200 || response.status === 201) {
+        if (isLogin) {
+          localStorage.setItem('token', response.data.access_token)
+          axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`
+          setUserRole(response.data.role)
+          setIsAuthenticated(true)
+          await fetchUser()
+        }
+        setShowAuth(false)
+        setFormData({ username: '', email: '', password: '', role: 'student' })
       }
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Error occurred')
+      setMessage(error.response?.data?.message || 'An error occurred')
     }
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    delete axios.defaults.headers.common['Authorization']
+    setIsAuthenticated(false)
+    setUserRole('')
+    setUser(null)
+  }
+
+  if (isAuthenticated) {
+    if (userRole === 'admin') return <AdminDashboard user={user} onLogout={handleLogout} />
+    if (userRole === 'librarian') return <LibrarianDashboard user={user} onLogout={handleLogout} />
+    return <StudentDashboard user={user} onLogout={handleLogout} />
+  }
+
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <h1>Library Management System</h1>
-        <p>Your gateway to knowledge</p>
-      </header>
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <h2>{isLogin ? 'Welcome Back' : 'Join Our Library'}</h2>
-            <p>{isLogin ? 'Sign in to access your dashboard' : 'Create an account to get started'}</p>
+    <div className="online-library-home">
+
+      {/* ── HEADER ── */}
+      <div className="header-top">
+        <div className="top-header">
+          <span>📞 +12 345 678 000</span>
+          <span>✉️ support@nashlibrary.com</span>
+        </div>
+        <nav className="main-nav">
+          <h1 className="brand">Nash<span>Library</span></h1>
+          <ul className="nav-links">
+            <li>Home</li>
+            <li>Books</li>
+            <li>Find Books</li>
+            <li>About Us</li>
+            <li>Contact</li>
+            <li className="nav-cta" onClick={() => setShowAuth(true)}>Sign In</li>
+          </ul>
+        </nav>
+      </div>
+
+      {/* ── HERO ── */}
+      <section className="hero-home">
+        <div className="hero-bg" />
+        <div className="hero-overlay" />
+        <div className="hero-content">
+          <div className="hero-eyebrow">
+            <span className="hero-eyebrow-dot" />
+            Digital Library System
           </div>
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label htmlFor="username">Username</label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                placeholder="Enter your username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            {!isLogin && (
-              <div className="form-group">
-                <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            )}
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <button type="submit" className="auth-button">
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </button>
-          </form>
-          {message && <div className="message">{message}</div>}
-          <div className="auth-switch">
-            <p>
-              {isLogin ? "Don't have an account?" : 'Already have an account?'}
-              <button
-                type="button"
-                className="switch-button"
-                onClick={() => setIsLogin(!isLogin)}
-              >
-                {isLogin ? 'Register here' : 'Sign in here'}
-              </button>
-            </p>
+          <h1>
+            Your Gateway to<br />
+            <em>Knowledge</em> &amp; Stories
+          </h1>
+          <p>
+            Explore thousands of books, borrow online, and manage your reading
+            journey — all from one place.
+          </p>
+          <div className="hero-cta-wrap">
+            <button className="primary-cta" onClick={() => setShowAuth(true)}>Get Started Free</button>
+            <button className="secondary-cta">Browse Collection</button>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* ── STATS ── */}
+      <section className="stats-section">
+        {stats.map((s) => (
+          <div className="stat-tile" key={s.title}>
+            <p>{s.value}<span>{s.suffix}</span></p>
+            <h4>{s.title}</h4>
+          </div>
+        ))}
+      </section>
+
+      {/* ── FEATURES ── */}
+      <section className="features-section">
+        {features.map((f) => (
+          <div className="feature-card" key={f.title}>
+            <div className="feature-icon">{f.icon}</div>
+            <h3>{f.title}</h3>
+            <p>{f.desc}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer className="site-footer">
+        <div className="footer-brand">Nash<span>Library</span></div>
+        <span>© {new Date().getFullYear()} NashLibrary. All rights reserved.</span>
+        <span>📞 +12 345 678 000 &nbsp;·&nbsp; ✉️ support@nashlibrary.com</span>
+      </footer>
+
+      {/* ── AUTH MODAL ── */}
+      {showAuth && (
+        <div className="auth-modal">
+          <div className="auth-form">
+            <h3>{isLogin ? 'Welcome Back' : 'Create Account'}</h3>
+            <p className="auth-subtitle">
+              {isLogin ? 'Sign in to access your library' : 'Join NashLibrary today — it\'s free'}
+            </p>
+            <form onSubmit={handleSubmit}>
+              <input
+                type="text"
+                name="username"
+                placeholder="Username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required
+              />
+              {!isLogin && (
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email address"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              )}
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+              />
+              <button type="submit">{isLogin ? 'Sign In' : 'Create Account'}</button>
+            </form>
+            <p>
+              {isLogin ? "Don't have an account?" : 'Already have an account?'}
+              <button onClick={() => { setIsLogin(!isLogin); setMessage('') }} className="switch-auth">
+                {isLogin ? ' Register' : ' Sign In'}
+              </button>
+            </p>
+            {message && <p className="message">{message}</p>}
+            <button onClick={() => setShowAuth(false)} className="close-auth">Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
