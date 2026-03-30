@@ -14,12 +14,24 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  cursor: default !important;
+  user-select: none !important;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
   color: #f1f5f9;
   background: var(--navy);
   overflow-x: hidden;
 }
+
+input, textarea, select, button {
+  cursor: text !important;
+  user-select: text !important;
+}
+
+a { cursor: pointer !important; }
 
 /* ── HEADER ── */
 .header-top {
@@ -549,12 +561,12 @@ body {
 .sidebar { width: 240px; background: var(--navy-mid); padding: 2rem 1rem; border-right: 1px solid var(--border); }
 .sidebar h3 { color: #64748b; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
 .sidebar ul { list-style: none; }
-.sidebar li { padding: 10px 14px; cursor: pointer; border-radius: 8px; color: #94a3b8; font-size: 0.9rem; transition: all 0.2s; }
+  .sidebar li { padding: 10px 14px; cursor: pointer; border-radius: 8px; color: #94a3b8; font-size: 0.9rem; transition: all 0.2s; user-select: none; }
 .sidebar li:hover { background: rgba(255,255,255,0.06); color: #fff; }
 .main-content { flex: 1; padding: 2rem; }
 .main-content h2 { font-family: 'Playfair Display', serif; color: #fff; margin-bottom: 1.5rem; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-.stat-card { background: var(--navy-mid); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; text-align: center; }
+  .stat-card { background: var(--navy-mid); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; user-select: none; }
 .stat-card h4 { color: #64748b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
 .stat-card p { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: #fff; }
 .recent-activity { background: var(--navy-mid); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }

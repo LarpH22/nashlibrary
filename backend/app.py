@@ -114,15 +114,17 @@ def register():
                 return jsonify({'message': 'User already exists with this name or email'}), 400
 
             cur.execute(
-                'INSERT INTO users (full_name, email, password, role, created_at) VALUES (%s,%s,%s,%s,%s)',
-                (full_name, email, hashed, role, datetime.utcnow())
+                'INSERT INTO users (email, password_hash, full_name, role, status) VALUES (%s,%s,%s,%s,%s)',
+                (email, hashed, full_name, role, 'active')
             )
             user_id = cur.lastrowid
 
             if role == 'student':
-                cur.execute('INSERT INTO students (user_id) VALUES (%s)', (user_id,))
+                cur.execute('INSERT INTO students (user_id, student_number) VALUES (%s,%s)', (user_id, f'STU{user_id}'))
             elif role == 'librarian':
-                cur.execute('INSERT INTO librarians (user_id) VALUES (%s)', (user_id,))
+                cur.execute('INSERT INTO librarians (user_id, employee_id) VALUES (%s,%s)', (user_id, f'LIB{user_id}'))
+            elif role == 'admin':
+                cur.execute('INSERT INTO admins (user_id, admin_level) VALUES (%s,%s)', (user_id, 'junior'))
 
         conn.commit()
 
@@ -141,9 +143,9 @@ def login():
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT * FROM users WHERE full_name=%s OR email=%s', (user_input, user_input))
+            cur.execute('SELECT user_id, email, password_hash, role, full_name FROM users WHERE full_name=%s OR email=%s', (user_input, user_input))
             user = cur.fetchone()
-            if user and check_password_hash(user['password'], password):
+            if user and check_password_hash(user['password_hash'], password):
                 token = create_access_token(identity=user['email'])
                 return jsonify({'access_token': token, 'role': user['role'], 'message': 'Logged in successfully'}), 200
 
@@ -156,10 +158,18 @@ def get_user():
     email = get_jwt_identity()
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT full_name, email, role FROM users WHERE email=%s', (email,))
+            cur.execute('SELECT user_id, email, full_name, phone, role, status FROM users WHERE email=%s', (email,))
             user = cur.fetchone()
             if user:
-                return jsonify(user), 200
+                return jsonify({
+                    'user_id': user['user_id'],
+                    'email': user['email'],
+                    'username': user['full_name'],
+                    'full_name': user['full_name'],
+                    'phone': user['phone'],
+                    'role': user['role'],
+                    'status': user['status']
+                }), 200
     return jsonify({'message': 'User not found'}), 404
 
 
@@ -168,7 +178,7 @@ def get_user():
 def list_books():
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT book_id, title, author, category, quantity, available FROM books')
+            cur.execute('SELECT book_id, title, author, category, total_copies, available_copies, location FROM books')
             books = cur.fetchall()
     return jsonify(books), 200
 
@@ -179,7 +189,7 @@ def add_book():
     email = get_jwt_identity()
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT role FROM users WHERE email=%s', (email,))
+            cur.execute('SELECT user_id, role FROM users WHERE email=%s', (email,))
             user = cur.fetchone()
             if not user or user['role'] not in ('librarian', 'admin'):
                 return jsonify({'message': 'Permission denied'}), 403
@@ -188,14 +198,18 @@ def add_book():
             title = data.get('title')
             author = data.get('author')
             category = data.get('category')
-            quantity = int(data.get('quantity', 0))
-            available = int(data.get('available', quantity))
+            total_copies = int(data.get('total_copies', 1))
+            location = data.get('location', 'Unknown')
+            description = data.get('description', '')
+            publisher = data.get('publisher', '')
+            publication_year = data.get('publication_year')
+            isbn = data.get('isbn', None)
             if not title or not author:
                 return jsonify({'message': 'Title and author are required'}), 400
 
             cur.execute(
-                'INSERT INTO books (title, author, category, quantity, available, created_at) VALUES (%s,%s,%s,%s,%s,%s)',
-                (title, author, category, quantity, available, datetime.utcnow())
+                'INSERT INTO books (isbn, title, author, publisher, publication_year, category, description, total_copies, available_copies, location, added_by, added_date) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                (isbn, title, author, publisher, publication_year, category, description, total_copies, total_copies, location, user['user_id'], datetime.utcnow())
             )
             book_id = cur.lastrowid
             conn.commit()
@@ -223,23 +237,21 @@ def borrow_book():
             if user['role'] != 'student':
                 return jsonify({'message': 'Only students can borrow books'}), 403
 
-            cur.execute('SELECT student_id FROM students WHERE user_id=%s', (user['user_id'],))
+            cur.execute('SELECT student_id, borrowed_books_count FROM students WHERE user_id=%s', (user['user_id'],))
             student = cur.fetchone()
             if not student:
-                cur.execute('INSERT INTO students (user_id) VALUES (%s)', (user['user_id'],))
-                student_id = cur.lastrowid
-            else:
-                student_id = student['student_id']
+                return jsonify({'message': 'Student profile not found'}), 404
 
-            cur.execute('SELECT available, quantity FROM books WHERE book_id=%s', (book_id,))
+            cur.execute('SELECT available_copies FROM books WHERE book_id=%s', (book_id,))
             book = cur.fetchone()
-            if not book or book['available'] < 1:
+            if not book or book['available_copies'] < 1:
                 return jsonify({'message': 'Book is not available for borrowing'}), 400
 
-            cur.execute('UPDATE books SET available=available-1 WHERE book_id=%s', (book_id,))
+            cur.execute('UPDATE books SET available_copies=available_copies-1 WHERE book_id=%s', (book_id,))
+            cur.execute('UPDATE students SET borrowed_books_count=borrowed_books_count+1 WHERE student_id=%s', (student['student_id'],))
             cur.execute(
-                'INSERT INTO borrow_records (student_id, book_id, borrow_date, return_date, status) VALUES (%s,%s,%s,%s,%s)',
-                (student_id, book_id, datetime.utcnow(), None, 'borrowed')
+                'INSERT INTO borrow_records (student_id, book_id, librarian_id, borrow_date, due_date, status) VALUES (%s,%s,%s,%s,%s,%s)',
+                (student['student_id'], book_id, None, datetime.utcnow().date(), due_date, 'borrowed')
             )
             borrow_id = cur.lastrowid
             conn.commit()
@@ -256,15 +268,16 @@ def return_book():
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT borrow_id, book_id, status FROM borrow_records WHERE borrow_id=%s', (borrow_id,))
+            cur.execute('SELECT borrow_id, book_id, student_id, status FROM borrow_records WHERE borrow_id=%s', (borrow_id,))
             record = cur.fetchone()
             if not record:
                 return jsonify({'message': 'Borrow record not found'}), 404
             if record['status'] == 'returned':
                 return jsonify({'message': 'Book already returned'}), 400
 
-            cur.execute('UPDATE borrow_records SET return_date=%s, status=%s WHERE borrow_id=%s', (datetime.utcnow(), 'returned', borrow_id))
-            cur.execute('UPDATE books SET available=LEAST(quantity, available+1) WHERE book_id=%s', (record['book_id'],))
+            cur.execute('UPDATE borrow_records SET return_date=%s, status=%s WHERE borrow_id=%s', (datetime.utcnow().date(), 'returned', borrow_id))
+            cur.execute('UPDATE books SET available_copies=LEAST(total_copies, available_copies+1) WHERE book_id=%s', (record['book_id'],))
+            cur.execute('UPDATE students SET borrowed_books_count=GREATEST(0, borrowed_books_count-1) WHERE student_id=%s', (record['student_id'],))
             conn.commit()
             return jsonify({'message': 'Book returned'}), 200
 
@@ -292,15 +305,49 @@ def add_fine():
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT role FROM users WHERE email=%s', (email,))
+            cur.execute('SELECT user_id, role FROM users WHERE email=%s', (email,))
             user = cur.fetchone()
             if not user or user['role'] not in ('librarian', 'admin'):
                 return jsonify({'message': 'Permission denied'}), 403
 
-            cur.execute('INSERT INTO fines (borrow_id, amount, status) VALUES (%s,%s,%s)', (borrow_id, amount, 'unpaid'))
+            # check borrow record exists and get student_id
+            cur.execute('SELECT student_id FROM borrow_records WHERE borrow_id=%s', (borrow_id,))
+            borrow_record = cur.fetchone()
+            if not borrow_record:
+                return jsonify({'message': 'Borrow record not found'}), 404
+
+            student_id = borrow_record['student_id']
+            cur.execute('INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date, issued_by) VALUES (%s,%s,%s,%s,%s,%s,%s)',
+                        (borrow_id, student_id, amount, data.get('reason', 'Overdue fine'), 'pending', datetime.utcnow().date(), user['user_id']))
             fine_id = cur.lastrowid
             conn.commit()
             return jsonify({'message': 'Fine created', 'fine_id': fine_id}), 201
+
+
+@app.route('/users', methods=['GET'])
+@jwt_required()
+def list_users():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT user_id, email, full_name, role, status FROM users')
+            users = cur.fetchall()
+    return jsonify(users), 200
+
+
+@app.route('/borrowings', methods=['GET'])
+@jwt_required()
+def list_borrowings():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT br.borrow_id, u.email AS student_email, b.title AS book_title, br.borrow_date, br.due_date, br.return_date, br.status '
+                'FROM borrow_records br '
+                'LEFT JOIN students s ON br.student_id = s.student_id '
+                'LEFT JOIN users u ON s.user_id = u.user_id '
+                'LEFT JOIN books b ON br.book_id = b.book_id'
+            )
+            borrowings = cur.fetchall()
+    return jsonify(borrowings), 200
 
 
 @app.route('/stats', methods=['GET'])
@@ -309,11 +356,11 @@ def get_stats():
     with get_connection() as conn:
         with conn.cursor() as cur:
             # Total books
-            cur.execute('SELECT COUNT(*) as count FROM books')
+            cur.execute('SELECT COALESCE(SUM(total_copies), 0) as count FROM books')
             total_books = cur.fetchone()['count'] or 0
             
             # Available books
-            cur.execute('SELECT COALESCE(SUM(available), 0) as count FROM books')
+            cur.execute('SELECT COALESCE(SUM(available_copies), 0) as count FROM books')
             available_books = cur.fetchone()['count'] or 0
             
             # Borrowed books
@@ -363,4 +410,5 @@ def serve_static(path):
 
 
 if __name__ == '__main__':
+
     app.run(debug=True)
