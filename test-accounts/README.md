@@ -8,19 +8,19 @@ This folder contains information about all test accounts available in the Nash L
 **Email:** `admin@library.com`  
 **Password:** `admin123`  
 
-**Permissions:** Full system access, can manage admins, librarians, students, and view reports.
+**Permissions:** Full system access, can manage users, librarians, students, and view reports.
 
 ---
 
-## Librarian Accounts
+## User Accounts (Staff/Manager)
 
-### Librarian 1 (Senior)
+### User 1 (Senior)
 
-**Role:** Senior Librarian  
+**Role:** Senior User  
 **Email:** `librarian1@library.com`  
 **Password:** `librarian123`  
 **Employee ID:** `LIB001`  
-**Position:** Senior Librarian  
+**Position:** Senior User  
 
 **Permissions:** 
 - Borrow/return books
@@ -28,18 +28,30 @@ This folder contains information about all test accounts available in the Nash L
 - Manage fines
 - View reports
 
-### Librarian 2 (Junior)
+### User 2 (Junior)
 
-**Role:** Junior Librarian  
+**Role:** Junior User  
 **Email:** `librarian2@library.com`  
 **Password:** `librarian123`  
 **Employee ID:** `LIB002`  
-**Position:** Junior Librarian  
+**Position:** Junior User  
 
 **Permissions:**
 - Borrow/return books
 - View book catalog
 - Limited fine management
+
+### User 3 (General)
+
+**Role:** User  
+**Email:** `user1@library.com`  
+**Password:** `user123`  
+
+**Permissions:**
+- Browse the book catalog
+- View available books
+- Search for titles and authors
+- View own profile and borrowing history
 
 ---
 
@@ -124,4 +136,4 @@ curl -X POST http://localhost:5000/login \
 
 ---
 
-**Last Updated:** March 31, 2026
+**Last Updated:** April 10, 2026

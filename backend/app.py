@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 try:
     from backend.config import Config
@@ -48,6 +49,7 @@ def create_fallback_html():
 def get_connection():
     return pymysql.connect(
         host=Config.DB_HOST,
+        port=int(Config.DB_PORT),
         user=Config.DB_USER,
         password=Config.DB_PASSWORD,
         database=Config.DB_NAME,
@@ -56,10 +58,27 @@ def get_connection():
         charset='utf8mb4'
     )
 
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def validate_registration(full_name, email, password):
-    if not full_name or not email or not password:
-        return 'Full name, email, and password are required.'
+
+def ensure_schema():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute("ALTER TABLE users MODIFY COLUMN status ENUM('active','inactive','suspended','pending') DEFAULT 'active';")
+            except Exception:
+                pass
+            try:
+                cur.execute("ALTER TABLE students ADD COLUMN IF NOT EXISTS proof_file VARCHAR(255) DEFAULT NULL;")
+            except Exception:
+                pass
+        conn.commit()
+
+
+def validate_registration(full_name, email, password, phone, address):
+    if not full_name or not email or not password or not phone or not address:
+        return 'Full name, email, phone number, address, and password are required.'
     if len(full_name.strip()) < 3:
         return 'Full name must be at least 3 characters long.'
     if not EMAIL_REGEX.match(email):
@@ -68,6 +87,10 @@ def validate_registration(full_name, email, password):
         return 'Password must be at least 6 characters long.'
     if ' ' in password:
         return 'Password must not contain spaces.'
+    if len(phone.strip()) < 7:
+        return 'Enter a valid phone number.'
+    if len(address.strip()) < 5:
+        return 'Enter a valid address.'
     return None
 
 
@@ -80,6 +103,12 @@ def validate_login(username, password):
         return 'Password must be at least 6 characters long.'
     return None
 
+
+# Ensure DB schema supports pending registrations and uploads
+try:
+    ensure_schema()
+except Exception as e:
+    print(f'Warning: schema ensure failed: {e}')
 
 # Test connection
 try:
@@ -94,62 +123,107 @@ except Exception as e:
 
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.get_json() or {}
-    full_name = data.get('username') or data.get('full_name')
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        data = request.form
+        proof_file = request.files.get('proof')
+    else:
+        data = request.get_json() or {}
+        proof_file = None
+
+    full_name = data.get('full_name') or data.get('username')
     email = data.get('email')
     password = data.get('password')
-    role = data.get('role', 'student')
+    phone = data.get('phone')
+    address = data.get('address')
+    role = data.get('role', 'student').lower()
 
-    error = validate_registration(full_name, email, password)
+    if role not in ('student', 'user', 'librarian', 'admin'):
+        return jsonify({'message': 'Invalid role selected.'}), 400
+
+    error = validate_registration(full_name, email, password, phone, address)
     if error:
         return jsonify({'message': error}), 400
 
+    if role == 'student' and not proof_file:
+        return jsonify({'message': 'Proof of enrollment is required for student registration.'}), 400
+
+    if role != 'student' and proof_file:
+        return jsonify({'message': 'Enrollment proof is only required for student registration.'}), 400
+
     hashed = generate_password_hash(password)
+    status = 'pending' if role == 'student' else 'active'
+    proof_filename = None
+
+    if role == 'student' and proof_file and proof_file.filename:
+        filename = secure_filename(proof_file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        proof_filename = f'{timestamp}_{filename}'
+        proof_path = os.path.join(UPLOAD_FOLDER, proof_filename)
+        proof_file.save(proof_path)
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT user_id FROM users WHERE full_name=%s OR email=%s', (full_name, email))
+            cur.execute('SELECT user_id FROM users WHERE email=%s', (email,))
             existing = cur.fetchone()
             if existing:
-                return jsonify({'message': 'User already exists with this name or email'}), 400
+                return jsonify({'message': 'A user already exists with this email address.'}), 400
 
             cur.execute(
-                'INSERT INTO users (email, password_hash, full_name, role, status) VALUES (%s,%s,%s,%s,%s)',
-                (email, hashed, full_name, role, 'active')
+                'INSERT INTO users (email, password_hash, full_name, phone, address, role, status) VALUES (%s,%s,%s,%s,%s,%s,%s)',
+                (email, hashed, full_name, phone, address, role, status)
             )
             user_id = cur.lastrowid
 
             if role == 'student':
-                cur.execute('INSERT INTO students (user_id, student_number) VALUES (%s,%s)', (user_id, f'STU{user_id}'))
+                cur.execute(
+                    'INSERT INTO students (user_id, student_number, proof_file) VALUES (%s,%s,%s)',
+                    (user_id, f'STU{user_id:05d}', proof_filename)
+                )
             elif role == 'librarian':
-                cur.execute('INSERT INTO librarians (user_id, employee_id) VALUES (%s,%s)', (user_id, f'LIB{user_id}'))
+                cur.execute('INSERT INTO librarians (user_id, employee_id) VALUES (%s,%s)', (user_id, f'LIB{user_id:05d}'))
             elif role == 'admin':
                 cur.execute('INSERT INTO admins (user_id, admin_level) VALUES (%s,%s)', (user_id, 'junior'))
 
         conn.commit()
 
-    return jsonify({'message': 'User registered successfully'}), 201
+    if role == 'student':
+        return jsonify({'message': 'Registration submitted. Student accounts require admin approval.'}), 201
+
+    return jsonify({'message': 'Registration successful. Your account is now active.'}), 201
 
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json() or {}
-    user_input = data.get('username') or data.get('email')
-    password = data.get('password')
+    try:
+        data = request.get_json() or {}
+        user_input = data.get('username') or data.get('email')
+        password = data.get('password')
 
-    error = validate_login(user_input, password)
-    if error:
-        return jsonify({'message': error}), 400
+        error = validate_login(user_input, password)
+        if error:
+            return jsonify({'message': error}), 400
 
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute('SELECT user_id, email, password_hash, role, full_name FROM users WHERE full_name=%s OR email=%s', (user_input, user_input))
-            user = cur.fetchone()
-            if user and check_password_hash(user['password_hash'], password):
-                token = create_access_token(identity=user['email'])
-                return jsonify({'access_token': token, 'role': user['role'], 'message': 'Logged in successfully'}), 200
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT user_id, email, password_hash, role, full_name, status FROM users WHERE full_name=%s OR email=%s', (user_input, user_input))
+                user = cur.fetchone()
+                if user and check_password_hash(user['password_hash'], password):
+                    if user['status'] == 'pending':
+                        return jsonify({'message': 'Your account is pending admin approval.'}), 403
+                    if user['status'] == 'inactive':
+                        return jsonify({'message': 'Your account is inactive. Contact admin.'}), 403
+                    if user['status'] == 'suspended':
+                        return jsonify({'message': 'Your account is suspended.'}), 403
 
-    return jsonify({'message': 'Invalid username/email or password'}), 401
+                    token = create_access_token(identity=user['email'])
+                    return jsonify({'access_token': token, 'role': user['role'], 'message': 'Logged in successfully'}), 200
+
+        return jsonify({'message': 'Invalid username/email or password'}), 401
+    except Exception as e:
+        print(f'Login error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 
 @app.route('/user', methods=['GET'])
@@ -329,7 +403,11 @@ def add_fine():
 def list_users():
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT user_id, email, full_name, role, status FROM users')
+            cur.execute(
+                'SELECT u.user_id, u.email, u.full_name, u.role, u.status, s.student_number, s.proof_file '
+                'FROM users u '
+                'LEFT JOIN students s ON u.user_id = s.user_id'
+            )
             users = cur.fetchall()
     return jsonify(users), 200
 
@@ -377,6 +455,103 @@ def get_stats():
         'borrowed_books': borrowed_books,
         'total_members': total_members
     }), 200
+
+
+@app.route('/uploads/<path:filename>', methods=['GET'])
+@jwt_required()
+def download_upload(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+
+@app.route('/users/<int:user_id>/status', methods=['PUT'])
+@jwt_required()
+def update_user_status(user_id):
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT role FROM users WHERE email=%s', (email,))
+            user = cur.fetchone()
+            if not user or user['role'] != 'admin':
+                return jsonify({'message': 'Permission denied'}), 403
+
+            data = request.get_json() or {}
+            new_status = data.get('status')
+            if not new_status:
+                return jsonify({'message': 'Status is required'}), 400
+
+            cur.execute('UPDATE users SET status=%s WHERE user_id=%s', (new_status, user_id))
+        conn.commit()
+    return jsonify({'message': 'User status updated'}), 200
+
+
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+def delete_user(user_id):
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT role FROM users WHERE email=%s', (email,))
+            user = cur.fetchone()
+            if not user or user['role'] != 'admin':
+                return jsonify({'message': 'Permission denied'}), 403
+
+            cur.execute('DELETE FROM users WHERE user_id=%s', (user_id,))
+        conn.commit()
+    return jsonify({'message': 'User deleted'}), 200
+
+
+@app.route('/books/<int:book_id>', methods=['DELETE'])
+@jwt_required()
+def delete_book(book_id):
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT role FROM users WHERE email=%s', (email,))
+            user = cur.fetchone()
+            if not user or user['role'] not in ('admin', 'librarian'):
+                return jsonify({'message': 'Permission denied'}), 403
+
+            cur.execute('DELETE FROM books WHERE book_id=%s', (book_id,))
+        conn.commit()
+    return jsonify({'message': 'Book deleted'}), 200
+
+
+@app.route('/borrowings/<int:borrow_id>/return', methods=['POST'])
+@jwt_required()
+def process_book_return(borrow_id):
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT br.student_id, br.book_id FROM borrow_records br WHERE br.borrow_id=%s',
+                (borrow_id,)
+            )
+            record = cur.fetchone()
+            if not record:
+                return jsonify({'message': 'Borrowing record not found'}), 404
+
+            cur.execute('UPDATE borrow_records SET status=%s, return_date=%s WHERE borrow_id=%s',
+                       ('returned', datetime.now().date(), borrow_id))
+            cur.execute('UPDATE books SET available_copies=available_copies+1 WHERE book_id=%s', (record['book_id'],))
+            cur.execute('UPDATE students SET borrowed_books_count=GREATEST(0, borrowed_books_count-1) WHERE student_id=%s', (record['student_id'],))
+        conn.commit()
+    return jsonify({'message': 'Book return processed'}), 200
+
+
+@app.route('/fines/<int:fine_id>/pay', methods=['POST'])
+@jwt_required()
+def mark_fine_paid(fine_id):
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT role FROM users WHERE email=%s', (email,))
+            user = cur.fetchone()
+            if not user or user['role'] != 'admin':
+                return jsonify({'message': 'Permission denied'}), 403
+
+            cur.execute('UPDATE fines SET status=%s WHERE fine_id=%s', ('paid', fine_id))
+        conn.commit()
+    return jsonify({'message': 'Fine marked as paid'}), 200
 
 
 # ── FRONTEND SERVING (routes at end so API routes match first) ──

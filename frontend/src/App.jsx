@@ -1,14 +1,14 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import StudentDashboard from './components/StudentDashboard'
+import StudentInterface from './components/StudentInterface'
 import LibrarianDashboard from './components/LibrarianDashboard'
 import AdminDashboard from './components/AdminDashboard'
 
 function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
-  const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'student' })
+  const [formData, setFormData] = useState({ username: '', full_name: '', email: '', password: '', phone: '', address: '', role: 'student', proof: null })
   const [message, setMessage] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState('')
@@ -62,24 +62,46 @@ function App() {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+  const handleFileChange = (e) => {
+    setFormData({ ...formData, proof: e.target.files[0] })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage('')
     try {
-      const endpoint = isLogin ? '/login' : '/register'
-      const payload = isLogin ? { username: formData.username, password: formData.password } : formData
-      const response = await axios.post(endpoint, payload)
-      setMessage(response.data.message)
-      if (response.status === 200 || response.status === 201) {
-        if (isLogin) {
+      if (isLogin) {
+        const response = await axios.post('/login', { username: formData.username, password: formData.password })
+        setMessage(response.data.message)
+        if (response.status === 200 || response.status === 201) {
           localStorage.setItem('token', response.data.access_token)
           axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`
           setUserRole(response.data.role)
           setIsAuthenticated(true)
           await fetchUser()
+          setShowAuth(false)
+          setFormData({ username: '', full_name: '', email: '', password: '', phone: '', address: '', role: 'student', proof: null })
         }
-        setShowAuth(false)
-        setFormData({ username: '', email: '', password: '', role: 'student' })
+      } else {
+        const formPayload = new FormData()
+        formPayload.append('full_name', formData.full_name)
+        formPayload.append('email', formData.email)
+        formPayload.append('password', formData.password)
+        formPayload.append('phone', formData.phone)
+        formPayload.append('address', formData.address)
+        formPayload.append('role', formData.role)
+        if (formData.role === 'student' && formData.proof) {
+          formPayload.append('proof', formData.proof)
+        }
+
+        const response = await axios.post('/register', formPayload, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        setMessage(response.data.message)
+        if (response.status === 201) {
+          setShowAuth(false)
+          setFormData({ username: '', full_name: '', email: '', password: '', phone: '', address: '', role: 'student', proof: null })
+        }
       }
     } catch (error) {
       setMessage(error.response?.data?.message || 'An error occurred')
@@ -97,7 +119,7 @@ function App() {
   if (isAuthenticated) {
     if (userRole === 'admin') return <AdminDashboard user={user} onLogout={handleLogout} />
     if (userRole === 'librarian') return <LibrarianDashboard user={user} onLogout={handleLogout} />
-    return <StudentDashboard user={user} onLogout={handleLogout} />
+    return <StudentInterface user={user} onLogout={handleLogout} />
   }
 
   return (
@@ -183,23 +205,67 @@ function App() {
               {isLogin ? 'Sign in to access your library' : 'Join NashLibrary today — it\'s free'}
             </p>
             <form onSubmit={handleSubmit}>
-              <input
-                type="text"
-                name="username"
-                placeholder="Username"
-                value={formData.username}
-                onChange={handleInputChange}
-                required
-              />
-              {!isLogin && (
+              {isLogin ? (
                 <input
-                  type="email"
-                  name="email"
-                  placeholder="Email address"
-                  value={formData.email}
+                  type="text"
+                  name="username"
+                  placeholder="Username or Email"
+                  value={formData.username}
                   onChange={handleInputChange}
                   required
                 />
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    name="full_name"
+                    placeholder="Full Name"
+                    value={formData.full_name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="phone"
+                    placeholder="Phone Number"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="address"
+                    placeholder="Address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <select name="role" value={formData.role} onChange={handleInputChange} className="select-input">
+                    <option value="student">Student</option>
+                    <option value="user">General User</option>
+                  </select>
+                  {formData.role === 'student' && (
+                    <div className="proof-upload">
+                      <label htmlFor="proof">Proof of Enrollment</label>
+                      <input
+                        type="file"
+                        name="proof"
+                        id="proof"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleFileChange}
+                        required
+                      />
+                    </div>
+                  )}
+                </>
               )}
               <input
                 type="password"

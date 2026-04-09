@@ -1,7 +1,10 @@
 import pymysql
 
+DB_NAME = 'library_system_v2'
+
 conn = pymysql.connect(
-    host='localhost',
+    host='127.0.0.1',
+    port=3307,
     user='root',
     password='',
     charset='utf8mb4'
@@ -10,8 +13,8 @@ conn = pymysql.connect(
 try:
     with conn.cursor() as cur:
         # Drop the database
-        cur.execute('DROP DATABASE IF EXISTS library_system')
-        print('✓ Database library_system has been dropped')
+        cur.execute(f'DROP DATABASE IF EXISTS {DB_NAME}')
+        print(f'Database {DB_NAME} has been dropped')
         
     conn.commit()
     

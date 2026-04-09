@@ -81,7 +81,7 @@ The frontend is located in the `frontend/` directory.
 ## Features
 
 - User registration and authentication
-- Role-based access control (Student, Librarian, Admin)
+- Role-based access control (Admin, Librarian, Student, User)
 - JWT token-based sessions
 - Responsive React frontend
 - MySQL database with SQLAlchemy ORM

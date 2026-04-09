@@ -53,6 +53,37 @@ function AdminDashboard({ user, onLogout }) {
     }
   }
 
+  const handleUserStatusChange = async (userId, newStatus) => {
+    try {
+      await axios.put(`/users/${userId}/status`, { status: newStatus })
+      alert(`User status updated to ${newStatus}`)
+      fetchUsers()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error updating user')
+    }
+  }
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return
+    try {
+      await axios.delete(`/users/${userId}`)
+      alert('User deleted successfully')
+      fetchUsers()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error deleting user')
+    }
+  }
+
+  const handlePayFine = async (fineId) => {
+    try {
+      await axios.post(`/fines/${fineId}/pay`, {})
+      alert('Fine marked as paid')
+      fetchFines()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error processing fine')
+    }
+  }
+
   const panelContent = {
     'System Overview': 'Summary of library performance and system status.',
     'User Management': 'Manage admins, librarians, and student accounts.',
@@ -88,10 +119,22 @@ function AdminDashboard({ user, onLogout }) {
               <h2>System Overview</h2>
               <p>{panelContent['System Overview']}</p>
               <div className="stats-grid">
-                <div className="stat-card"><h4>Total Users</h4><p>{users.length}</p></div>
-                <div className="stat-card"><h4>Active Librarians</h4><p>{users.filter((u) => u.role === 'librarian').length}</p></div>
-                <div className="stat-card"><h4>Books Cataloged</h4><p>{books.length}</p></div>
-                <div className="stat-card"><h4>Open Fines</h4><p>{fines.filter((f) => f.status === 'pending').length}</p></div>
+                <div className="stat-card" onClick={() => setActivePanel('User Management')}>
+                  <h4>TOTAL USERS</h4>
+                  <p style={{fontSize: '2em'}}>{users.length}</p>
+                </div>
+                <div className="stat-card" onClick={() => setActivePanel('User Management')}>
+                  <h4>ACTIVE SESSIONS</h4>
+                  <p style={{fontSize: '2em'}}>{borrowings.length}</p>
+                </div>
+                <div className="stat-card">
+                  <h4>SYSTEM HEALTH</h4>
+                  <p style={{fontSize: '2em'}}>100%</p>
+                </div>
+                <div className="stat-card" onClick={() => setActivePanel('Reports & Analytics')}>
+                  <h4>OPEN FINES</h4>
+                  <p style={{fontSize: '2em'}}>{fines.filter((f) => f.status === 'pending').length}</p>
+                </div>
               </div>
             </>
           )}
@@ -101,11 +144,47 @@ function AdminDashboard({ user, onLogout }) {
               <h2>User Management</h2>
               <p>{panelContent['User Management']}</p>
               <div className="table-card">
-                <ul>
+                <div className="user-table">
                   {users.length ? users.map((u) => (
-                    <li key={u.user_id}>{u.full_name || u.email} ({u.role}) - {u.status}</li>
-                  )) : <li>No users found</li>}
-                </ul>
+                    <div key={u.user_id} className="user-row">
+                      <div className="user-info-cell">
+                        <h4>{u.full_name || u.email}</h4>
+                        <p>{u.email} • <strong>{u.role}</strong> • {u.status}</p>
+                        {u.proof_file && u.status === 'pending' && (
+                          <p><a href={`/uploads/${u.proof_file}`} target="_blank" rel="noopener noreferrer" className="proof-link">View proof</a></p>
+                        )}
+                      </div>
+                      <div className="user-actions">
+                        {u.status === 'pending' ? (
+                          <>
+                            <button className="primary-btn" onClick={() => handleUserStatusChange(u.user_id, 'active')}>
+                              Approve
+                            </button>
+                            <button className="danger-btn" onClick={() => handleUserStatusChange(u.user_id, 'inactive')}>
+                              Reject
+                            </button>
+                          </>
+                        ) : (
+                          <select 
+                            value={u.status}
+                            onChange={(e) => handleUserStatusChange(u.user_id, e.target.value)}
+                            className="status-select"
+                          >
+                            <option value="active">Activate</option>
+                            <option value="inactive">Deactivate</option>
+                            <option value="suspended">Suspend</option>
+                          </select>
+                        )}
+                        <button 
+                          className="danger-btn"
+                          onClick={() => handleDeleteUser(u.user_id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )) : <p>No users found</p>}
+                </div>
               </div>
             </>
           )}
@@ -114,10 +193,22 @@ function AdminDashboard({ user, onLogout }) {
             <>
               <h2>Library Settings</h2>
               <p>{panelContent['Library Settings']}</p>
-              <div className="table-card">
-                <p>Borrow limit: 5 books</p>
-                <p>Fine per day: $0.50</p>
-                <p>Operating hours: 8am - 8pm</p>
+              <div className="settings-card">
+                <div className="setting-item">
+                  <label>Borrow Limit:</label>
+                  <input type="number" defaultValue="5" className="setting-input" />
+                  <button className="primary-btn">Update</button>
+                </div>
+                <div className="setting-item">
+                  <label>Fine Per Day ($):</label>
+                  <input type="number" defaultValue="0.50" step="0.01" className="setting-input" />
+                  <button className="primary-btn">Update</button>
+                </div>
+                <div className="setting-item">
+                  <label>Operating Hours:</label>
+                  <input type="text" defaultValue="8am - 8pm" className="setting-input" />
+                  <button className="primary-btn">Update</button>
+                </div>
               </div>
             </>
           )}
@@ -126,10 +217,41 @@ function AdminDashboard({ user, onLogout }) {
             <>
               <h2>Reports & Analytics</h2>
               <p>{panelContent['Reports & Analytics']}</p>
-              <div className="table-card">
-                <p>Monthly borrow rate: {borrowings.length} records</p>
-                <p>Overdue count: {borrowings.filter((b) => b.status === 'borrowed').length}</p>
-                <p>Fine records: {fines.length}</p>
+              <div className="analytics-section">
+                <div className="analytics-card">
+                  <h3>Monthly Borrowing Rate</h3>
+                  <p style={{fontSize: '1.5em'}}>{borrowings.length} records</p>
+                </div>
+                <div className="analytics-card">
+                  <h3>Overdue Books</h3>
+                  <p style={{fontSize: '1.5em'}}>{borrowings.filter((b) => b.status === 'borrowed').length}</p>
+                </div>
+                <div className="analytics-card">
+                  <h3>Fine Records</h3>
+                  <p style={{fontSize: '1.5em'}}>{fines.length}</p>
+                </div>
+                <div className="analytics-card">
+                  <h3>Active Users</h3>
+                  <p style={{fontSize: '1.5em'}}>{users.filter(u => u.status === 'active').length}</p>
+                </div>
+              </div>
+              <div className="fines-section">
+                <h3>Outstanding Fines</h3>
+                {fines.filter(f => f.status === 'pending').length > 0 ? (
+                  <div className="fines-list">
+                    {fines.filter(f => f.status === 'pending').map((fine) => (
+                      <div key={fine.fine_id} className="fine-item">
+                        <div>
+                          <p><strong>{fine.student_email}</strong></p>
+                          <p>Amount: ${fine.amount}</p>
+                        </div>
+                        <button className="primary-btn" onClick={() => handlePayFine(fine.fine_id)}>
+                          Mark as Paid
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p>No outstanding fines</p>}
               </div>
             </>
           )}
@@ -138,44 +260,17 @@ function AdminDashboard({ user, onLogout }) {
             <>
               <h2>System Logs</h2>
               <p>{panelContent['System Logs']}</p>
-              <div className="table-card">
-                <ul>
-                  <li>2026-03-30 10:00 - Admin logged in</li>
-                  <li>2026-03-30 11:15 - Book added: 'Clean Code'</li>
-                  <li>2026-03-30 12:30 - Loan renewed: user student1</li>
+              <div className="logs-card">
+                <ul className="logs-list">
+                  <li>2026-04-10 12:30 - Admin accessed user management</li>
+                  <li>2026-04-10 12:15 - Book inventory updated</li>
+                  <li>2026-04-10 11:45 - New student registered</li>
+                  <li>2026-04-10 11:30 - Fine payment processed</li>
+                  <li>2026-04-10 11:00 - Librarian account deactivated</li>
                 </ul>
               </div>
             </>
           )}
-
-          <div className="stats-grid">
-            <div className="stat-card" onClick={() => setActivePanel('User Management')}>
-              <h4>Total Users</h4>
-              <p>{users.length}</p>
-            </div>
-            <div className="stat-card" onClick={() => setActivePanel('System Logs')}>
-              <h4>Active Sessions</h4>
-              <p>{borrowings.length}</p>
-            </div>
-            <div className="stat-card" onClick={() => setActivePanel('System Overview')}>
-              <h4>System Health</h4>
-              <p>{Math.floor((books.filter((book) => book.available_copies > 0).length / (books.length || 1)) * 100)}%</p>
-            </div>
-            <div className="stat-card" onClick={() => setActivePanel('Reports & Analytics')}>
-              <h4>Open Fines</h4>
-              <p>{fines.filter((f) => f.status === 'pending').length}</p>
-            </div>
-          </div>
-
-          <div className="recent-activity">
-            <h3>System Activity</h3>
-            <ul>
-              <li>New librarian account created</li>
-              <li>System backup completed</li>
-              <li>User role updated for John Doe</li>
-              <li>Library hours updated</li>
-            </ul>
-          </div>
         </main>
       </div>
     </div>

@@ -1,11 +1,13 @@
 import pymysql
 from werkzeug.security import generate_password_hash
+from backend.config import Config
 
 conn = pymysql.connect(
-    host='localhost',
-    user='root',
-    password='',
-    database='library_system',
+    host=Config.DB_HOST,
+    port=int(Config.DB_PORT),
+    user=Config.DB_USER,
+    password=Config.DB_PASSWORD,
+    database=Config.DB_NAME,
     cursorclass=pymysql.cursors.DictCursor,
     charset='utf8mb4'
 )

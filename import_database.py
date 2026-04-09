@@ -1,8 +1,11 @@
 import pymysql
 
+DB_NAME = 'library_system_v2'
+
 # Create database first
 conn = pymysql.connect(
-    host='localhost',
+    host='127.0.0.1',
+    port=3307,
     user='root',
     password='',
     charset='utf8mb4'
@@ -10,18 +13,19 @@ conn = pymysql.connect(
 
 try:
     with conn.cursor() as cur:
-        cur.execute('CREATE DATABASE IF NOT EXISTS library_system')
+        cur.execute(f'CREATE DATABASE IF NOT EXISTS {DB_NAME}')
     conn.commit()
-    print('✓ Database created')
+    print(f'✓ Database {DB_NAME} created')
 finally:
     conn.close()
 
 # Now connect to the database and execute the schema
 conn = pymysql.connect(
-    host='localhost',
+    host='127.0.0.1',
+    port=3307,
     user='root',
     password='',
-    database='library_system',
+    database=DB_NAME,
     charset='utf8mb4',
     autocommit=False
 )
@@ -56,7 +60,7 @@ try:
                     full_name VARCHAR(100) NOT NULL,
                     phone VARCHAR(20),
                     address TEXT,
-                    role ENUM('admin', 'librarian', 'student') NOT NULL,
+                    role ENUM('admin', 'librarian', 'student', 'user') NOT NULL,
                     status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

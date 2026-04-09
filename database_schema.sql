@@ -22,7 +22,7 @@ CREATE TABLE users (
     full_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     address TEXT,
-    role ENUM('admin', 'librarian', 'student') NOT NULL,
+    role ENUM('admin', 'librarian', 'student', 'user') NOT NULL,
     status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

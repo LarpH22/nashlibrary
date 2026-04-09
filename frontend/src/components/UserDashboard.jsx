@@ -2,7 +2,7 @@ import '../App.css'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-function LibrarianDashboard({ user, onLogout }) {
+function UserDashboard({ user, onLogout }) {
   const [activePanel, setActivePanel] = useState('Manage Books')
   const [books, setBooks] = useState([])
   const [borrowings, setBorrowings] = useState([])
@@ -104,9 +104,9 @@ function LibrarianDashboard({ user, onLogout }) {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1>Librarian Dashboard</h1>
+        <h1>User Dashboard</h1>
         <div className="user-info">
-          <span>Welcome, {user?.full_name || user?.username || 'Librarian'}</span>
+          <span>Welcome, {user?.full_name || user?.username || 'User'}</span>
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </div>
       </header>
@@ -317,4 +317,4 @@ function LibrarianDashboard({ user, onLogout }) {
   )
 }
 
-export default LibrarianDashboard
+export default UserDashboard
