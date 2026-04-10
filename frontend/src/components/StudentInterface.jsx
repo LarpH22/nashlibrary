@@ -75,7 +75,7 @@ function StudentInterface({ user, onLogout }) {
   return (
     <div className="student-interface">
       <header className="interface-header">
-        <h1>Nash Library</h1>
+        <h1>LIBRX</h1>
         <div className="header-right">
           <span>Welcome, {user?.full_name || 'Student'}</span>
           <button onClick={onLogout} className="logout-btn">Logout</button>

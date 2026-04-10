@@ -11,7 +11,7 @@ conn = pymysql.connect(
     charset='utf8mb4'
 )
 with conn.cursor() as cur:
-    cur.execute("SELECT email, role, status FROM users WHERE email='user1@library.com'")
+    cur.execute("SELECT email, role, status FROM users WHERE email='admin@library.com'")
     user = cur.fetchone()
     print(user)
 conn.close()

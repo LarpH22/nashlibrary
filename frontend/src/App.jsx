@@ -127,12 +127,8 @@ function App() {
 
       {/* ── HEADER ── */}
       <div className="header-top">
-        <div className="top-header">
-          <span>📞 +12 345 678 000</span>
-          <span>✉️ support@nashlibrary.com</span>
-        </div>
         <nav className="main-nav">
-          <h1 className="brand">Nash<span>Library</span></h1>
+          <h1 className="brand">LIBRX</h1>
           <ul className="nav-links">
             <li>Home</li>
             <li>Books</li>
@@ -154,8 +150,11 @@ function App() {
             Digital Library System
           </div>
           <h1>
-            Your Gateway to<br />
-            <em>Knowledge</em> &amp; Stories
+            From Curiosity to
+            <br />
+            <span className="knowledge-text">
+              Kn<span className="lightbulb" aria-label="light bulb">o</span>wledge
+            </span>
           </h1>
           <p>
             Explore thousands of books, borrow online, and manage your reading
@@ -191,8 +190,8 @@ function App() {
 
       {/* ── FOOTER ── */}
       <footer className="site-footer">
-        <div className="footer-brand">Nash<span>Library</span></div>
-        <span>© {new Date().getFullYear()} NashLibrary. All rights reserved.</span>
+        <div className="footer-brand">LIBRX</div>
+        <span>© {new Date().getFullYear()} LIBRX. All rights reserved.</span>
         <span>📞 +12 345 678 000 &nbsp;·&nbsp; ✉️ support@nashlibrary.com</span>
       </footer>
 
@@ -204,11 +203,12 @@ function App() {
             <p className="auth-subtitle">
               {isLogin ? 'Sign in to access your library' : 'Join NashLibrary today — it\'s free'}
             </p>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} autoComplete="on">
               {isLogin ? (
                 <input
                   type="text"
                   name="username"
+                  autoComplete="username"
                   placeholder="Username or Email"
                   value={formData.username}
                   onChange={handleInputChange}
@@ -219,6 +219,7 @@ function App() {
                   <input
                     type="text"
                     name="full_name"
+                    autoComplete="name"
                     placeholder="Full Name"
                     value={formData.full_name}
                     onChange={handleInputChange}
@@ -227,14 +228,16 @@ function App() {
                   <input
                     type="email"
                     name="email"
+                    autoComplete="email"
                     placeholder="Email address"
                     value={formData.email}
                     onChange={handleInputChange}
                     required
                   />
                   <input
-                    type="text"
+                    type="tel"
                     name="phone"
+                    autoComplete="tel"
                     placeholder="Phone Number"
                     value={formData.phone}
                     onChange={handleInputChange}
@@ -243,6 +246,7 @@ function App() {
                   <input
                     type="text"
                     name="address"
+                    autoComplete="street-address"
                     placeholder="Address"
                     value={formData.address}
                     onChange={handleInputChange}
@@ -270,6 +274,7 @@ function App() {
               <input
                 type="password"
                 name="password"
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleInputChange}

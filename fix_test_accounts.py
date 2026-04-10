@@ -19,7 +19,8 @@ def get_connection():
 conn = get_connection()
 with conn.cursor() as cur:
     cur.execute("SET FOREIGN_KEY_CHECKS=0")
-    cur.execute("DELETE FROM audit_logs WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE '%library.com')")
+    cur.execute("DELETE FROM fines WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE '%library.com')")
+    cur.execute("DELETE FROM borrow_records WHERE student_id IN (SELECT student_id FROM students WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE '%library.com'))")
     cur.execute("DELETE FROM students WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE '%library.com')")
     cur.execute("DELETE FROM librarians WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE '%library.com')")
     cur.execute("DELETE FROM admins WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE '%library.com')")

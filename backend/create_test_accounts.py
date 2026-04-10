@@ -29,7 +29,6 @@ def create_test_accounts():
         {'full_name': 'John Admin', 'email': 'admin@library.com', 'password': 'admin123', 'role': 'admin'},
         {'full_name': 'Jane Librarian', 'email': 'librarian1@library.com', 'password': 'librarian123', 'role': 'librarian'},
         {'full_name': 'Mark Librarian', 'email': 'librarian2@library.com', 'password': 'librarian123', 'role': 'librarian'},
-        {'full_name': 'General User', 'email': 'user1@library.com', 'password': 'user123', 'role': 'user'},
         {'full_name': 'Bob Student', 'email': 'student1@library.com', 'password': 'student123', 'role': 'student'},
         {'full_name': 'Alice Student', 'email': 'student2@library.com', 'password': 'student123', 'role': 'student'},
         {'full_name': 'Charlie Student', 'email': 'student3@library.com', 'password': 'student123', 'role': 'student'}

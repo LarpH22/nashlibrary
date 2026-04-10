@@ -35,7 +35,7 @@ with open('database_schema.sql', 'r', encoding='utf8') as f:
 # Connect to MySQL without specifying a database initially
 conn = pymysql.connect(
     host='127.0.0.1',
-    port=3307,
+    port=3306,
     user='root',
     password='',
     charset='utf8mb4'
@@ -50,7 +50,7 @@ try:
     conn.close()
     conn = pymysql.connect(
         host='127.0.0.1',
-        port=3307,
+        port=3306,
         user='root',
         password='',
         database=DB_NAME,
