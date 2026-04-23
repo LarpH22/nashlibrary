@@ -60,7 +60,7 @@ This folder contains information about all test accounts available in the Nash L
 ### Student 1
 
 **Role:** Student  
-**Email:** `student1@library.com`  
+**Email:** `tsudent1@library.com`  
 **Password:** `student123`  
 **Student Number:** `STU2024001`  
 **Department:** Computer Science  

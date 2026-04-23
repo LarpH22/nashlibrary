@@ -1,2 +1,2 @@
-ALTER USER 'root'@'localhost' IDENTIFIED BY '';
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'MySQLRoot123!';
 FLUSH PRIVILEGES;

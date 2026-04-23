@@ -13,7 +13,7 @@ try:
     from backend.config import Config
 except ModuleNotFoundError:
     from config import Config
-
+ 
 import re
 
 EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -110,6 +110,15 @@ try:
 except Exception as e:
     print(f'Warning: schema ensure failed: {e}')
 
+if Config.DB_USER == 'root' and Config.DB_PASSWORD is None:
+    print('Error: DB_PASSWORD is not set for MySQL root user.')
+    print('Create a .env file in the repository root or set DB_PASSWORD in your environment.')
+    print('Hint: copy .env.example to .env and update DB_PASSWORD before restarting.')
+    exit(1)
+
+if Config.DB_USER == 'root' and Config.DB_PASSWORD == '':
+    print('Warning: DB_PASSWORD is blank for MySQL root user. This is insecure but allowed if your MySQL root account has no password.')
+
 # Test connection
 try:
     conn = get_connection()
@@ -118,6 +127,7 @@ try:
     print('MySQL connection successful')
 except Exception as e:
     print(f'MySQL connection failed: {e}')
+    print('Check DB_HOST, DB_PORT, DB_USER, and DB_PASSWORD settings in your environment or .env file.')
     exit(1)
 
 
@@ -232,7 +242,7 @@ def get_user():
     email = get_jwt_identity()
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute('SELECT user_id, email, full_name, phone, role, status FROM users WHERE email=%s', (email,))
+            cur.execute('SELECT user_id, email, full_name, phone, address, role, status FROM users WHERE email=%s', (email,))
             user = cur.fetchone()
             if user:
                 return jsonify({
@@ -241,10 +251,131 @@ def get_user():
                     'username': user['full_name'],
                     'full_name': user['full_name'],
                     'phone': user['phone'],
+                    'address': user.get('address'),
                     'role': user['role'],
                     'status': user['status']
                 }), 200
     return jsonify({'message': 'User not found'}), 404
+
+
+@app.route('/student/profile', methods=['GET'])
+@jwt_required()
+def get_student_profile():
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT u.user_id, u.email, u.full_name, u.phone, u.address, u.status, '
+                's.student_number, s.department, s.year_level, s.section, s.borrowed_books_count, '
+                's.total_fines, s.library_card_number, s.expiration_date '
+                'FROM users u '
+                'LEFT JOIN students s ON u.user_id = s.user_id '
+                'WHERE u.email = %s',
+                (email,)
+            )
+            student = cur.fetchone()
+            if not student:
+                return jsonify({'message': 'Student profile not found'}), 404
+            return jsonify({
+                'user_id': student['user_id'],
+                'email': student['email'],
+                'full_name': student['full_name'],
+                'phone': student['phone'],
+                'address': student['address'],
+                'status': student['status'],
+                'student_number': student['student_number'],
+                'department': student['department'],
+                'year_level': student['year_level'],
+                'section': student['section'],
+                'borrowed_books_count': student['borrowed_books_count'],
+                'total_fines': float(student['total_fines'] or 0),
+                'library_card_number': student['library_card_number'],
+                'expiration_date': student['expiration_date'].isoformat() if student['expiration_date'] else None
+            }), 200
+
+
+@app.route('/student/profile', methods=['PUT'])
+@jwt_required()
+def update_student_profile():
+    email = get_jwt_identity()
+    data = request.get_json() or {}
+    new_phone = data.get('phone')
+    new_address = data.get('address')
+
+    if new_phone is None and new_address is None:
+        return jsonify({'message': 'No update fields provided'}), 400
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT user_id FROM users WHERE email=%s', (email,))
+            user = cur.fetchone()
+            if not user:
+                return jsonify({'message': 'User not found'}), 404
+
+            if new_phone is not None:
+                cur.execute('UPDATE users SET phone=%s WHERE user_id=%s', (new_phone, user['user_id']))
+            if new_address is not None:
+                cur.execute('UPDATE users SET address=%s WHERE user_id=%s', (new_address, user['user_id']))
+        conn.commit()
+
+    return jsonify({'message': 'Profile updated successfully'}), 200
+
+
+@app.route('/student/fines', methods=['GET'])
+@jwt_required()
+def get_student_fines():
+    """Get current student's fines with details"""
+    email = get_jwt_identity()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Get user and student info
+            cur.execute('SELECT user_id FROM users WHERE email=%s', (email,))
+            user = cur.fetchone()
+            if not user:
+                return jsonify({'message': 'User not found'}), 404
+
+            cur.execute('SELECT student_id FROM students WHERE user_id=%s', (user['user_id'],))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({'message': 'Student not found'}), 404
+
+            # Get all fines for this student with book details
+            cur.execute('''
+                SELECT 
+                    f.fine_id,
+                    f.amount,
+                    f.status,
+                    f.reason,
+                    f.issued_date,
+                    f.paid_date,
+                    b.title AS book_title,
+                    br.due_date,
+                    br.return_date,
+                    DATEDIFF(NOW(), f.issued_date) as days_overdue
+                FROM fines f
+                LEFT JOIN borrow_records br ON f.borrow_id = br.borrow_id
+                LEFT JOIN books b ON br.book_id = b.book_id
+                WHERE f.student_id=%s
+                ORDER BY f.issued_date DESC
+            ''', (student['student_id'],))
+            
+            fines = cur.fetchall()
+            
+            # Calculate summary
+            total_pending = 0
+            total_paid = 0
+            for fine in fines:
+                if fine['status'] == 'pending':
+                    total_pending += fine['amount']
+                elif fine['status'] == 'paid':
+                    total_paid += fine['amount']
+            
+            return jsonify({
+                'fines': fines,
+                'total_pending': float(total_pending),
+                'total_paid': float(total_paid),
+                'total_fines': float(total_pending + total_paid)
+            }), 200
 
 
 @app.route('/books', methods=['GET'])
@@ -418,7 +549,7 @@ def list_borrowings():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                'SELECT br.borrow_id, u.email AS student_email, b.title AS book_title, br.borrow_date, br.due_date, br.return_date, br.status '
+                'SELECT br.borrow_id, u.email AS student_email, b.title AS book_title, b.category AS category, br.borrow_date, br.due_date, br.return_date, br.status '
                 'FROM borrow_records br '
                 'LEFT JOIN students s ON br.student_id = s.student_id '
                 'LEFT JOIN users u ON s.user_id = u.user_id '
