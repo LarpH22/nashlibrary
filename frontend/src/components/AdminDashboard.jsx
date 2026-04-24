@@ -20,36 +20,40 @@ function AdminDashboard({ user, onLogout }) {
   const fetchBooks = async () => {
     try {
       const response = await axios.get('/books')
-      setBooks(response.data)
+      setBooks(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Error fetching books:', error)
+      setBooks([])
     }
   }
 
   const fetchBorrowings = async () => {
     try {
       const response = await axios.get('/borrowings')
-      setBorrowings(response.data)
+      setBorrowings(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Error fetching borrowings:', error)
+      setBorrowings([])
     }
   }
 
   const fetchUsers = async () => {
     try {
       const response = await axios.get('/users')
-      setUsers(response.data)
+      setUsers(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Error fetching users:', error)
+      setUsers([])
     }
   }
 
   const fetchFines = async () => {
     try {
       const response = await axios.get('/fines')
-      setFines(response.data)
+      setFines(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Error fetching fines:', error)
+      setFines([])
     }
   }
 
@@ -93,6 +97,11 @@ function AdminDashboard({ user, onLogout }) {
     'System Health': 'Monitor uptime, error rates, and server availability.'
   }
 
+  const booksList = Array.isArray(books) ? books : []
+  const borrowingsList = Array.isArray(borrowings) ? borrowings : []
+  const usersList = Array.isArray(users) ? users : []
+  const finesList = Array.isArray(fines) ? fines : []
+
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
@@ -121,11 +130,11 @@ function AdminDashboard({ user, onLogout }) {
               <div className="stats-grid">
                 <div className="stat-card" onClick={() => setActivePanel('User Management')}>
                   <h4>TOTAL USERS</h4>
-                  <p style={{fontSize: '2em'}}>{users.length}</p>
+                  <p style={{fontSize: '2em'}}>{usersList.length}</p>
                 </div>
                 <div className="stat-card" onClick={() => setActivePanel('User Management')}>
                   <h4>ACTIVE SESSIONS</h4>
-                  <p style={{fontSize: '2em'}}>{borrowings.length}</p>
+                  <p style={{fontSize: '2em'}}>{borrowingsList.length}</p>
                 </div>
                 <div className="stat-card">
                   <h4>SYSTEM HEALTH</h4>
@@ -133,7 +142,7 @@ function AdminDashboard({ user, onLogout }) {
                 </div>
                 <div className="stat-card" onClick={() => setActivePanel('Reports & Analytics')}>
                   <h4>OPEN FINES</h4>
-                  <p style={{fontSize: '2em'}}>{fines.filter((f) => f.status === 'pending').length}</p>
+                  <p style={{fontSize: '2em'}}>{finesList.filter((f) => f.status === 'pending').length}</p>
                 </div>
               </div>
             </>
@@ -145,7 +154,7 @@ function AdminDashboard({ user, onLogout }) {
               <p>{panelContent['User Management']}</p>
               <div className="table-card">
                 <div className="user-table">
-                  {users.length ? users.map((u) => (
+                  {usersList.length ? usersList.map((u) => (
                     <div key={u.user_id} className="user-row">
                       <div className="user-info-cell">
                         <h4>{u.full_name || u.email}</h4>
@@ -220,26 +229,26 @@ function AdminDashboard({ user, onLogout }) {
               <div className="analytics-section">
                 <div className="analytics-card">
                   <h3>Monthly Borrowing Rate</h3>
-                  <p style={{fontSize: '1.5em'}}>{borrowings.length} records</p>
+                  <p style={{fontSize: '1.5em'}}>{borrowingsList.length} records</p>
                 </div>
                 <div className="analytics-card">
                   <h3>Overdue Books</h3>
-                  <p style={{fontSize: '1.5em'}}>{borrowings.filter((b) => b.status === 'borrowed').length}</p>
+                  <p style={{fontSize: '1.5em'}}>{borrowingsList.filter((b) => b.status === 'borrowed').length}</p>
                 </div>
                 <div className="analytics-card">
                   <h3>Fine Records</h3>
-                  <p style={{fontSize: '1.5em'}}>{fines.length}</p>
+                  <p style={{fontSize: '1.5em'}}>{finesList.length}</p>
                 </div>
                 <div className="analytics-card">
                   <h3>Active Users</h3>
-                  <p style={{fontSize: '1.5em'}}>{users.filter(u => u.status === 'active').length}</p>
+                  <p style={{fontSize: '1.5em'}}>{usersList.filter(u => u.status === 'active').length}</p>
                 </div>
               </div>
               <div className="fines-section">
                 <h3>Outstanding Fines</h3>
-                {fines.filter(f => f.status === 'pending').length > 0 ? (
+                {finesList.filter(f => f.status === 'pending').length > 0 ? (
                   <div className="fines-list">
-                    {fines.filter(f => f.status === 'pending').map((fine) => (
+                    {finesList.filter(f => f.status === 'pending').map((fine) => (
                       <div key={fine.fine_id} className="fine-item">
                         <div>
                           <p><strong>{fine.student_email}</strong></p>

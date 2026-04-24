@@ -1,6 +1,8 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { Search, Users, ClipboardList, Bell } from 'lucide-react'
+
 import StudentInterface from './components/StudentInterface'
 import LibrarianDashboard from './components/LibrarianDashboard'
 import AdminDashboard from './components/AdminDashboard'
@@ -8,115 +10,184 @@ import AdminDashboard from './components/AdminDashboard'
 function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
-  const [formData, setFormData] = useState({ username: '', full_name: '', email: '', password: '', phone: '', address: '', role: 'student', proof: null })
+
+  const [formData, setFormData] = useState({
+    username: '',
+    full_name: '',
+    email: '',
+    password: '',
+    phone: '',
+    address: '',
+    role: 'student',
+    proof: null
+  })
+
   const [message, setMessage] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
   const [userRole, setUserRole] = useState('')
   const [user, setUser] = useState(null)
-  const [statsData, setStatsData] = useState({ total_books: 0, available_books: 0, borrowed_books: 0, total_members: 0 })
+
+  const [statsData, setStatsData] = useState({
+    total_books: 0,
+    available_books: 0,
+    borrowed_books: 0,
+    total_members: 0
+  })
+
+  const headerLinks = [
+    { label: 'Home', target: 'home' },
+    { label: 'Books', target: 'books' },
+    { label: 'Find Books', target: 'books' },
+    { label: 'About Us', target: 'about-us' },
+    { label: 'Contact', target: 'contact' }
+  ]
+
+  const handleScrollToSection = (target) => {
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token =
+      localStorage.getItem('token') ||
+      localStorage.getItem('access_token')
+
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       fetchUser()
     }
+
     fetchStats()
   }, [])
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get('/stats')
-      setStatsData(response.data)
-    } catch (error) {
-      console.error('Error fetching stats:', error)
+      const res = await axios.get('/stats')
+      setStatsData(res.data)
+    } catch (err) {
+      console.error('Stats error:', err)
     }
   }
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get('/user')
-      setUser(response.data)
-      setUserRole(response.data.role)
+      const res = await axios.get('/user')
+      setUser(res.data)
+      setUserRole(res.data.role)
       setIsAuthenticated(true)
-    } catch (error) {
+    } catch (err) {
       localStorage.removeItem('token')
+      localStorage.removeItem('access_token')
+      delete axios.defaults.headers.common['Authorization']
       setIsAuthenticated(false)
     }
   }
 
   const stats = [
-    { title: 'Total Books', value: (statsData.total_books || 0).toLocaleString(), suffix: '+' },
-    { title: 'Available Now', value: (statsData.available_books || 0).toLocaleString(), suffix: '' },
-    { title: 'Borrowed', value: (statsData.borrowed_books || 0).toLocaleString(), suffix: '' },
-    { title: 'Members', value: (statsData.total_members || 0).toLocaleString(), suffix: '+' }
+    { title: 'Total Books', value: statsData.total_books.toLocaleString(), suffix: '+' },
+    { title: 'Available Now', value: statsData.available_books.toLocaleString(), suffix: '' },
+    { title: 'Borrowed', value: statsData.borrowed_books.toLocaleString(), suffix: '' },
+    { title: 'Members', value: statsData.total_members.toLocaleString(), suffix: '+' }
   ]
 
   const features = [
-    { icon: '📚', title: 'Wide Collection', desc: 'Thousands of titles across all genres and categories, updated regularly.' },
-    { icon: '🔍', title: 'Easy Search', desc: 'Find exactly what you need with fast, accurate search and filter tools.' },
-    { icon: '📋', title: 'Online Borrowing', desc: 'Borrow books and track due dates — all managed in one place.' }
+    { icon: <Search size={24} />, title: 'Easy Book Search', desc: 'Quickly find books using smart filters.' },
+    { icon: <Users size={24} />, title: 'User Management', desc: 'Separate access for admins, librarians, and students.' },
+    { icon: <ClipboardList size={24} />, title: 'Borrow Tracking', desc: 'Monitor borrowed and returned books with ease.' },
+    { icon: <Bell size={24} />, title: 'Notifications', desc: 'Get updates for due dates and availability.' }
   ]
 
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
   }
 
   const handleFileChange = (e) => {
-    setFormData({ ...formData, proof: e.target.files[0] })
+    setFormData((prev) => ({
+      ...prev,
+      proof: e.target.files?.[0] || null
+    }))
+  }
+
+  const resetForm = () => {
+    setFormData({
+      username: '',
+      full_name: '',
+      email: '',
+      password: '',
+      phone: '',
+      address: '',
+      role: 'student',
+      proof: null
+    })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage('')
+
     try {
       if (isLogin) {
-        const response = await axios.post('/login', { username: formData.username, password: formData.password })
-        setMessage(response.data.message)
-        if (response.status === 200 || response.status === 201) {
-          localStorage.setItem('token', response.data.access_token)
-          axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`
-          setUserRole(response.data.role)
-          setIsAuthenticated(true)
-          await fetchUser()
-          setShowAuth(false)
-          setFormData({ username: '', full_name: '', email: '', password: '', phone: '', address: '', role: 'student', proof: null })
-        }
+        const res = await axios.post('/login', {
+          username: formData.username,
+          password: formData.password
+        })
+
+        const token = res.data.access_token
+
+        localStorage.setItem('token', token)
+        localStorage.setItem('access_token', token)
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+        setUserRole(res.data.role)
+        setIsAuthenticated(true)
+        setShowDashboard(true)
+
+        await fetchUser()
+
+        setShowAuth(false)
+        resetForm()
       } else {
-        const formPayload = new FormData()
-        formPayload.append('full_name', formData.full_name)
-        formPayload.append('email', formData.email)
-        formPayload.append('password', formData.password)
-        formPayload.append('phone', formData.phone)
-        formPayload.append('address', formData.address)
-        formPayload.append('role', formData.role)
+        const data = new FormData()
+
+        Object.entries(formData).forEach(([key, value]) => {
+          if (key !== 'proof') data.append(key, value)
+        })
+
         if (formData.role === 'student' && formData.proof) {
-          formPayload.append('proof', formData.proof)
+          data.append('proof', formData.proof)
         }
 
-        const response = await axios.post('/register', formPayload, {
+        const res = await axios.post('/register', data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
-        setMessage(response.data.message)
-        if (response.status === 201) {
+
+        setMessage(res.data.message)
+
+        if (res.status === 201) {
           setShowAuth(false)
-          setFormData({ username: '', full_name: '', email: '', password: '', phone: '', address: '', role: 'student', proof: null })
+          resetForm()
         }
       }
-    } catch (error) {
-      setMessage(error.response?.data?.message || 'An error occurred')
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Something went wrong')
     }
   }
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
     delete axios.defaults.headers.common['Authorization']
+
     setIsAuthenticated(false)
+    setShowDashboard(false)
     setUserRole('')
     setUser(null)
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && showDashboard) {
     if (userRole === 'admin') return <AdminDashboard user={user} onLogout={handleLogout} />
     if (userRole === 'librarian') return <LibrarianDashboard user={user} onLogout={handleLogout} />
     return <StudentInterface user={user} onLogout={handleLogout} />
@@ -125,171 +196,228 @@ function App() {
   return (
     <div className="online-library-home">
 
-      {/* ── HEADER ── */}
-      <div className="header-top">
-        <nav className="main-nav">
-          <h1 className="brand">LIBRX</h1>
-          <ul className="nav-links">
-            <li>Home</li>
-            <li>Books</li>
-            <li>Find Books</li>
-            <li>About Us</li>
-            <li>Contact</li>
-            <li className="nav-cta" onClick={() => setShowAuth(true)}>Sign In</li>
-          </ul>
-        </nav>
-      </div>
-
-      {/* ── HERO ── */}
-      <section className="hero-home">
-        <div className="hero-bg" />
-        <div className="hero-overlay" />
-        <div className="hero-content">
-          <div className="hero-eyebrow">
-            <span className="hero-eyebrow-dot" />
-            Digital Library System
-          </div>
-          <h1>
-            From Curiosity to
-            <br />
-            <span className="knowledge-text">
-              Kn<span className="lightbulb" aria-label="light bulb">o</span>wledge
-            </span>
-          </h1>
-          <p>
-            Explore thousands of books, borrow online, and manage your reading
-            journey — all from one place.
-          </p>
-          <div className="hero-cta-wrap">
-            <button className="primary-cta" onClick={() => setShowAuth(true)}>Get Started Free</button>
-            <button className="secondary-cta">Browse Collection</button>
+      <header className="site-header">
+        <div className="brand-area">
+          <div className="brand-mark">📚</div>
+          <div className="brand-copy">
+            <span className="brand-name">Nash Library</span>
+            <span className="brand-tag">Access books anytime, anywhere</span>
           </div>
         </div>
-      </section>
 
-      {/* ── STATS ── */}
-      <section className="stats-section">
-        {stats.map((s) => (
-          <div className="stat-tile" key={s.title}>
-            <p>{s.value}<span>{s.suffix}</span></p>
-            <h4>{s.title}</h4>
+        <nav className="site-nav">
+          <ul className="nav-links">
+            {headerLinks.map((link) => (
+              <li key={link.target}>
+                <button
+                  type="button"
+                  className="nav-link"
+                  onClick={() => handleScrollToSection(link.target)}
+                >
+                  {link.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="auth-actions">
+          {isAuthenticated ? (
+            <>
+              <button type="button" className="secondary-btn" onClick={() => setShowDashboard(true)}>
+                Go to Dashboard
+              </button>
+              <button type="button" className="secondary-btn" onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="secondary-btn" onClick={() => { setIsLogin(true); setShowAuth(true) }}>
+                Login
+              </button>
+              <button type="button" className="primary-btn" onClick={() => { setIsLogin(false); setShowAuth(true) }}>
+                Sign Up
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+
+      <main>
+        <section id="home" className="hero-section">
+          <div className="hero-card">
+            <div className="hero-copy">
+              <h1>Access Knowledge Anytime, Anywhere</h1>
+              <p>Search, borrow, and manage books in one modern platform built for students, librarians, and admins.</p>
+              <div className="hero-actions">
+                <button type="button" className="primary-btn" onClick={() => setShowAuth(true)}>Get Started</button>
+                <button type="button" className="secondary-btn" onClick={() => handleScrollToSection('books')}>Explore Books</button>
+              </div>
+            </div>
+            <div className="hero-visual">
+              <div className="hero-shape" />
+              <div className="book-stack">
+                <div className="stack-card card-1" />
+                <div className="stack-card card-2" />
+                <div className="stack-card card-3" />
+                <div className="stack-card card-4" />
+              </div>
+            </div>
           </div>
-        ))}
-      </section>
+        </section>
 
-      {/* ── FEATURES ── */}
-      <section className="features-section">
-        {features.map((f) => (
-          <div className="feature-card" key={f.title}>
-            <div className="feature-icon">{f.icon}</div>
-            <h3>{f.title}</h3>
-            <p>{f.desc}</p>
+        <section id="about-us" className="features-section">
+          <div className="section-head">
+            <div>
+              <p className="section-label">What we offer</p>
+              <h2>Library tools built for modern learning</h2>
+            </div>
           </div>
-        ))}
-      </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="site-footer">
-        <div className="footer-brand">LIBRX</div>
-        <span>© {new Date().getFullYear()} LIBRX. All rights reserved.</span>
-        <span>📞 +12 345 678 000 &nbsp;·&nbsp; ✉️ support@nashlibrary.com</span>
-      </footer>
+          <div className="feature-grid">
+            {features.map((f) => (
+              <div className="feature-card" key={f.title}>
+                <div className="feature-icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* ── AUTH MODAL ── */}
+        <section id="books" className="stats-section">
+          <div className="section-head">
+            <div>
+              <p className="section-label">Library metrics</p>
+              <h2>Instant insight into your collection</h2>
+            </div>
+          </div>
+
+          <div className="stats-grid">
+            {stats.map((s) => (
+              <div className="stat-tile" key={s.title}>
+                <p>{s.value}<span>{s.suffix}</span></p>
+                <h4>{s.title}</h4>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <footer id="contact" className="site-footer">
+          © {new Date().getFullYear()} Nash Library
+        </footer>
+      </main>
+
       {showAuth && (
         <div className="auth-modal">
           <div className="auth-form">
-            <h3>{isLogin ? 'Welcome Back' : 'Create Account'}</h3>
-            <p className="auth-subtitle">
-              {isLogin ? 'Sign in to access your library' : 'Join NashLibrary today — it\'s free'}
-            </p>
-            <form onSubmit={handleSubmit} autoComplete="on">
+            <h3>{isLogin ? 'Login' : 'Register'}</h3>
+
+            <form onSubmit={handleSubmit}>
               {isLogin ? (
-                <input
-                  type="text"
-                  name="username"
-                  autoComplete="username"
-                  placeholder="Username or Email"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  required
-                />
+                <>
+                  <label>
+                    Email or Username
+                    <input
+                      name="username"
+                      placeholder="Email or full name"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Password
+                    <input
+                      name="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+                </>
               ) : (
                 <>
-                  <input
-                    type="text"
-                    name="full_name"
-                    autoComplete="name"
-                    placeholder="Full Name"
-                    value={formData.full_name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    placeholder="Email address"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <input
-                    type="tel"
-                    name="phone"
-                    autoComplete="tel"
-                    placeholder="Phone Number"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <input
-                    type="text"
-                    name="address"
-                    autoComplete="street-address"
-                    placeholder="Address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <select name="role" value={formData.role} onChange={handleInputChange} className="select-input">
-                    <option value="student">Student</option>
-                    <option value="user">General User</option>
-                  </select>
-                  {formData.role === 'student' && (
-                    <div className="proof-upload">
-                      <label htmlFor="proof">Proof of Enrollment</label>
-                      <input
-                        type="file"
-                        name="proof"
-                        id="proof"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={handleFileChange}
-                        required
-                      />
-                    </div>
-                  )}
+                  <label>
+                    Full Name
+                    <input
+                      name="full_name"
+                      placeholder="Enter your full name"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Email
+                    <input
+                      name="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Password
+                    <input
+                      name="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Phone
+                    <input
+                      name="phone"
+                      type="tel"
+                      placeholder="Enter your phone"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Address
+                    <input
+                      name="address"
+                      placeholder="Enter your address"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Role
+                    <select name="role" value={formData.role} onChange={handleInputChange}>
+                      <option value="student">Student</option>
+                      <option value="user">User</option>
+                    </select>
+                  </label>
                 </>
               )}
-              <input
-                type="password"
-                name="password"
-                autoComplete={isLogin ? 'current-password' : 'new-password'}
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-              />
-              <button type="submit">{isLogin ? 'Sign In' : 'Create Account'}</button>
-            </form>
-            <p>
-              {isLogin ? "Don't have an account?" : 'Already have an account?'}
-              <button onClick={() => { setIsLogin(!isLogin); setMessage('') }} className="switch-auth">
-                {isLogin ? ' Register' : ' Sign In'}
+
+              <div className="auth-actions-row">
+                <button type="submit" className="primary-btn">
+                  {isLogin ? 'Login' : 'Register'}
+                </button>
+                <button type="button" className="secondary-btn" onClick={() => setIsLogin(!isLogin)}>
+                  {isLogin ? 'Switch to Register' : 'Switch to Login'}
+                </button>
+              </div>
+
+              <button type="button" className="auth-close-btn" onClick={() => setShowAuth(false)}>
+                Close
               </button>
-            </p>
-            {message && <p className="message">{message}</p>}
-            <button onClick={() => setShowAuth(false)} className="close-auth">Cancel</button>
+
+              {message && <p className="auth-message">{message}</p>}
+            </form>
           </div>
         </div>
       )}

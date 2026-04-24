@@ -122,8 +122,13 @@ function StudentInterface({ user, onLogout }) {
       alert('This book is not available for borrowing')
       return
     }
+
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 14)
+    const dueDateString = dueDate.toISOString().slice(0, 10)
+
     try {
-      await axios.post('/borrow', { book_id: book.book_id })
+      await axios.post('/borrow', { book_id: book.book_id, due_date: dueDateString })
       setStatusMessage(`Borrowed "${book.title}" successfully.`)
       fetchBooks()
       fetchBorrowings()
@@ -175,6 +180,10 @@ function StudentInterface({ user, onLogout }) {
     setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
+  const handleTabChange = (nav) => {
+    setActiveTab(nav)
+  }
+
   return (
     <div className={`student-interface ${theme}`}>
       <header className="interface-header">
@@ -182,12 +191,15 @@ function StudentInterface({ user, onLogout }) {
           <div className="branding">
             <span className="brand-mark">LIBRX</span>
           </div>
-          <nav className="top-nav">
+          <nav className="top-nav" role="tablist">
             {['Dashboard', 'Catalog', 'My Books', 'History'].map((nav) => (
               <button
+                type="button"
                 key={nav}
                 className={`top-nav-btn ${activeTab === nav ? 'active-tab' : ''}`}
-                onClick={() => setActiveTab(nav)}
+                aria-pressed={activeTab === nav}
+                role="tab"
+                onClick={() => handleTabChange(nav)}
               >
                 {nav}
               </button>
@@ -298,7 +310,7 @@ function StudentInterface({ user, onLogout }) {
           </div>
         </aside>
 
-        <div className="content-panel">
+        <div key={activeTab} className="content-panel">
           {activeTab === 'Dashboard' && (
             <>
               <section className="search-panel">
