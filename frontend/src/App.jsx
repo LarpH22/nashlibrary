@@ -24,7 +24,6 @@ function App() {
 
   const [message, setMessage] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [showDashboard, setShowDashboard] = useState(false)
   const [userRole, setUserRole] = useState('')
   const [user, setUser] = useState(null)
 
@@ -143,7 +142,6 @@ function App() {
 
         setUserRole(res.data.role)
         setIsAuthenticated(true)
-        setShowDashboard(true)
 
         await fetchUser()
 
@@ -182,12 +180,11 @@ function App() {
     delete axios.defaults.headers.common['Authorization']
 
     setIsAuthenticated(false)
-    setShowDashboard(false)
     setUserRole('')
     setUser(null)
   }
 
-  if (isAuthenticated && showDashboard) {
+  if (isAuthenticated) {
     if (userRole === 'admin') return <AdminDashboard user={user} onLogout={handleLogout} />
     if (userRole === 'librarian') return <LibrarianDashboard user={user} onLogout={handleLogout} />
     return <StudentInterface user={user} onLogout={handleLogout} />
@@ -223,14 +220,9 @@ function App() {
 
         <div className="auth-actions">
           {isAuthenticated ? (
-            <>
-              <button type="button" className="secondary-btn" onClick={() => setShowDashboard(true)}>
-                Go to Dashboard
-              </button>
-              <button type="button" className="secondary-btn" onClick={handleLogout}>
-                Logout
-              </button>
-            </>
+            <button type="button" className="secondary-btn" onClick={handleLogout}>
+              Logout
+            </button>
           ) : (
             <>
               <button type="button" className="secondary-btn" onClick={() => { setIsLogin(true); setShowAuth(true) }}>

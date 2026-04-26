@@ -17,7 +17,12 @@ export const FinesCard = ({ token }) => {
         setLoading(true)
         setError(null)
 
-        const authToken = token || localStorage.getItem('token') || localStorage.getItem('access_token')
+        const authToken =
+          token ||
+          axios.defaults.headers.common['Authorization']?.replace(/^Bearer\s+/, '') ||
+          localStorage.getItem('token') ||
+          localStorage.getItem('access_token')
+
         if (!authToken) {
           setError('No authentication token')
           return
@@ -69,6 +74,10 @@ export const FinesCard = ({ token }) => {
         </div>
         <div className="fines-amount">${fines.total_pending.toFixed(2)}</div>
       </div>
+
+      {!hasPending && (
+        <p className="fines-checkline">✓ No outstanding balance</p>
+      )}
 
       {hasPending && (
         <p className="fines-warning">⚠️ You have outstanding fines. Please settle them to avoid service restrictions.</p>

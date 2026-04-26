@@ -422,6 +422,16 @@ def get_fines():
     }), 200
 
 
+@app.route('/users', methods=['GET'])
+@jwt_required()
+def list_users():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id, email, full_name, role, status FROM users ORDER BY user_id DESC")
+            users = cur.fetchall()
+    return jsonify(users), 200
+
+
 # ─────────────────────────────
 # Static Frontend
 # ─────────────────────────────

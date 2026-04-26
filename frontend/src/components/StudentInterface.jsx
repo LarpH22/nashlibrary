@@ -16,6 +16,34 @@ function StudentInterface({ user, onLogout }) {
   const [showBackToTop, setShowBackToTop] = useState(false)
   const [theme, setTheme] = useState('dark')
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [clock, setClock] = useState(new Date())
+
+  const popularBooks = [
+    { title: 'Sapiens' },
+    { title: 'The Silent Patient' },
+    { title: 'Dune' },
+    { title: 'Atomic Habits' }
+  ]
+
+  const curatedLists = ['Weekend Reads', 'Start-up Skills', 'Bookmaking Explorer', 'Silent Study Hours']
+
+  const newsItems = [
+    { title: 'Author Talk: Tomorrow @ 2 PM', detail: 'Join our author event in the reading hall.' },
+    { title: 'New Graphic Novel Collection', detail: 'Fresh comics and visual storytelling arrivals.' }
+  ]
+
+  const quickActions = [
+    { label: 'Browse Catalog', action: () => setActiveTab('Catalog') },
+    { label: 'View My Books', action: () => setActiveTab('My Books') },
+    { label: 'Report Library', action: () => setStatusMessage('Library support request opened.') },
+    { label: 'Contact Library', action: () => setStatusMessage('Contact form placeholder activated.') }
+  ]
+
+  const formattedClock = clock.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 
   useEffect(() => {
     fetchBooks()
@@ -23,6 +51,13 @@ function StudentInterface({ user, onLogout }) {
     fetchProfile()
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setClock(new Date())
+    }, 1000)
+    return () => clearInterval(timer)
   }, [])
 
   const fetchBooks = async () => {
@@ -101,10 +136,16 @@ function StudentInterface({ user, onLogout }) {
     return acc
   }, {})
   const totalCategories = Object.values(categoryCounts).reduce((sum, value) => sum + value, 0) || 1
-  const genreAnalytics = Object.entries(categoryCounts).map(([category, count]) => ({
-    category,
-    percent: Math.round((count / totalCategories) * 100)
-  }))
+  const genreAnalytics = ['Fiction', 'Sci-Fi', 'Non-Fiction'].map((category) => {
+    const count = categoryCounts[category] || 0
+    const percent = Math.round((count / totalCategories) * 100)
+    return {
+      category,
+      percent,
+      count,
+      displayWidth: Math.max(percent, count > 0 ? percent : 4)
+    }
+  })
 
   const topBorrowers = Array.from(
     borrowings.reduce((acc, item) => {
@@ -189,7 +230,11 @@ function StudentInterface({ user, onLogout }) {
       <header className="interface-header">
         <div className="brand-nav">
           <div className="branding">
-            <span className="brand-mark">LIBRX</span>
+            <div className="brand-mark">LIBRX</div>
+            <div>
+              <span className="brand-title">LIBRX</span>
+              <span className="brand-subtitle">Student Portal</span>
+            </div>
           </div>
           <nav className="top-nav" role="tablist">
             {['Dashboard', 'Catalog', 'My Books', 'History'].map((nav) => (
@@ -206,232 +251,173 @@ function StudentInterface({ user, onLogout }) {
             ))}
           </nav>
         </div>
+        <div className="header-search">
+          <input
+            type="text"
+            placeholder="Search the library..."
+            className="search-input header-search-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
         <div className="header-actions">
-          <button className="icon-btn">Notifications</button>
-          <div className="user-badge">{userFirstName?.slice(0, 2).toUpperCase()}</div>
-          <button className="logout-btn" onClick={onLogout} title="Logout">
-            Logout
-          </button>
+          <div className="student-avatar">{userFirstName?.slice(0, 2).toUpperCase()}</div>
+          <button className="logout-btn" onClick={onLogout}>Logout</button>
         </div>
       </header>
 
-      <section className="dashboard-hero">
-        <div>
-          <h2>Good {greetingText}, {userFirstName}</h2>
-          <p>Here's your library overview for today</p>
-        </div>
-        <div className="hero-status">
-          <span className={`status-pill ${accountStatusClass}`}>{accountStatus}</span>
-          <span className={`status-pill ${isLibraryOpen ? 'open-pill' : 'closed-pill'}`}>
-            {isLibraryOpen ? 'Library Open' : 'Library Closed · Opens 8:00 AM'}
-          </span>
-        </div>
-      </section>
+      {activeTab === 'Dashboard' && (
+        <>
+          <section className="dashboard-hero">
+            <div className="hero-left">
+              <h2>Good {greetingText}, {userFirstName}</h2>
+              <p>Here's your library overview for today</p>
+              <span className={`status-pill ${accountStatusClass}`}>✓ {accountStatus}</span>
+            </div>
+            <div className="hero-news-panel">
+              <h4>Library News & Events</h4>
+              {newsItems.map((item) => (
+                <div key={item.title} className="news-item">
+                  <strong>{item.title}</strong>
+                  <p>{item.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="hero-quick-actions">
+              <h4>Quick Actions</h4>
+              <div className="quick-actions-hero">
+                {quickActions.map((action) => (
+                  <button key={action.label} type="button" className="action-button-small" onClick={action.action}>
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
 
-      <section className="stats-grid">
-        <div className="stat-card">
-          <h3>Total Borrowed</h3>
-          <p>{studentBorrowings.length}</p>
-          <span>{overdueBorrowings.length} overdue items</span>
-        </div>
-        <div className="stat-card">
-          <h3>Saved for Later</h3>
-          <p>{wishlist.length}</p>
-          <span>Your reading list</span>
-        </div>
-        <div className="stat-card">
-          <h3>Books Read</h3>
-          <p>{booksRead}</p>
-          <span>This month</span>
-        </div>
-        <div className="stat-card">
-          <h3>Active Requests</h3>
-          <p>{activeRequests}</p>
-          <span>Pending approval</span>
-        </div>
-      </section>
-
-      <FinesCard />
+          <section className="stats-row">
+            <div className="stat-card">
+              <h4>TOTAL BORROWED</h4>
+              <div className="stat-value">{borrowedBooks.length}</div>
+              <p>{overdueBorrowings.length} overdue items</p>
+            </div>
+            <div className="stat-card">
+              <h4>SAVED FOR LATER</h4>
+              <div className="stat-value">{wishlist.length}</div>
+              <p>Your reading list</p>
+            </div>
+            <div className="stat-card">
+              <h4>BOOKS READ</h4>
+              <div className="stat-value">{booksRead}</div>
+              <p>This month</p>
+            </div>
+            <div className="stat-card">
+              <h4>ACTIVE REQUESTS</h4>
+              <div className="stat-value">{activeRequests}</div>
+              <p>Pending approval</p>
+            </div>
+          </section>
+        </>
+      )}
 
       <section className="main-panels">
-        <aside className="side-panel">
-          <div className="analytics-card">
-            <h3>Borrowing Analytics</h3>
-            {genreAnalytics.length > 0 ? (
-              genreAnalytics.map((item) => (
-                <div key={item.category} className="analytics-item">
-                  <span>{item.category}</span>
-                  <div className="analytics-bar-wrap">
-                    <div className="analytics-bar" style={{ width: `${item.percent}%` }} />
-                  </div>
-                  <span>{item.percent}%</span>
-                </div>
-              ))
-            ) : (
-              <div className="analytics-placeholder">
-                <span className="placeholder-icon">📊</span>
-                <h4>No genre data yet</h4>
-                <p>Borrowing activity will populate this summary and help you discover your strongest reading areas.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="genres-card">
-            <h3>Genres</h3>
-            <div className="genre-pill-group">
-              {genres.map((genre) => (
-                <button
-                  key={genre}
-                  className={`genre-pill ${selectedGenre === genre ? 'active' : ''}`}
-                  onClick={() => setSelectedGenre(selectedGenre === genre ? '' : genre)}
-                >
-                  #{genre}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="leaderboard-card">
-            <h3>Reader of the Month</h3>
-            <ul>
-              {topBorrowers.map((item) => (
-                <li key={item.student_email}>{item.student_email} — {item.count} borrows</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="edit-profile-card">
-            <div className="profile-icon">{userFirstName?.slice(0, 2).toUpperCase()}</div>
-            <div>
-              <h3>{studentProfile?.full_name || userFirstName}</h3>
-              <p>{studentProfile?.student_number ? `Student · ${studentProfile.student_number}` : 'Student · ID #0000'}</p>
-              <button className="secondary-btn" onClick={() => setShowSettingsModal(true)}>Edit Profile</button>
-            </div>
-          </div>
-        </aside>
-
         <div key={activeTab} className="content-panel">
           {activeTab === 'Dashboard' && (
             <>
-              <section className="search-panel">
-                <div className="search-header">
-                  <div>
-                    <h2>Search Books</h2>
-                    <p>Search author, title, or ISBN with smart suggestions.</p>
+              <section className="dashboard-overview-grid">
+                <div className="dashboard-left-column">
+                  <div className="account-fines-card">
+                    <FinesCard />
                   </div>
-                  <div className="autocomplete-wrapper">
-                    <input
-                      type="text"
-                      placeholder="Search by title, author, ISBN..."
-                      className="search-input"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    {searchSuggestions.length > 0 && (
-                      <div className="autocomplete-dropdown">
-                        {searchSuggestions.map((book) => (
-                          <div key={book.book_id} className="autocomplete-item" onClick={() => setSearchQuery(book.title)}>
-                            <strong>{book.title}</strong> — {book.author}
+
+                  <div className="analytics-card">
+                    <h3>Borrowing Analytics</h3>
+                    {genreAnalytics.length > 0 ? (
+                      <div className="analytics-chart">
+                        {genreAnalytics.map((item) => (
+                          <div key={item.category} className="analytics-column">
+                            <div className="analytics-column-bar-wrap">
+                              <div className="analytics-column-bar" style={{ height: `${Math.max(item.percent || 4, 8)}%` }} />
+                            </div>
+                            <span className="analytics-column-label">{item.category}</span>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="search-tag-row">
-                  <button className={`genre-pill ${selectedGenre === '' ? 'active' : ''}`} onClick={() => setSelectedGenre('')}>All</button>
-                  {genres.slice(0, 5).map((genre) => (
-                    <button
-                      key={genre}
-                      className={`genre-pill ${selectedGenre === genre ? 'active' : ''}`}
-                      onClick={() => setSelectedGenre(selectedGenre === genre ? '' : genre)}
-                    >
-                      {genre}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="new-arrivals-row">
-                  <h3>Just Added</h3>
-                  <div className="arrival-grid">
-                    {recentBooks.length > 0 ? (
-                      recentBooks.map((book) => (
-                        <div key={book.book_id} className="arrival-card">
-                          <div className="cover-placeholder">{book.title?.slice(0, 2).toUpperCase()}</div>
-                          <h4>{book.title}</h4>
-                          <p>{book.author}</p>
-                        </div>
-                      ))
                     ) : (
-                      <div className="arrival-placeholder">
-                        <p>No new arrivals yet.</p>
-                        <button className="primary-btn" onClick={() => { setSearchQuery(''); setSelectedGenre('') }}>
-                          Browse Full Catalog
-                        </button>
+                      <div className="analytics-placeholder">
+                        <span className="placeholder-icon">📊</span>
+                        <h4>No genre data yet</h4>
+                        <p>Borrowing activity will populate this summary and help you discover your strongest reading areas.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="reader-card">
+                    <h3>Reader of the Month ⭐</h3>
+                    <div className="reader-card-inner">
+                      <div className="reader-avatar">{userFirstName?.slice(0, 2).toUpperCase()}</div>
+                      <div>
+                        <p className="reader-label">You could be here!</p>
+                        <p className="reader-note">Browse more, borrow more, and climb the leaderboard.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="dashboard-center-column">
+                  <div className="center-content-card">
+                    <div className="featured-collections-section">
+                      <h3>Featured Collections</h3>
+                      <p className="featured-subtitle">Popular Right Now</p>
+                      <div className="featured-shelf">
+                        {popularBooks.map((book, index) => (
+                          <div key={book.title} className={`cover-placeholder-card color-${index}`}>
+                            <div className="cover-placeholder-title">{book.title}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="curated-lists-section">
+                      <h3>Curated Reading Lists</h3>
+                      <div className="curated-pill-row">
+                        {curatedLists.map((list) => (
+                          <div key={list} className="curated-pill">
+                            <span className="curated-icon">📖</span>
+                            <span>{list}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="dashboard-right-column">
+                  <div className="library-collections-card">
+                    <div className="collections-header">
+                      <h3>Your Library Collections</h3>
+                      <button className="add-button" onClick={() => setActiveTab('Catalog')}>+ Add books</button>
+                    </div>
+                    {wishlist.length > 0 ? (
+                      <ul className="collection-list">
+                        {wishlist.slice(0, 8).map((book) => (
+                          <li key={book.book_id}>{book.title}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="empty-collections">
+                        <div className="empty-icon">📚</div>
+                        <p>No books saved yet. Browse the catalog and save titles to your reading list.</p>
                       </div>
                     )}
                   </div>
                 </div>
-
-                <div className="sync-card">
-                  <div>
-                    <h4>Catalog syncing</h4>
-                    <p>New titles will appear once the sync completes.</p>
-                  </div>
-                  <div className="sync-footer">
-                    <span className="sync-dot active" />
-                    <span>Syncing catalog...</span>
-                  </div>
-                </div>
-              </section>
-
-              <section className="reading-log-card">
-                <div className="card-header">
-                  <h3>Digital Portfolio</h3>
-                  <p>Books you have borrowed, logged for reference.</p>
-                </div>
-                {studentBorrowings.length > 0 ? (
-                  <div className="reading-log-list">
-                    {studentBorrowings.map((item) => (
-                      <div key={item.borrow_id} className="log-item">
-                        <div>
-                          <h4>{item.book_title}</h4>
-                          <p>{item.category || 'General'} • {item.status}</p>
-                        </div>
-                        <div>
-                          <p>{item.due_date ? `Return by ${item.due_date}` : 'No date'}</p>
-                          <p>{item.status === 'borrowed' ? `Days remaining: ${Math.max(0, Math.ceil((new Date(item.due_date) - new Date()) / (1000 * 60 * 60 * 24)))}` : 'Returned'}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="empty-state">No borrowing history available yet.</p>
-                )}
               </section>
             </>
           )}
 
           {activeTab === 'Catalog' && (
             <>
-              <section className="search-panel">
-                <div className="search-header">
-                  <div>
-                    <h2>Library Catalog</h2>
-                    <p>Browse the full collection and filter by genre or availability.</p>
-                  </div>
-                  <div className="autocomplete-wrapper">
-                    <input
-                      type="text"
-                      placeholder="Search by title, author, ISBN..."
-                      className="search-input"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </section>
               <section className="books-grid-panel">
                 {books.length === 0 ? (
                   <div className="browse-empty-state">
@@ -552,22 +538,6 @@ function StudentInterface({ user, onLogout }) {
                 <p className="empty-state">No borrowing history available yet.</p>
               )}
             </section>
-          )}
-        </div>
-      </section>
-
-      <section className="save-later-section">
-        <h3>Save for Later</h3>
-        <div className="save-later-grid">
-          {wishlist.length > 0 ? (
-            wishlist.map((book) => (
-              <div key={book.book_id} className="wishlist-card">
-                <p>{book.title}</p>
-                <span>{book.author}</span>
-              </div>
-            ))
-          ) : (
-            <p>No books saved yet.</p>
           )}
         </div>
       </section>

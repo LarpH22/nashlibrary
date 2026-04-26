@@ -1,4 +1,4 @@
-import '../App.css'
+import './AdminDashboard.css'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
@@ -103,26 +103,26 @@ function AdminDashboard({ user, onLogout }) {
   const finesList = Array.isArray(fines) ? fines : []
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
+    <div className="admin-dashboard-container">
+      <header className="admin-dashboard-header">
         <h1>Admin Dashboard</h1>
-        <div className="user-info">
+        <div className="admin-user-info">
           <span>Welcome, {user?.full_name || user?.username || 'Admin'}</span>
-          <button onClick={onLogout} className="logout-btn">Logout</button>
+          <button onClick={onLogout} className="admin-logout-btn logout-btn">Logout</button>
         </div>
       </header>
-      <div className="dashboard-content">
-        <div className="sidebar">
+      <div className="admin-dashboard-content">
+        <aside className="admin-sidebar">
           <h3>Menu</h3>
           <ul>
             {menuItems.map((item) => (
-              <li key={item} onClick={() => setActivePanel(item)} className={activePanel === item ? 'active-menu' : ''}>
+              <li key={item} onClick={() => setActivePanel(item)} className={`admin-menu-item ${activePanel === item ? 'active-menu' : ''}`}>
                 {item}
               </li>
             ))}
           </ul>
-        </div>
-        <main className="main-content">
+        </aside>
+        <main className="admin-main-content">
           {activePanel === 'System Overview' && (
             <>
               <h2>System Overview</h2>

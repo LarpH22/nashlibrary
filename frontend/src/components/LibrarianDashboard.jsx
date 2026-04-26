@@ -1,4 +1,4 @@
-import '../App.css'
+import './LibrarianDashboard.css'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
@@ -38,9 +38,10 @@ function LibrarianDashboard({ user, onLogout }) {
   const fetchUsers = async () => {
     try {
       const response = await axios.get('/users')
-      setUsers(response.data)
+      setUsers(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Error fetching users:', error)
+      setUsers([])
     }
   }
 
@@ -102,16 +103,18 @@ function LibrarianDashboard({ user, onLogout }) {
   }
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Librarian Dashboard</h1>
-        <div className="user-info">
-          <span>Welcome, {user?.full_name || user?.username || 'Librarian'}</span>
+    <div className="librarian-dashboard-container">
+      <header className="librarian-dashboard-header">
+        <div>
+          <h1>Librarian Dashboard</h1>
+          <p className="librarian-welcome">Welcome back, {user?.full_name || user?.username || 'Librarian'}</p>
+        </div>
+        <div className="librarian-user-info">
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </div>
       </header>
-      <div className="dashboard-content">
-        <div className="sidebar">
+      <div className="librarian-dashboard-content">
+        <aside className="librarian-sidebar">
           <h3>Menu</h3>
           <ul>
             {menuItems.map((item) => (
@@ -120,8 +123,8 @@ function LibrarianDashboard({ user, onLogout }) {
               </li>
             ))}
           </ul>
-        </div>
-        <main className="main-content">
+        </aside>
+        <main className="librarian-main-content">
           {activePanel === 'Manage Books' && (
             <>
               <h2>Manage Books</h2>
@@ -293,24 +296,26 @@ function LibrarianDashboard({ user, onLogout }) {
             </>
           )}
 
-          <div className="stats-grid">
-            <div className="stat-card" onClick={() => setActivePanel('Manage Books')}>
-              <h4>Total Books</h4>
-              <p style={{fontSize: '2em'}}>{books.length}</p>
+          {activePanel === 'Manage Books' && (
+            <div className="stats-grid">
+              <div className="stat-card" onClick={() => setActivePanel('Manage Books')}>
+                <h4>Total Books</h4>
+                <p style={{fontSize: '2em'}}>{books.length}</p>
+              </div>
+              <div className="stat-card" onClick={() => setActivePanel('View Borrowings')}>
+                <h4>Books Borrowed</h4>
+                <p style={{fontSize: '2em'}}>{borrowings.filter(b => b.status === 'borrowed').length}</p>
+              </div>
+              <div className="stat-card" onClick={() => setActivePanel('View Borrowings')}>
+                <h4>Overdue Books</h4>
+                <p style={{fontSize: '2em'}}>{borrowings.filter((r) => r.status === 'borrowed').length}</p>
+              </div>
+              <div className="stat-card" onClick={() => setActivePanel('Manage Users')}>
+                <h4>Active Members</h4>
+                <p style={{fontSize: '2em'}}>{users.filter(u => u.role === 'student').length}</p>
+              </div>
             </div>
-            <div className="stat-card" onClick={() => setActivePanel('View Borrowings')}>
-              <h4>Books Borrowed</h4>
-              <p style={{fontSize: '2em'}}>{borrowings.filter(b => b.status === 'borrowed').length}</p>
-            </div>
-            <div className="stat-card" onClick={() => setActivePanel('View Borrowings')}>
-              <h4>Overdue Books</h4>
-              <p style={{fontSize: '2em'}}>{borrowings.filter((r) => r.status === 'borrowed').length}</p>
-            </div>
-            <div className="stat-card" onClick={() => setActivePanel('Manage Users')}>
-              <h4>Active Members</h4>
-              <p style={{fontSize: '2em'}}>{users.filter(u => u.role === 'student').length}</p>
-            </div>
-          </div>
+          )}
         </main>
       </div>
     </div>
