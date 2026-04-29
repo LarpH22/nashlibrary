@@ -65,7 +65,9 @@ CREATE TABLE librarians (
 -- =====================================================
 CREATE TABLE students (
     student_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
     student_number VARCHAR(20) UNIQUE NOT NULL,
     department VARCHAR(100),
     year_level INT,
@@ -74,13 +76,40 @@ CREATE TABLE students (
     total_fines DECIMAL(10,2) DEFAULT 0.00,
     library_card_number VARCHAR(20) UNIQUE,
     expiration_date DATE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    registration_document VARCHAR(255),
+    status ENUM('pending', 'active', 'inactive', 'suspended', 'rejected') DEFAULT 'pending',
+    email_verified BOOLEAN DEFAULT FALSE,
+    verification_token VARCHAR(255),
+    reset_token VARCHAR(255),
+    reset_expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
     INDEX idx_student_number (student_number),
-    INDEX idx_library_card (library_card_number)
+    INDEX idx_library_card (library_card_number),
+    INDEX idx_status (status)
 );
 
 -- =====================================================
--- 5. BOOKS TABLE
+-- 5. REGISTRATION REQUESTS TABLE
+-- =====================================================
+CREATE TABLE registration_requests (
+    request_id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    student_number VARCHAR(20) DEFAULT NULL,
+    registration_document VARCHAR(255) DEFAULT NULL,
+    verification_token VARCHAR(255) DEFAULT NULL,
+    email_verified BOOLEAN DEFAULT FALSE,
+    verified_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_verification_token (verification_token)
+);
+
+-- =====================================================
+-- 6. BOOKS TABLE
 -- =====================================================
 CREATE TABLE books (
     book_id INT PRIMARY KEY AUTO_INCREMENT,

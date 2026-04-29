@@ -189,6 +189,17 @@ function StudentInterface({ user, onLogout }) {
     }
   }
 
+  const handleRenew = async (borrowing) => {
+    try {
+      const response = await axios.post(`/borrowings/${borrowing.borrow_id}/renew`, {})
+      setStatusMessage(response.data.message)
+      fetchBorrowings()
+      fetchBooks()
+    } catch (error) {
+      setStatusMessage(error.response?.data?.message || 'Error renewing book')
+    }
+  }
+
   const handleSaveForLater = (book) => {
     if (!wishlist.some((item) => item.book_id === book.book_id)) {
       setWishlist([...wishlist, book])
@@ -475,20 +486,36 @@ function StudentInterface({ user, onLogout }) {
                 </div>
                 {borrowedBooks.length > 0 ? (
                   <div className="reading-log-list">
-                    {borrowedBooks.map((item) => (
-                      <div key={item.borrow_id} className="log-item">
-                        <div>
-                          <h4>{item.book_title}</h4>
-                          <p>{item.category || 'General'} • {item.status}</p>
+                    {borrowedBooks.map((item) => {
+                      const dueDate = item.due_date ? new Date(item.due_date) : null
+                      const isOverdue = item.status === 'overdue' || (dueDate && dueDate < new Date())
+                      const renewalCount = item.renewal_count || 0
+                      const canRenew = item.status === 'borrowed' && !isOverdue && renewalCount < 3
+                      return (
+                        <div key={item.borrow_id} className="log-item">
+                          <div>
+                            <h4>{item.book_title}</h4>
+                            <p>{item.category || 'General'} • {item.status}</p>
+                            <p className="renewal-info">Renewals: {renewalCount}/3</p>
+                          </div>
+                          <div>
+                            <p>{item.due_date ? `Due ${item.due_date}` : 'No date'}</p>
+                            <div className="book-actions">
+                              <button className="secondary-btn" onClick={() => handleReturn(item)}>
+                                Return Book
+                              </button>
+                              <button
+                                className={canRenew ? 'primary-btn' : 'disabled-btn'}
+                                onClick={() => handleRenew(item)}
+                                disabled={!canRenew}
+                              >
+                                Renew
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p>{item.due_date ? `Due ${item.due_date}` : 'No date'}</p>
-                          <button className="secondary-btn" onClick={() => handleReturn(item)}>
-                            Return Book
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className="empty-state">No active loans right now.</p>

@@ -19,3 +19,16 @@ class Config:
     DB_PASSWORD = os.environ.get('DB_PASSWORD')
     DB_NAME = os.environ.get('DB_NAME') or 'library_system_v2'
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key'
+
+    # Email configuration
+    MAIL_SERVER = os.environ.get('MAIL_SERVER') or 'smtp.gmail.com'
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', '587'))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'noreply@library.com'
+
+    # File upload configuration
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}

@@ -8,13 +8,15 @@ function AdminDashboard({ user, onLogout }) {
   const [borrowings, setBorrowings] = useState([])
   const [users, setUsers] = useState([])
   const [fines, setFines] = useState([])
-  const menuItems = ['System Overview', 'User Management', 'Library Settings', 'Reports & Analytics', 'System Logs']
+  const [pendingRegistrations, setPendingRegistrations] = useState([])
+  const menuItems = ['System Overview', 'Registration Review', 'User Management', 'Library Settings', 'Reports & Analytics', 'System Logs']
 
   useEffect(() => {
     fetchBooks()
     fetchBorrowings()
     fetchUsers()
     fetchFines()
+    fetchPendingRegistrations()
   }, [])
 
   const fetchBooks = async () => {
@@ -57,6 +59,16 @@ function AdminDashboard({ user, onLogout }) {
     }
   }
 
+  const fetchPendingRegistrations = async () => {
+    try {
+      const response = await axios.get('/admin/pending-registrations')
+      setPendingRegistrations(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      console.error('Error fetching pending registrations:', error)
+      setPendingRegistrations([])
+    }
+  }
+
   const handleUserStatusChange = async (userId, newStatus) => {
     try {
       await axios.put(`/users/${userId}/status`, { status: newStatus })
@@ -74,7 +86,13 @@ function AdminDashboard({ user, onLogout }) {
       alert('User deleted successfully')
       fetchUsers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting user')
+      alert(
+        JSON.stringify(
+          error.response?.data ||
+          error.message ||
+          'Error deleting user'
+        )
+      )
     }
   }
 
@@ -88,8 +106,22 @@ function AdminDashboard({ user, onLogout }) {
     }
   }
 
+  const handleRegistrationReview = async (studentId, action, notes = '') => {
+    try {
+      await axios.post(`/admin/review-registration/${studentId}`, {
+        action: action,
+        notes: notes
+      })
+      alert(`Registration ${action}d successfully`)
+      fetchPendingRegistrations()
+    } catch (error) {
+      alert(error.response?.data?.message || `Error ${action}ing registration`)
+    }
+  }
+
   const panelContent = {
     'System Overview': 'Summary of library performance and system status.',
+    'Registration Review': 'Review and approve/reject student registration requests.',
     'User Management': 'Manage admins, librarians, and student accounts.',
     'Library Settings': 'Configure library rules, fines, and working hours.',
     'Reports & Analytics': 'View crowd insights, borrowing trends, and reports.',
@@ -143,6 +175,62 @@ function AdminDashboard({ user, onLogout }) {
                 <div className="stat-card" onClick={() => setActivePanel('Reports & Analytics')}>
                   <h4>OPEN FINES</h4>
                   <p style={{fontSize: '2em'}}>{finesList.filter((f) => f.status === 'pending').length}</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activePanel === 'Registration Review' && (
+            <>
+              <h2>Registration Review</h2>
+              <p>{panelContent['Registration Review']}</p>
+              <div className="table-card">
+                <div className="user-table">
+                  {pendingRegistrations.length ? pendingRegistrations.map((student) => (
+                    <div key={student.student_id} className="user-row">
+                      <div className="user-info-cell">
+                        <h4>{student.full_name}</h4>
+                        <p>{student.email} • Student ID: {student.student_number}</p>
+                        <p>Registered: {new Date(student.created_at).toLocaleDateString()}</p>
+                        {student.registration_document && (
+                          <p>
+                            <a
+                              href={`/admin/student-document/${student.student_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="proof-link"
+                            >
+                              View Registration Document
+                            </a>
+                          </p>
+                        )}
+                      </div>
+                      <div className="user-actions">
+                        <button
+                          className="primary-btn"
+                          onClick={() => {
+                            const notes = prompt('Optional approval notes:');
+                            handleRegistrationReview(student.student_id, 'approve', notes || '');
+                          }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="danger-btn"
+                          onClick={() => {
+                            const notes = prompt('Rejection reason (required):');
+                            if (notes && notes.trim()) {
+                              handleRegistrationReview(student.student_id, 'reject', notes);
+                            } else {
+                              alert('Rejection reason is required');
+                            }
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  )) : <p>No pending registrations</p>}
                 </div>
               </div>
             </>

@@ -3,6 +3,11 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Search, Users, ClipboardList, Bell } from 'lucide-react'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.port && window.location.port !== '5000' ? 'http://localhost:5000' : '')
+if (API_BASE_URL) {
+  axios.defaults.baseURL = API_BASE_URL
+}
+
 import StudentInterface from './components/StudentInterface'
 import LibrarianDashboard from './components/LibrarianDashboard'
 import AdminDashboard from './components/AdminDashboard'
@@ -10,19 +15,25 @@ import AdminDashboard from './components/AdminDashboard'
 function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [isResetPassword, setIsResetPassword] = useState(false)
+  const [resetToken, setResetToken] = useState('')
 
   const [formData, setFormData] = useState({
     username: '',
     full_name: '',
     email: '',
     password: '',
-    phone: '',
-    address: '',
-    role: 'student',
-    proof: null
+    student_id: '',
+    registration_document: null,
+    new_password: '',
+    confirm_password: ''
   })
 
-  const [message, setMessage] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
+  const [registrationSuccessOpen, setRegistrationSuccessOpen] = useState(false)
+  const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState('')
+  const [isAuthLoading, setIsAuthLoading] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState('')
   const [user, setUser] = useState(null)
@@ -45,6 +56,17 @@ function App() {
   const handleScrollToSection = (target) => {
     document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('token')
+    if (token) {
+      setResetToken(token)
+      setIsResetPassword(true)
+      setShowAuth(true)
+      setIsLogin(false)
+      setIsForgotPassword(false)
+    }
+  }, [])
 
   useEffect(() => {
     const token =
@@ -97,17 +119,18 @@ function App() {
   ]
 
   const handleInputChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }))
-  }
-
-  const handleFileChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      proof: e.target.files?.[0] || null
-    }))
+    const { name, type, files, value } = e.target
+    if (type === 'file') {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: files[0] || null
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value
+      }))
+    }
   }
 
   const resetForm = () => {
@@ -116,19 +139,81 @@ function App() {
       full_name: '',
       email: '',
       password: '',
-      phone: '',
-      address: '',
-      role: 'student',
-      proof: null
+      student_id: '',
+      registration_document: null,
+      new_password: '',
+      confirm_password: ''
     })
+  }
+
+  const openLoginModal = () => {
+    setShowAuth(true)
+    setIsLogin(true)
+    setIsForgotPassword(false)
+    setIsResetPassword(false)
+    setAuthMessage('')
+    setResetToken('')
+    resetForm()
+  }
+
+  const openRegisterModal = () => {
+    setShowAuth(true)
+    setIsLogin(false)
+    setIsForgotPassword(false)
+    setIsResetPassword(false)
+    setAuthMessage('')
+    resetForm()
+  }
+
+  const openForgotPasswordModal = () => {
+    setShowAuth(true)
+    setIsLogin(false)
+    setIsForgotPassword(true)
+    setIsResetPassword(false)
+    setAuthMessage('')
+    resetForm()
+  }
+
+  const closeAuthModal = () => {
+    setShowAuth(false)
+    setIsForgotPassword(false)
+    setIsResetPassword(false)
+    setIsLogin(true)
+    setAuthMessage('')
+    setResetToken('')
+    resetForm()
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setMessage('')
+    console.log('handleSubmit fired', { isLogin, isForgotPassword, isResetPassword, formData })
+    setAuthMessage('')
+    setIsAuthLoading(true)
 
     try {
-      if (isLogin) {
+      if (isResetPassword) {
+        if (formData.new_password !== formData.confirm_password) {
+          setAuthMessage('Passwords do not match')
+          return
+        }
+        const res = await axios.post('/reset-password', {
+          token: resetToken,
+          new_password: formData.new_password
+        })
+        setAuthMessage(res.data.message)
+        setIsResetPassword(false)
+        setResetToken('')
+        resetForm()
+        // Clear URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname)
+      } else if (isForgotPassword) {
+        const res = await axios.post('/forgot-password', {
+          email: formData.email
+        })
+        setAuthMessage(res.data.message)
+        setIsForgotPassword(false)
+        resetForm()
+      } else if (isLogin) {
         const res = await axios.post('/login', {
           username: formData.username,
           password: formData.password
@@ -148,29 +233,80 @@ function App() {
         setShowAuth(false)
         resetForm()
       } else {
-        const data = new FormData()
-
-        Object.entries(formData).forEach(([key, value]) => {
-          if (key !== 'proof') data.append(key, value)
-        })
-
-        if (formData.role === 'student' && formData.proof) {
-          data.append('proof', formData.proof)
+        // Validate email domain
+        const email = formData.email.toLowerCase()
+        if (!email.endsWith('@gmail.com') && !email.endsWith('.edu.ph')) {
+          setAuthMessage('Email must end with @gmail.com or .edu.ph')
+          return
         }
 
-        const res = await axios.post('/register', data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+        // Validate password strength
+        const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/
+        if (!strongPassword.test(formData.password)) {
+          setAuthMessage('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.')
+          return
+        }
+
+        // Validate file upload size
+        if (formData.registration_document && formData.registration_document.size > 5 * 1024 * 1024) {
+          setAuthMessage('Registration document must be 5MB or smaller.')
+          return
+        }
+
+        // Validate that file is uploaded
+        if (!formData.registration_document) {
+          setAuthMessage('School Registration Document is required. Please upload a PDF, JPG, JPEG, or PNG file.')
+          return
+        }
+
+        // Validate file type
+        const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png']
+        const fileName = formData.registration_document.name.toLowerCase()
+        const fileExtension = fileName.split('.').pop()
+        if (!allowedExtensions.includes(fileExtension)) {
+          setAuthMessage('Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.')
+          return
+        }
+
+        // Create FormData to handle file upload
+        const formDataToSend = new FormData()
+        formDataToSend.append('full_name', formData.full_name.trim())
+        formDataToSend.append('email', formData.email.trim())
+        formDataToSend.append('password', formData.password)
+        // Only append student_id if provided
+        if (formData.student_id && formData.student_id.trim()) {
+          formDataToSend.append('student_id', formData.student_id.trim())
+        }
+        formDataToSend.append('registration_document', formData.registration_document)
+
+        // Log FormData contents for debugging
+        console.log('Form submission - Contents:', {
+          full_name: formData.full_name,
+          email: formData.email,
+          password: '***',
+          student_id: formData.student_id,
+          has_file: !!formData.registration_document,
+          file_name: formData.registration_document?.name || 'none'
         })
 
-        setMessage(res.data.message)
+        const res = await axios.post('/register', formDataToSend)
 
-        if (res.status === 201) {
+        const successMessage = res.data.message || 'Registration submitted. Please verify your email and wait for admin or librarian approval before logging in.'
+        if (res.status === 201 || res.status === 200) {
+          setRegistrationSuccessMessage(successMessage)
+          setRegistrationSuccessOpen(true)
           setShowAuth(false)
           resetForm()
+        } else {
+          setAuthMessage(successMessage)
         }
       }
     } catch (err) {
-      setMessage(err.response?.data?.message || 'Something went wrong')
+      const responseData = err.response?.data
+      const serverMessage = responseData?.message || (responseData ? JSON.stringify(responseData) : null)
+      setAuthMessage(serverMessage || err.response?.statusText || err.message || 'Something went wrong')
+    } finally {
+      setIsAuthLoading(false)
     }
   }
 
@@ -225,10 +361,10 @@ function App() {
             </button>
           ) : (
             <>
-              <button type="button" className="secondary-btn" onClick={() => { setIsLogin(true); setShowAuth(true) }}>
+              <button type="button" className="secondary-btn" onClick={openLoginModal}>
                 Login
               </button>
-              <button type="button" className="primary-btn" onClick={() => { setIsLogin(false); setShowAuth(true) }}>
+              <button type="button" className="primary-btn" onClick={openRegisterModal}>
                 Sign Up
               </button>
             </>
@@ -243,7 +379,7 @@ function App() {
               <h1>Access Knowledge Anytime, Anywhere</h1>
               <p>Search, borrow, and manage books in one modern platform built for students, librarians, and admins.</p>
               <div className="hero-actions">
-                <button type="button" className="primary-btn" onClick={() => setShowAuth(true)}>Get Started</button>
+                <button type="button" className="primary-btn" onClick={openRegisterModal}>Get Started</button>
                 <button type="button" className="secondary-btn" onClick={() => handleScrollToSection('books')}>Explore Books</button>
               </div>
             </div>
@@ -304,15 +440,62 @@ function App() {
       {showAuth && (
         <div className="auth-modal">
           <div className="auth-form">
-            <h3>{isLogin ? 'Login' : 'Register'}</h3>
+            <h3>{isResetPassword ? 'Reset Password' : isForgotPassword ? 'Forgot Password' : isLogin ? 'Login' : 'Register'}</h3>
 
             <form onSubmit={handleSubmit}>
-              {isLogin ? (
+              {isResetPassword ? (
+                <>
+                  <label>
+                    New Password
+                    <input
+                      name="new_password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Enter new password (8+ chars, uppercase, lowercase, number)"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Confirm New Password
+                    <input
+                      name="confirm_password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Confirm new password"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+                  <p className="forgot-password-info">
+                    Enter your new password. Make sure it meets the requirements.
+                  </p>
+                </>
+              ) : isForgotPassword ? (
+                <>
+                  <label>
+                    Email
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="Enter your email"
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+                  <p className="forgot-password-info">
+                    Enter your email address and we'll send you a link to reset your password.
+                  </p>
+                </>
+              ) : isLogin ? (
                 <>
                   <label>
                     Email or Username
                     <input
                       name="username"
+                      autoComplete="username"
                       placeholder="Email or full name"
                       onChange={handleInputChange}
                       required
@@ -324,11 +507,15 @@ function App() {
                     <input
                       name="password"
                       type="password"
+                      autoComplete="current-password"
                       placeholder="Enter your password"
                       onChange={handleInputChange}
                       required
                     />
                   </label>
+                  <button type="button" className="forgot-password-link" onClick={openForgotPasswordModal}>
+                    Forgot Password?
+                  </button>
                 </>
               ) : (
                 <>
@@ -336,6 +523,7 @@ function App() {
                     Full Name
                     <input
                       name="full_name"
+                      autoComplete="name"
                       placeholder="Enter your full name"
                       onChange={handleInputChange}
                       required
@@ -347,9 +535,19 @@ function App() {
                     <input
                       name="email"
                       type="email"
-                      placeholder="Enter your email"
+                      autoComplete="email"
+                      placeholder="Enter your email (@gmail.com or .edu.ph)"
                       onChange={handleInputChange}
                       required
+                    />
+                  </label>
+
+                  <label>
+                    Student ID (Optional)
+                    <input
+                      name="student_id"
+                      placeholder="Enter your student ID"
+                      onChange={handleInputChange}
                     />
                   </label>
 
@@ -358,58 +556,80 @@ function App() {
                     <input
                       name="password"
                       type="password"
-                      placeholder="Enter your password"
+                      autoComplete="new-password"
+                      placeholder="Strong password (8+ chars, uppercase, lowercase, number)"
                       onChange={handleInputChange}
                       required
                     />
                   </label>
 
                   <label>
-                    Phone
+                    School Registration Document (Required - PDF/JPG/JPEG/PNG, Max 5MB)
                     <input
-                      name="phone"
-                      type="tel"
-                      placeholder="Enter your phone"
+                      name="registration_document"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
                       onChange={handleInputChange}
                       required
                     />
                   </label>
 
-                  <label>
-                    Address
-                    <input
-                      name="address"
-                      placeholder="Enter your address"
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </label>
-
-                  <label>
-                    Role
-                    <select name="role" value={formData.role} onChange={handleInputChange}>
-                      <option value="student">Student</option>
-                      <option value="user">User</option>
-                    </select>
-                  </label>
                 </>
               )}
 
               <div className="auth-actions-row">
-                <button type="submit" className="primary-btn">
-                  {isLogin ? 'Login' : 'Register'}
+                <button type="submit" className="primary-btn" disabled={isAuthLoading}>
+                  {isAuthLoading
+                    ? isResetPassword
+                      ? 'Resetting...'
+                      : isForgotPassword
+                      ? 'Sending...'
+                      : isLogin
+                      ? 'Logging in...'
+                      : 'Registering...'
+                    : isResetPassword
+                    ? 'Reset Password'
+                    : isForgotPassword
+                    ? 'Send Reset Link'
+                    : isLogin
+                    ? 'Login'
+                    : 'Register'}
                 </button>
-                <button type="button" className="secondary-btn" onClick={() => setIsLogin(!isLogin)}>
-                  {isLogin ? 'Switch to Register' : 'Switch to Login'}
-                </button>
+                {!isResetPassword && !isForgotPassword && (
+                  <button type="button" className="secondary-btn" onClick={isLogin ? openRegisterModal : openLoginModal}>
+                    {isLogin ? 'Switch to Register' : 'Switch to Login'}
+                  </button>
+                )}
+                {isForgotPassword && (
+                  <button type="button" className="secondary-btn" onClick={() => setIsForgotPassword(false)}>
+                    Back to Login
+                  </button>
+                )}
+                {isResetPassword && (
+                  <button type="button" className="secondary-btn" onClick={() => { setIsResetPassword(false); setResetToken(''); setShowAuth(false); window.history.replaceState({}, document.title, window.location.pathname) }}>
+                    Cancel
+                  </button>
+                )}
               </div>
 
-              <button type="button" className="auth-close-btn" onClick={() => setShowAuth(false)}>
+              <button type="button" className="auth-close-btn" onClick={closeAuthModal}>
                 Close
               </button>
 
-              {message && <p className="auth-message">{message}</p>}
+              {authMessage && <p className="auth-message">{authMessage}</p>}
             </form>
+          </div>
+        </div>
+      )}
+
+      {registrationSuccessOpen && (
+        <div className="auth-modal">
+          <div className="auth-form">
+            <h3>Registration Submitted</h3>
+            <p>{registrationSuccessMessage}</p>
+            <button type="button" className="primary-btn" onClick={() => setRegistrationSuccessOpen(false)}>
+              Okay
+            </button>
           </div>
         </div>
       )}
