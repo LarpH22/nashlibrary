@@ -16,10 +16,13 @@ function StudentDashboard({ user, onLogout }) {
 
   const fetchBooks = async () => {
     try {
-      const response = await axios.get('/books')
-      setBooks(response.data)
+      const token = localStorage.getItem('token') || localStorage.getItem('access_token')
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const query = searchQuery.trim() ? `?title=${encodeURIComponent(searchQuery.trim())}` : ''
+      const response = await axios.get(`/student/books/search${query}`, { headers })
+      setBooks(response.data.books || [])
     } catch (error) {
-      console.error('Error fetching books:', error)
+      console.error('Error fetching books:', error.response?.status, error.response?.data || error.message)
     }
   }
 
@@ -93,7 +96,7 @@ function StudentDashboard({ user, onLogout }) {
                     filteredBooks.map((book) => (
                       <li key={book.book_id}>
                         <strong>{book.title}</strong> by {book.author} <em>({book.category})</em>
-                        <br />Available: {book.available_copies}/{book.total_copies}
+                        <br />ISBN: {book.isbn} • Status: {book.status}
                       </li>
                     ))
                   ) : (

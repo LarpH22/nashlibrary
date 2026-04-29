@@ -8,7 +8,15 @@ function StudentInterface({ user, onLogout }) {
   const [borrowings, setBorrowings] = useState([])
   const [studentProfile, setStudentProfile] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('Dashboard')
+  const [activeTab, setActiveTabState] = useState(() => {
+    return localStorage.getItem('studentActiveTab') || 'Dashboard'
+  })
+  
+  // Wrapper to persist activeTab to localStorage
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab)
+    localStorage.setItem('studentActiveTab', tab)
+  }
   const [selectedGenre, setSelectedGenre] = useState('')
   const [wishlist, setWishlist] = useState([])
   const [settings, setSettings] = useState({ phone: '', address: '' })
@@ -60,18 +68,23 @@ function StudentInterface({ user, onLogout }) {
     return () => clearInterval(timer)
   }, [])
 
+  const authHeaders = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token')
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
+
   const fetchBooks = async () => {
     try {
-      const response = await axios.get('/books')
-      setBooks(response.data)
+      const response = await axios.get('/student/books/search', { headers: authHeaders() })
+      setBooks(response.data.books || [])
     } catch (error) {
-      console.error('Error fetching books:', error)
+      console.error('Error fetching books:', error.response?.status, error.response?.data || error.message)
     }
   }
 
   const fetchBorrowings = async () => {
     try {
-      const response = await axios.get('/borrowings')
+      const response = await axios.get('/borrowings', { headers: authHeaders() })
       setBorrowings(response.data)
     } catch (error) {
       console.error('Error fetching borrowings:', error)
@@ -80,7 +93,7 @@ function StudentInterface({ user, onLogout }) {
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get('/student/profile')
+      const response = await axios.get('/student/profile', { headers: authHeaders() })
       setStudentProfile(response.data)
       setSettings({ phone: response.data.phone || '', address: response.data.address || '' })
     } catch (error) {
@@ -159,17 +172,13 @@ function StudentInterface({ user, onLogout }) {
     .slice(0, 4)
 
   const handleBorrow = async (book) => {
-    if (book.available_copies <= 0) {
+    if (book.status !== 'available') {
       alert('This book is not available for borrowing')
       return
     }
 
-    const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + 14)
-    const dueDateString = dueDate.toISOString().slice(0, 10)
-
     try {
-      await axios.post('/borrow', { book_id: book.book_id, due_date: dueDateString })
+      await axios.post(`/student/books/${book.isbn}/borrow`, {}, { headers: authHeaders() })
       setStatusMessage(`Borrowed "${book.title}" successfully.`)
       fetchBooks()
       fetchBorrowings()
@@ -180,7 +189,7 @@ function StudentInterface({ user, onLogout }) {
 
   const handleReturn = async (borrowing) => {
     try {
-      await axios.post(`/borrowings/${borrowing.borrow_id}/return`, {})
+      await axios.post(`/borrowings/${borrowing.borrow_id}/return`, {}, { headers: authHeaders() })
       setStatusMessage(`Returned "${borrowing.book_title}" successfully.`)
       fetchBorrowings()
       fetchBooks()
@@ -191,7 +200,7 @@ function StudentInterface({ user, onLogout }) {
 
   const handleRenew = async (borrowing) => {
     try {
-      const response = await axios.post(`/borrowings/${borrowing.borrow_id}/renew`, {})
+      const response = await axios.post(`/borrowings/${borrowing.borrow_id}/renew`, {}, { headers: authHeaders() })
       setStatusMessage(response.data.message)
       fetchBorrowings()
       fetchBooks()
@@ -441,7 +450,7 @@ function StudentInterface({ user, onLogout }) {
                 ) : filteredBooks.length > 0 ? (
                   <div className="book-cover-grid">
                     {filteredBooks.map((book) => {
-                      const inLibrary = book.available_copies > 0
+                      const inLibrary = book.status === 'available' || (typeof book.available_copies === 'number' && book.available_copies > 0)
                       return (
                         <div key={book.book_id} className="cover-card">
                           <div className="cover-art">{book.title?.slice(0, 2).toUpperCase()}</div>
@@ -452,17 +461,17 @@ function StudentInterface({ user, onLogout }) {
                               <span className={inLibrary ? 'status-pill in' : 'status-pill out'}>{inLibrary ? 'In Library' : 'Out on Loan'}</span>
                               <span className="status-pill">#{book.category}</span>
                             </div>
-                            <p className="return-date">Expected Return: {inLibrary ? 'Available now' : 'N/A'}</p>
+                            <p className="return-date">ISBN: {book.isbn}</p>
                             <div className="cover-actions">
                               <button className="primary-btn" onClick={() => handleSaveForLater(book)}>
                                 Save for Later
                               </button>
                               <button
-                                className={book.available_copies > 0 ? 'secondary-btn' : 'disabled-btn'}
+                                className={inLibrary ? 'secondary-btn' : 'disabled-btn'}
                                 onClick={() => handleBorrow(book)}
-                                disabled={book.available_copies <= 0}
+                                disabled={!inLibrary}
                               >
-                                {book.available_copies > 0 ? 'Borrow' : 'Not Available'}
+                                {inLibrary ? 'Borrow' : 'Not Available'}
                               </button>
                             </div>
                           </div>

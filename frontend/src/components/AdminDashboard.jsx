@@ -3,7 +3,15 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 function AdminDashboard({ user, onLogout }) {
-  const [activePanel, setActivePanel] = useState('System Overview')
+  const [activePanel, setActivePanelState] = useState(() => {
+    return localStorage.getItem('adminActivePanel') || 'System Overview'
+  })
+  
+  // Wrapper to persist activePanel to localStorage
+  const setActivePanel = (panel) => {
+    setActivePanelState(panel)
+    localStorage.setItem('adminActivePanel', panel)
+  }
   const [books, setBooks] = useState([])
   const [borrowings, setBorrowings] = useState([])
   const [users, setUsers] = useState([])

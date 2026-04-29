@@ -106,6 +106,24 @@ def get_books_id_column():
     return get_table_primary_key('books', ['book_id', 'id']) or 'book_id'
 
 
+def get_book_inventory_select_columns():
+    has_available_copies = column_exists('books', 'available_copies')
+    has_total_copies = column_exists('books', 'total_copies')
+
+    if has_available_copies:
+        total_expr = 'total_copies' if has_total_copies else 'NULL AS total_copies'
+        return (
+            "COALESCE(status, CASE WHEN available_copies > 0 THEN 'available' ELSE 'borrowed' END) AS status, "
+            "available_copies, " + total_expr
+        )
+
+    return (
+        "COALESCE(status, 'available') AS status, "
+        "CASE WHEN status='borrowed' THEN 0 ELSE 1 END AS available_copies, "
+        "1 AS total_copies"
+    )
+
+
 def table_exists(table):
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -385,7 +403,13 @@ def validate_login(username, password):
 def is_admin_user(email):
     with get_connection() as conn:
         with conn.cursor() as cur:
+            # Check if user is admin
             cur.execute("SELECT 1 FROM admins WHERE email=%s", (email,))
+            if cur.fetchone():
+                return True
+
+            # Check if user is librarian (librarians also have admin privileges)
+            cur.execute("SELECT 1 FROM librarians WHERE email=%s", (email,))
             return bool(cur.fetchone())
 
 
@@ -393,27 +417,55 @@ def find_account_by_identifier(identifier):
     identifier = identifier.strip() if isinstance(identifier, str) else identifier
     with get_connection() as conn:
         with conn.cursor() as cur:
+            # First check the unified users table
             cur.execute(
-                "SELECT id AS account_id, email, password AS password_hash, fullname AS full_name, 'admin' AS role, 'active' AS status FROM admins WHERE email=%s LIMIT 1",
+                "SELECT user_id AS account_id, email, password_hash, full_name, role, status FROM users WHERE email=%s LIMIT 1",
                 (identifier,)
             )
             account = cur.fetchone()
             if account:
+                # For students, we need additional fields like email_verified
+                if account.get('role') == 'student':
+                    cur.execute(
+                        "SELECT email_verified FROM students WHERE email=%s LIMIT 1",
+                        (identifier,)
+                    )
+                    student_info = cur.fetchone()
+                    if student_info:
+                        account['email_verified'] = student_info['email_verified']
+                    else:
+                        account['email_verified'] = False
+                else:
+                    account['email_verified'] = True  # Non-students are assumed verified
+                return account
+
+            # Fallback to role-specific tables for backward compatibility
+            cur.execute(
+                "SELECT id AS account_id, email, password AS password_hash, fullname AS full_name, 'admin' AS role, status FROM admins WHERE email=%s LIMIT 1",
+                (identifier,)
+            )
+            account = cur.fetchone()
+            if account:
+                account['email_verified'] = True
                 return account
 
             cur.execute(
-                "SELECT id AS account_id, email, password AS password_hash, fullname AS full_name, 'librarian' AS role, 'active' AS status FROM librarians WHERE email=%s LIMIT 1",
+                "SELECT id AS account_id, email, password AS password_hash, fullname AS full_name, 'librarian' AS role, status FROM librarians WHERE email=%s LIMIT 1",
                 (identifier,)
             )
             account = cur.fetchone()
             if account:
+                account['email_verified'] = True
                 return account
 
             cur.execute(
                 "SELECT student_id AS account_id, email, password_hash, full_name, student_number, 'student' AS role, status, email_verified FROM students WHERE email=%s OR student_number=%s LIMIT 1",
                 (identifier, identifier)
             )
-            return cur.fetchone()
+            account = cur.fetchone()
+            if account:
+                account['email_verified'] = account.get('email_verified', False)
+            return account
 
 
 def find_account_by_email(email):
@@ -1040,11 +1092,18 @@ def review_registration(student_id):
             if cur.rowcount == 0:
                 return jsonify({'message': 'Student not found or not pending'}), 404
 
-            # Log the action
-            cur.execute("""
-                INSERT INTO audit_logs (user_id, action, table_name, record_id, new_data)
-                VALUES (NULL, %s, 'students', %s, %s)
-            """, (f'registration_{action}', student_id, f'status:{new_status}, notes:{admin_notes}'))
+            # Log the action (optional - don't fail if logging fails)
+            try:
+                # Get librarian ID for logging
+                cur.execute("SELECT id FROM librarians WHERE email=%s", (email,))
+                librarian = cur.fetchone()
+                if librarian:
+                    cur.execute("""
+                        INSERT INTO audit_logs (role, user_id, action)
+                        VALUES ('librarian', %s, %s)
+                    """, (librarian['id'], f'registration_{action}: student_id={student_id}, status={new_status}'))
+            except Exception as e:
+                app.logger.warning(f"Failed to log audit action: {str(e)}")
 
         conn.commit()
 
@@ -1135,10 +1194,11 @@ def get_default_librarian_id():
 @app.route('/books', methods=['GET'])
 def list_books():
     book_id_col = get_books_id_column()
+    inventory_columns = get_book_inventory_select_columns()
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT {book_id_col} AS book_id, isbn, title, author, publisher, publication_year, category, description, total_copies, available_copies, location, added_date "
+                f"SELECT {book_id_col} AS book_id, isbn, title, author, category, image_url, {inventory_columns}, created_at "
                 f"FROM books ORDER BY {book_id_col} DESC"
             )
             books = cur.fetchall()
@@ -1259,12 +1319,18 @@ def borrow_book():
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(f"SELECT available_copies FROM books WHERE {book_where}=%s", (book_id,))
+            has_available_copies = column_exists('books', 'available_copies')
+            select_columns = 'available_copies, status' if has_available_copies else 'status'
+            cur.execute(f"SELECT {select_columns} FROM books WHERE {book_where}=%s", (book_id,))
             book = cur.fetchone()
             if not book:
                 return jsonify({'message': 'Book not found'}), 404
-            if book['available_copies'] <= 0:
-                return jsonify({'message': 'Book is not available'}), 400
+            if has_available_copies:
+                if book['available_copies'] <= 0:
+                    return jsonify({'message': 'Book is not available'}), 400
+            else:
+                if (book.get('status') or 'available') != 'available':
+                    return jsonify({'message': 'Book is not available'}), 400
 
             librarian_id = get_default_librarian_id() or 1
             borrow_date = datetime.utcnow().date().isoformat()
@@ -1273,7 +1339,9 @@ def borrow_book():
                 "INSERT INTO borrow_records (student_id, book_id, librarian_id, borrow_date, due_date, status) VALUES (%s, %s, %s, %s, %s, 'borrowed')",
                 (student['student_id'], book_id, librarian_id, borrow_date, due_date)
             )
-            cur.execute(f"UPDATE books SET available_copies = available_copies - 1 WHERE {book_where}=%s", (book_id,))
+            cur.execute(f"UPDATE books SET status='borrowed' WHERE {book_where}=%s", (book_id,))
+            if has_available_copies:
+                cur.execute(f"UPDATE books SET available_copies = available_copies - 1 WHERE {book_where}=%s", (book_id,))
             cur.execute("UPDATE students SET borrowed_books_count = borrowed_books_count + 1 WHERE student_id=%s", (student['student_id'],))
         conn.commit()
 
@@ -1289,26 +1357,78 @@ def return_book(borrow_id):
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM borrow_records WHERE borrow_id=%s AND student_id=%s", (borrow_id, student['student_id']))
+            book_id_col = get_books_id_column()
+            book_where = 'book_id' if book_id_col == 'book_id' else book_id_col
+
+            cur.execute(
+                f"SELECT br.*, b.{book_id_col} AS book_table_id, b.status AS book_status "
+                f"FROM borrow_records br "
+                f"JOIN books b ON br.book_id = b.{book_id_col} "
+                f"WHERE br.borrow_id=%s AND br.student_id=%s",
+                (borrow_id, student['student_id'])
+            )
             record = cur.fetchone()
             if not record:
                 return jsonify({'message': 'Borrow record not found'}), 404
             if record['status'] == 'returned':
                 return jsonify({'message': 'Book already returned'}), 400
 
-            return_date = datetime.utcnow().date().isoformat()
-            book_id_col = get_books_id_column()
-            book_where = 'book_id' if book_id_col == 'book_id' else book_id_col
+            return_date = datetime.utcnow().date()
+            due_date = record['due_date']
 
-            cur.execute(
-                "UPDATE borrow_records SET status='returned', return_date=%s WHERE borrow_id=%s",
-                (return_date, borrow_id)
-            )
-            cur.execute(f"UPDATE books SET available_copies = available_copies + 1 WHERE {book_where}=%s", (record['book_id'],))
-            cur.execute("UPDATE students SET borrowed_books_count = GREATEST(borrowed_books_count - 1, 0) WHERE student_id=%s", (student['student_id'],))
+            # Calculate fine if overdue
+            fine_amount = 0.00
+            if return_date > due_date:
+                days_overdue = (return_date - due_date).days
+                fine_amount = days_overdue * 10.00
+
+            try:
+                cur.execute(
+                    "UPDATE borrow_records SET status='returned', return_date=%s, fine_amount=%s WHERE borrow_id=%s",
+                    (return_date.isoformat(), fine_amount, borrow_id)
+                )
+
+                # Mark the returned book as available again
+                cur.execute(
+                    f"UPDATE books SET status='available' WHERE {book_where}=%s",
+                    (record['book_table_id'],)
+                )
+
+                if column_exists('books', 'available_copies'):
+                    cur.execute(
+                        f"UPDATE books SET available_copies = LEAST(available_copies + 1, total_copies) WHERE {book_where}=%s",
+                        (record['book_table_id'],)
+                    )
+
+                if column_exists('students', 'borrowed_books_count'):
+                    cur.execute(
+                        "UPDATE students SET borrowed_books_count = GREATEST(borrowed_books_count - 1, 0) WHERE student_id=%s",
+                        (student['student_id'],)
+                    )
+
+                # Create fine record if applicable
+                if fine_amount > 0:
+                    cur.execute(
+                        "INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (borrow_id, student['student_id'], fine_amount, 'Overdue book return', 'pending', return_date.isoformat())
+                    )
+            except Exception as e:
+                conn.rollback()
+                app.logger.error(f"Return transaction failed for borrow_id={borrow_id}: {str(e)}")
+                return jsonify({'message': 'Unable to process return at this time. Please try again later.'}), 500
+
         conn.commit()
 
-    return jsonify({'message': 'Book returned successfully.'}), 200
+    response = {
+        'message': 'Book returned successfully.',
+        'borrow_id': borrow_id,
+        'book_id': record['book_table_id'],
+        'return_date': return_date.isoformat()
+    }
+    if fine_amount > 0:
+        response['fine_amount'] = fine_amount
+
+    return jsonify(response), 200
 
 
 @app.route('/student/fines', methods=['GET'])
@@ -1339,6 +1459,306 @@ def get_fines():
         'total_pending': total_pending,
         'total_paid': total_paid,
         'fines': fines
+    }), 200
+
+
+# ─────────────────────────────
+# Student Dashboard Book Management
+# ─────────────────────────────
+
+@app.route('/student/books/search', methods=['GET'])
+@jwt_required()
+def search_books():
+    """
+    Search books with filters for title, author, category, and ISBN.
+    Returns books with ISBN included in all responses.
+    """
+    user, student = get_current_user_and_student()
+    if not user or not student:
+        return jsonify({'message': 'Student account not found'}), 404
+
+    # Get query parameters
+    title = request.args.get('title', '').strip()
+    author = request.args.get('author', '').strip()
+    category = request.args.get('category', '').strip()
+    isbn = request.args.get('isbn', '').strip()
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+
+    # Validate limit and offset
+    if limit < 1 or limit > 100:
+        limit = 50
+    if offset < 0:
+        offset = 0
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Build WHERE clause dynamically
+            where_conditions = []
+            params = []
+
+            if title:
+                where_conditions.append("title LIKE %s")
+                params.append(f"%{title}%")
+
+            if author:
+                where_conditions.append("author LIKE %s")
+                params.append(f"%{author}%")
+
+            if category:
+                where_conditions.append("category LIKE %s")
+                params.append(f"%{category}%")
+
+            if isbn:
+                where_conditions.append("isbn LIKE %s")
+                params.append(f"%{isbn}%")
+
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+            # Execute search query
+            book_id_col = get_books_id_column()
+            inventory_columns = get_book_inventory_select_columns()
+            query = f"""
+                SELECT {book_id_col} AS book_id,
+                       isbn,
+                       title,
+                       author,
+                       category,
+                       image_url,
+                       {inventory_columns},
+                       created_at
+                FROM books
+                WHERE {where_clause}
+                ORDER BY title ASC
+                LIMIT %s OFFSET %s
+            """
+            params.extend([limit, offset])
+
+            cur.execute(query, params)
+            books = cur.fetchall()
+
+            # Get total count for pagination
+            count_query = f"SELECT COUNT(*) as total FROM books WHERE {where_clause}"
+            cur.execute(count_query, params[:-2])  # Remove limit and offset for count
+            total_count = cur.fetchone()['total']
+
+    return jsonify({
+        'books': books,
+        'pagination': {
+            'total': total_count,
+            'limit': limit,
+            'offset': offset,
+            'has_more': (offset + limit) < total_count
+        }
+    }), 200
+
+
+@app.route('/student/books/<isbn>/borrow', methods=['POST'])
+@jwt_required()
+def borrow_book_by_isbn(isbn):
+    """
+    Borrow a book by ISBN. Updates book status to 'borrowed',
+    stores student info and timestamp. Prevents duplicate borrowing.
+    """
+    user, student = get_current_user_and_student()
+    if not user or not student:
+        return jsonify({'message': 'Student account not found'}), 404
+
+    if not isbn or len(isbn.strip()) < 10:
+        return jsonify({'message': 'Valid ISBN is required'}), 400
+
+    isbn = isbn.strip()
+
+    # Check if student has reached borrowing limit (max 5 books)
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as borrowed_count FROM borrow_records WHERE student_id=%s AND status='borrowed'", (student['student_id'],))
+            borrowed_count = cur.fetchone()['borrowed_count']
+            
+            if borrowed_count >= 5:
+                return jsonify({'message': 'You have reached the maximum borrowing limit of 5 books'}), 400
+
+            # Find book by ISBN
+            book_id_col = get_books_id_column()
+            cur.execute(f"SELECT {book_id_col} AS book_id, title, status FROM books WHERE isbn=%s", (isbn,))
+            book = cur.fetchone()
+
+            if not book:
+                return jsonify({'message': 'Book not found'}), 404
+
+            if book['status'] != 'available':
+                return jsonify({'message': 'Book is not available for borrowing'}), 400
+
+            # Check if student already borrowed this book
+            cur.execute(
+                "SELECT borrow_id FROM borrow_records WHERE student_id=%s AND book_id=%s AND status='borrowed'",
+                (student['student_id'], book['book_id'])
+            )
+            existing_borrow = cur.fetchone()
+
+            if existing_borrow:
+                return jsonify({'message': 'You have already borrowed this book'}), 400
+
+            # Check if student has any overdue books
+            cur.execute(
+                "SELECT COUNT(*) as overdue_count FROM borrow_records WHERE student_id=%s AND status='borrowed' AND due_date < CURDATE()",
+                (student['student_id'],)
+            )
+            overdue_count = cur.fetchone()['overdue_count']
+
+            if overdue_count > 0:
+                return jsonify({'message': 'You have overdue books. Please return them before borrowing new books.'}), 400
+
+            # Proceed with borrowing
+            borrow_date = datetime.utcnow().date()
+            due_date = borrow_date + timedelta(days=14)  # 14 days borrowing period
+
+            try:
+                cur.execute(
+                    "INSERT INTO borrow_records (student_id, book_id, borrow_date, due_date, status) VALUES (%s, %s, %s, %s, 'borrowed')",
+                    (student['student_id'], book['book_id'], borrow_date, due_date)
+                )
+
+                # Update book status to borrowed
+                cur.execute(f"UPDATE books SET status='borrowed' WHERE {book_id_col}=%s", (book['book_id'],))
+
+                if column_exists('books', 'available_copies'):
+                    cur.execute(
+                        f"UPDATE books SET available_copies = GREATEST(available_copies - 1, 0) WHERE {book_id_col}=%s",
+                        (book['book_id'],)
+                    )
+
+                conn.commit()
+
+            except Exception as e:
+                conn.rollback()
+                app.logger.error(f"Borrow transaction failed: {str(e)}")
+                return jsonify({'message': 'Failed to borrow book. Please try again.'}), 500
+
+    return jsonify({
+        'message': 'Book borrowed successfully',
+        'book_title': book['title'],
+        'isbn': isbn,
+        'due_date': due_date.isoformat(),
+        'borrow_date': borrow_date.isoformat()
+    }), 200
+
+
+@app.route('/student/books/<isbn>/return', methods=['POST'])
+@jwt_required()
+def return_book_by_isbn(isbn):
+    """
+    Return a book by ISBN. Updates book status to 'available'
+    and restores book availability.
+    """
+    user, student = get_current_user_and_student()
+    if not user or not student:
+        return jsonify({'message': 'Student account not found'}), 404
+
+    if not isbn or len(isbn.strip()) < 10:
+        return jsonify({'message': 'Valid ISBN is required'}), 400
+
+    isbn = isbn.strip()
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Find book by ISBN and get borrow record
+            book_id_col = get_books_id_column()
+            cur.execute(f"""
+                SELECT br.borrow_id, br.book_id, br.due_date, b.title, b.{book_id_col} AS book_table_id
+                FROM borrow_records br
+                JOIN books b ON br.book_id = b.{book_id_col}
+                WHERE br.student_id=%s AND b.isbn=%s AND br.status='borrowed'
+            """, (student['student_id'], isbn))
+
+            borrow_record = cur.fetchone()
+
+            if not borrow_record:
+                return jsonify({'message': 'No active borrowing record found for this book'}), 404
+
+            return_date = datetime.utcnow().date()
+
+            try:
+                # Update borrow record
+                cur.execute(
+                    "UPDATE borrow_records SET status='returned', return_date=%s WHERE borrow_id=%s",
+                    (return_date, borrow_record['borrow_id'])
+                )
+
+                # Update book status to available
+                cur.execute(f"UPDATE books SET status='available' WHERE {book_id_col}=%s", (borrow_record['book_table_id'],))
+
+                if column_exists('books', 'available_copies'):
+                    cur.execute(
+                        f"UPDATE books SET available_copies = LEAST(available_copies + 1, total_copies) WHERE {book_id_col}=%s",
+                        (borrow_record['book_table_id'],)
+                    )
+
+                # Check if book was returned late and calculate fine if needed
+                fine_amount = 0.0
+                if return_date > borrow_record['due_date']:
+                    days_overdue = (return_date - borrow_record['due_date']).days
+                    fine_amount = days_overdue * 0.50  # $0.50 per day overdue
+
+                    if fine_amount > 0:
+                        cur.execute(
+                            "INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date) VALUES (%s, %s, %s, %s, 'pending', %s)",
+                            (borrow_record['borrow_id'], student['student_id'], fine_amount, f'Overdue book - {days_overdue} days late', return_date)
+                        )
+
+                conn.commit()
+
+            except Exception as e:
+                conn.rollback()
+                app.logger.error(f"Return transaction failed: {str(e)}")
+                return jsonify({'message': 'Failed to return book. Please try again.'}), 500
+
+    response = {
+        'message': 'Book returned successfully',
+        'book_title': borrow_record['title'],
+        'isbn': isbn,
+        'return_date': return_date.isoformat()
+    }
+
+    if fine_amount > 0:
+        response['fine_assessed'] = fine_amount
+        response['message'] += f' A fine of ${fine_amount:.2f} has been assessed for late return.'
+
+    return jsonify(response), 200
+
+
+@app.route('/student/my-books', methods=['GET'])
+@jwt_required()
+def get_my_borrowed_books():
+    """
+    Get list of books currently borrowed by the student.
+    """
+    user, student = get_current_user_and_student()
+    if not user or not student:
+        return jsonify({'message': 'Student account not found'}), 404
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT br.borrow_id, br.borrow_date, br.due_date, br.status,
+                       b.id AS book_id, b.isbn, b.title, b.author, b.category, b.image_url
+                FROM borrow_records br
+                JOIN books b ON br.book_id = b.id
+                WHERE br.student_id=%s AND br.status='borrowed'
+                ORDER BY br.due_date ASC
+            """, (student['student_id'],))
+
+            borrowed_books = cur.fetchall()
+
+            # Add overdue status
+            current_date = datetime.utcnow().date()
+            for book in borrowed_books:
+                book['is_overdue'] = book['due_date'] < current_date
+                book['days_until_due'] = (book['due_date'] - current_date).days
+
+    return jsonify({
+        'borrowed_books': borrowed_books,
+        'total_borrowed': len(borrowed_books)
     }), 200
 
 

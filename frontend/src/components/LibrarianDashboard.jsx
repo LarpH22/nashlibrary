@@ -3,7 +3,15 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 function LibrarianDashboard({ user, onLogout }) {
-  const [activePanel, setActivePanel] = useState('Manage Books')
+  const [activePanel, setActivePanelState] = useState(() => {
+    return localStorage.getItem('librarianActivePanel') || 'Manage Books'
+  })
+  
+  // Wrapper to persist activePanel to localStorage
+  const setActivePanel = (panel) => {
+    setActivePanelState(panel)
+    localStorage.setItem('librarianActivePanel', panel)
+  }
   const [books, setBooks] = useState([])
   const [borrowings, setBorrowings] = useState([])
   const [users, setUsers] = useState([])

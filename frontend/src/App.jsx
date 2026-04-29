@@ -34,6 +34,7 @@ function App() {
   const [registrationSuccessOpen, setRegistrationSuccessOpen] = useState(false)
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState('')
   const [isAuthLoading, setIsAuthLoading] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState('')
   const [user, setUser] = useState(null)
@@ -75,7 +76,9 @@ function App() {
 
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      fetchUser()
+      fetchUser().then(() => setIsCheckingAuth(false))
+    } else {
+      setIsCheckingAuth(false)
     }
 
     fetchStats()
@@ -99,6 +102,7 @@ function App() {
     } catch (err) {
       localStorage.removeItem('token')
       localStorage.removeItem('access_token')
+      localStorage.removeItem('activeTab')
       delete axios.defaults.headers.common['Authorization']
       setIsAuthenticated(false)
     }
@@ -326,11 +330,34 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('access_token')
+    localStorage.removeItem('studentActiveTab')
+    localStorage.removeItem('librarianActivePanel')
+    localStorage.removeItem('adminActivePanel')
     delete axios.defaults.headers.common['Authorization']
 
     setIsAuthenticated(false)
     setUserRole('')
     setUser(null)
+  }
+
+  // Show loading state while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#0a0f1e',
+        color: '#fff',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2>Loading...</h2>
+          <p>Restoring your session...</p>
+        </div>
+      </div>
+    )
   }
 
   if (isAuthenticated) {
