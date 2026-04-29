@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 
-export const FinesCard = ({ token }) => {
+const FinesCard = ({ token }) => {
   const [fines, setFines] = useState({
     total_pending: 0,
     total_paid: 0,

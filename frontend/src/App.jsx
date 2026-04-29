@@ -233,15 +233,27 @@ function App() {
         setShowAuth(false)
         resetForm()
       } else {
-        // Validate email domain
-        const email = formData.email.toLowerCase()
+        const email = formData.email.trim().toLowerCase()
+        const fullName = formData.full_name.trim()
+
+        if (!fullName || !email || !formData.password) {
+          setAuthMessage('Please fill in your full name, email, and password.')
+          return
+        }
+
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailPattern.test(email)) {
+          setAuthMessage('Please enter a valid email address.')
+          return
+        }
+
         if (!email.endsWith('@gmail.com') && !email.endsWith('.edu.ph')) {
           setAuthMessage('Email must end with @gmail.com or .edu.ph')
           return
         }
 
         // Validate password strength
-        const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/
+        const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
         if (!strongPassword.test(formData.password)) {
           setAuthMessage('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.')
           return
@@ -302,6 +314,7 @@ function App() {
         }
       }
     } catch (err) {
+      console.error('Registration request failed:', err)
       const responseData = err.response?.data
       const serverMessage = responseData?.message || (responseData ? JSON.stringify(responseData) : null)
       setAuthMessage(serverMessage || err.response?.statusText || err.message || 'Something went wrong')

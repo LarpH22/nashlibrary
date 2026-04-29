@@ -20,11 +20,13 @@ except ModuleNotFoundError:
     from config import Config
 
 EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
-PASSWORD_REGEX = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$")
+PASSWORD_REGEX = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$")
 
 app = Flask(__name__)
 app.config.from_object(Config)
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+app.config['DEBUG'] = False
+app.config['PROPAGATE_EXCEPTIONS'] = True
 
 CORS(app)
 jwt = JWTManager(app)
@@ -61,16 +63,22 @@ def create_fallback_html():
 # DB Connection
 # ─────────────────────────────
 def get_connection():
-    return pymysql.connect(
-        host=Config.DB_HOST,
-        port=int(Config.DB_PORT),
-        user=Config.DB_USER,
-        password=Config.DB_PASSWORD,
-        database=Config.DB_NAME,
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False,
-        charset='utf8mb4'
-    )
+    try:
+        return pymysql.connect(
+            host=Config.DB_HOST,
+            port=int(Config.DB_PORT),
+            user=Config.DB_USER,
+            password=Config.DB_PASSWORD,
+            database=Config.DB_NAME,
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False,
+            charset='utf8mb4'
+        )
+    except pymysql.err.OperationalError as e:
+        app.logger.error(
+            f"Database connection failed: host={Config.DB_HOST}, port={Config.DB_PORT}, user={Config.DB_USER}. Error: {e}"
+        )
+        raise
 
 
 # ─────────────────────────────
@@ -245,7 +253,7 @@ def validate_registration(full_name, email, password, student_id=None):
     if not (email.endswith('@gmail.com') or email.endswith('.edu.ph')):
         return 'Email must end with @gmail.com or .edu.ph'
     if not PASSWORD_REGEX.match(password):
-        return 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.'
+        return 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
     if student_id and (len(student_id) < 3 or len(student_id) > 20):
         return 'Student ID must be between 3 and 20 characters.'
     return None
@@ -336,6 +344,38 @@ def is_email_in_use(email):
     return False
 
 
+def get_registration_conflict_message(email):
+    if not email:
+        return None
+    email = email.strip().lower()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT status, email_verified FROM students WHERE email=%s LIMIT 1", (email,))
+            student = cur.fetchone()
+            if student:
+                if student.get('status') == 'active':
+                    return 'This email already exists.'
+                if student.get('status') == 'pending':
+                    return 'This email already exists and is pending approval.'
+                return 'This email already exists.'
+
+            if column_exists('registration_requests', 'email'):
+                cur.execute("SELECT email_verified FROM registration_requests WHERE email=%s LIMIT 1", (email,))
+                request_row = cur.fetchone()
+                if request_row:
+                    if not request_row.get('email_verified'):
+                        return 'This form already exists. Please check your email to verify your account.'
+                    return 'This form already exists and is awaiting approval.'
+
+            cur.execute("SELECT 1 FROM admins WHERE email=%s LIMIT 1", (email,))
+            if cur.fetchone():
+                return 'This email already exists.'
+            cur.execute("SELECT 1 FROM librarians WHERE email=%s LIMIT 1", (email,))
+            if cur.fetchone():
+                return 'This email already exists.'
+    return None
+
+
 def validate_login(username, password):
     if not username or not password:
         return 'Missing credentials.'
@@ -415,18 +455,40 @@ except Exception as e:
 # ─────────────────────────────
 # Email utilities
 # ─────────────────────────────
-def send_email_async(subject, recipients, body):
+def send_email_async(subject, recipients, body, html_body=None):
     """Send email asynchronously in a background thread"""
     def _send():
         try:
-            msg = Message(subject, sender=Config.MAIL_DEFAULT_SENDER, recipients=recipients)
-            msg.body = body
-            mail.send(msg)
+            with app.app_context():
+                msg = Message(subject, sender=Config.MAIL_DEFAULT_SENDER, recipients=recipients)
+                msg.body = body
+                if html_body:
+                    msg.html = html_body
+                mail.send(msg)
+                app.logger.info(f'Email sent to {recipients}')
         except Exception as e:
-            app.logger.error(f'Failed to send email to {recipients}: {str(e)}')
+            app.logger.error(f'Failed to send email to {recipients}: {str(e)}', exc_info=True)
     
     thread = threading.Thread(target=_send, daemon=True)
     thread.start()
+
+
+# ─────────────────────────────
+# Error Handlers
+# ─────────────────────────────
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'message': 'Endpoint not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'message': 'Internal server error', 'error': str(error)}), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    app.logger.error(f'Unhandled exception: {str(e)}\n{traceback.format_exc()}')
+    return jsonify({'message': 'Internal server error', 'error': str(e)}), 500
 
 
 # ─────────────────────────────
@@ -508,8 +570,9 @@ def register():
         registration_document = None
 
         # Check if email is already in use
-        if is_email_in_use(email):
-            return jsonify({'message': 'Email already in use. Please use a different email address.'}), 400
+        existing_email_message = get_registration_conflict_message(email)
+        if existing_email_message:
+            return jsonify({'message': existing_email_message}), 400
 
         # Process registration in database
         with get_connection() as conn:
@@ -519,11 +582,14 @@ def register():
                     if student_id:
                         cur.execute("SELECT 1 FROM students WHERE student_number=%s", (student_id,))
                         if cur.fetchone():
-                            return jsonify({'message': 'Student ID already exists in the system.'}), 400
+                            return jsonify({'message': 'This ID number already exists.'}), 400
                         if column_exists('registration_requests', 'student_number'):
-                            cur.execute("SELECT 1 FROM registration_requests WHERE student_number=%s", (student_id,))
-                            if cur.fetchone():
-                                return jsonify({'message': 'Student ID is already pending registration.'}), 400
+                            cur.execute("SELECT email, student_number FROM registration_requests WHERE student_number=%s LIMIT 1", (student_id,))
+                            request_row = cur.fetchone()
+                            if request_row:
+                                if request_row.get('email') == email:
+                                    return jsonify({'message': 'This form already exists.'}), 400
+                                return jsonify({'message': 'This ID number already exists.'}), 400
 
                     # Save uploaded file only after initial validation and duplicate checks
                     if doc and doc.filename:
@@ -594,8 +660,25 @@ If you did not create this account, please ignore this email.
 Best regards,
 Library Management System
 """
-            send_email_async('Verify Your Library Account', [email], email_body)
-            app.logger.info(f'Verification email queued for: {email}')
+            email_body_html = f"""
+            <html>
+                <body style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#1f2937;padding:20px;">
+                    <div style="max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                        <h1 style="font-size:24px;margin-bottom:16px;color:#0f172a;">Verify your NashLibrary account</h1>
+                        <p style="font-size:16px;line-height:1.6;margin-bottom:24px;">Hello {full_name},</p>
+                        <p style="font-size:16px;line-height:1.6;margin-bottom:24px;">Thank you for registering. Click the button below to confirm your email address and complete the verification process.</p>
+                        <a href="{verification_url}" style="display:inline-block;padding:14px 24px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">Verify Email</a>
+                        <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">If the button does not work, copy and paste the following link into your browser:</p>
+                        <p style="font-size:14px;word-break:break-all;color:#2563eb;">{verification_url}</p>
+                        <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">If you did not register, please ignore this email.</p>
+                        <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">Best regards,<br/>Library Management System</p>
+                    </div>
+                </body>
+            </html>
+            """
+            send_email_async('Verify Your Library Account', [email], email_body, email_body_html)
+            app.logger.info(f'Verification email queued for student address: {email}')
+            app.logger.info(f'Using SMTP sender account: {Config.MAIL_USERNAME}')
         except Exception as e:
             app.logger.warning(f'Email sending setup failed (non-blocking): {str(e)}')
             # Don't fail registration if email setup fails
@@ -615,50 +698,61 @@ Library Management System
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json() or {}
-    user_input = data.get('username')
-    password = data.get('password')
+    try:
+        data = request.get_json() or {}
+        user_input = data.get('username')
+        password = data.get('password')
 
-    error = validate_login(user_input, password)
-    if error:
-        return jsonify({'message': error}), 400
+        error = validate_login(user_input, password)
+        if error:
+            return jsonify({'message': error}), 400
 
-    user = find_account_by_identifier(user_input)
-    if not user:
-        return jsonify({'message': 'Invalid login credentials'}), 401
+        user = find_account_by_identifier(user_input)
+        if not user:
+            return jsonify({'message': 'Invalid login credentials'}), 401
 
-    stored_password = user.get('password_hash')
-    password_ok = False
-    if stored_password:
-        password_ok = check_password(stored_password, password)
+        stored_password = user.get('password_hash')
+        password_ok = False
+        if stored_password:
+            password_ok = check_password(stored_password, password)
 
-    if not password_ok:
-        return jsonify({'message': 'Invalid login credentials'}), 401
+        if not password_ok:
+            return jsonify({'message': 'Invalid login credentials'}), 401
 
-    # Check status and email verification for students
-    if user.get('role') == 'student':
-        if user.get('status') != 'active':
-            if user.get('status') == 'pending':
-                return jsonify({'message': 'Account is pending admin approval'}), 403
-            elif user.get('status') == 'rejected':
-                return jsonify({'message': 'Account registration was rejected'}), 403
-            elif user.get('status') == 'suspended':
-                return jsonify({'message': 'Account is suspended'}), 403
-            else:
-                return jsonify({'message': 'Account is inactive'}), 403
-        if not user.get('email_verified', 1):
-            return jsonify({'message': 'Email address must be verified before logging in.'}), 403
-    else:
-        if user.get('status') != 'active':
-            return jsonify({'message': 'Account is not active'}), 403
+        # Check status and email verification for students
+        if user.get('role') == 'student':
+            if user.get('status') != 'active':
+                if user.get('status') == 'pending':
+                    return jsonify({'message': 'Account is pending admin approval'}), 403
+                elif user.get('status') == 'rejected':
+                    return jsonify({'message': 'Account registration was rejected'}), 403
+                elif user.get('status') == 'suspended':
+                    return jsonify({'message': 'Account is suspended'}), 403
+                else:
+                    return jsonify({'message': 'Account is inactive'}), 403
+            if not user.get('email_verified', 1):
+                return jsonify({'message': 'Email address must be verified before logging in.'}), 403
+        else:
+            if user.get('status') != 'active':
+                return jsonify({'message': 'Account is not active'}), 403
 
-    token = create_access_token(identity=user['email'])
+        token = create_access_token(identity=user['email'])
 
-    return jsonify({
-        'access_token': token,
-        'role': user.get('role', 'student'),
-        'message': 'Login successful'
-    }), 200
+        return jsonify({
+            'access_token': token,
+            'role': user.get('role', 'student'),
+            'message': 'Login successful'
+        }), 200
+    except pymysql.err.OperationalError as e:
+        app.logger.error(f'Login database error: {str(e)}')
+        return jsonify({
+            'message': 'Database connection error. Please verify backend database credentials and configuration.',
+            'error': str(e)
+        }), 500
+    except Exception as e:
+        import traceback
+        app.logger.error(f'Login error: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({'message': 'Login failed. Please try again.', 'error': str(e)}), 500
 
 
 @app.route('/user', methods=['GET'])
@@ -686,35 +780,40 @@ def get_user():
 # ─────────────────────────────
 @app.route('/stats', methods=['GET'])
 def get_stats():
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            # Count total books
-            cur.execute("SELECT COUNT(*) AS c FROM books")
-            total_books = cur.fetchone()['c']
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                # Count total books
+                cur.execute("SELECT COUNT(*) AS c FROM books")
+                total_books = cur.fetchone()['c']
 
-            # Count borrowed books
-            cur.execute("SELECT COUNT(*) AS c FROM borrow_records WHERE status='borrowed'")
-            borrowed_books = cur.fetchone()['c']
-            
-            # Available books = total - borrowed
-            available_books = max(0, total_books - borrowed_books)
+                # Count borrowed books
+                cur.execute("SELECT COUNT(*) AS c FROM borrow_records WHERE status='borrowed'")
+                borrowed_books = cur.fetchone()['c']
+                
+                # Available books = total - borrowed
+                available_books = max(0, total_books - borrowed_books)
 
-            # Count total students
-            cur.execute("SELECT COUNT(*) AS c FROM students")
-            total_members = cur.fetchone()['c']
+                # Count total students
+                cur.execute("SELECT COUNT(*) AS c FROM students")
+                total_members = cur.fetchone()['c']
 
-            cur.execute("SELECT COUNT(*) AS c FROM borrow_records WHERE status='borrowed'")
-            borrowed_books = cur.fetchone()['c']
-
-            cur.execute("SELECT COUNT(*) AS c FROM students")
-            total_members = cur.fetchone()['c']
-
-    return jsonify({
-        "total_books": total_books,
-        "available_books": available_books,
-        "borrowed_books": borrowed_books,
-        "total_members": total_members
-    }), 200
+        return jsonify({
+            "total_books": total_books,
+            "available_books": available_books,
+            "borrowed_books": borrowed_books,
+            "total_members": total_members
+        }), 200
+    except Exception as e:
+        import traceback
+        app.logger.error(f'Stats error: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({
+            "total_books": 0,
+            "available_books": 0,
+            "borrowed_books": 0,
+            "total_members": 0,
+            "error": str(e)
+        }), 500
 
 
 # ─────────────────────────────
@@ -730,7 +829,26 @@ def verify_email(token):
             )
             request_row = cur.fetchone()
             if not request_row:
-                return jsonify({'message': 'Invalid or expired verification token'}), 400
+                return '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Verification Failed</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; background:#f3f4f6; color:#111827; margin:0; padding:0; }
+        .container { max-width:520px; margin:80px auto; padding:32px; background:#ffffff; border-radius:16px; box-shadow:0 16px 40px rgba(15,23,42,0.08); text-align:center; }
+        h1 { margin-bottom:18px; font-size:28px; color:#111827; }
+        p { margin-bottom:18px; line-height:1.7; color:#475569; }
+        .button { display:inline-block; padding:12px 24px; background:#0f766e; color:#ffffff; border-radius:10px; text-decoration:none; font-weight:600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Verification Failed</h1>
+        <p>The verification link is invalid or has already been used. Please register again or contact support if you need help.</p>
+    </div>
+</body>
+</html>''', 400
 
             student_number = request_row.get('student_number')
             if not student_number:
@@ -760,7 +878,27 @@ def verify_email(token):
             )
         conn.commit()
 
-    return jsonify({'message': 'Email verified successfully. Your account has been created as pending approval. Please wait for admin or librarian approval before logging in.'}), 200
+    return '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Verified</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; background:#f3f4f6; color:#111827; margin:0; padding:0; }
+        .container { max-width:520px; margin:80px auto; padding:32px; background:#ffffff; border-radius:16px; box-shadow:0 16px 40px rgba(15,23,42,0.08); text-align:center; }
+        h1 { margin-bottom:18px; font-size:28px; color:#111827; }
+        p { margin-bottom:18px; line-height:1.7; color:#475569; }
+        .button { display:inline-block; padding:12px 24px; background:#0f766e; color:#ffffff; border-radius:10px; text-decoration:none; font-weight:600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>You are now verified.</h1>
+        <p>Your email has been confirmed successfully. Please wait for approval by the admin before logging in.</p>
+        <a href="/" class="button">Return to NashLibrary</a>
+    </div>
+</body>
+</html>''', 200
 
 
 # ─────────────────────────────
