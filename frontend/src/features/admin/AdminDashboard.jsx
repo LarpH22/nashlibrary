@@ -1,0 +1,539 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  fetchCategories,
+  createCategory,
+  deleteCategory,
+  fetchAuthors,
+  createAuthor,
+  deleteAuthor,
+  fetchBooks,
+  createBook,
+  borrowBook,
+  returnBook,
+  fetchStudent,
+  fetchLoans,
+  changePassword
+} from './adminService.js'
+import './AdminDashboard.css'
+
+const navSections = [
+  {
+    section: 'MAIN',
+    items: [
+      { id: 'overview', icon: '📊', title: 'Overview' },
+      { id: 'books', icon: '📖', title: 'Books' },
+      { id: 'loans', icon: '🔄', title: 'Issue / Return', badge: '3' },
+      { id: 'students', icon: '👥', title: 'Students' }
+    ]
+  },
+  {
+    section: 'LIBRARY',
+    items: [
+      { id: 'categories', icon: '🗂', title: 'Categories' },
+      { id: 'authors', icon: '✍️', title: 'Authors' }
+    ]
+  },
+  {
+    section: 'ACCOUNT',
+    items: [
+      { id: 'account', icon: '🔑', title: 'Change Password' }
+    ]
+  }
+]
+
+const pageTitles = {
+  overview: 'Overview',
+  books: 'Books',
+  loans: 'Issue / Return',
+  students: 'Students',
+  categories: 'Categories',
+  authors: 'Authors',
+  account: 'Change Password'
+}
+
+export function AdminDashboard() {
+  const navigate = useNavigate()
+  const [activePage, setActivePage] = useState('overview')
+  const [categories, setCategories] = useState([])
+  const [authors, setAuthors] = useState([])
+  const [books, setBooks] = useState([])
+  const [loans, setLoans] = useState([])
+  const [studentId, setStudentId] = useState('')
+  const [student, setStudent] = useState(null)
+  const [message, setMessage] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryName, setCategoryName] = useState('')
+  const [authorName, setAuthorName] = useState('')
+  const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', available_copies: 1, total_copies: 1 })
+  const [borrowForm, setBorrowForm] = useState({ book_id: '', user_id: '' })
+  const [returnLoanId, setReturnLoanId] = useState('')
+  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+
+  useEffect(() => {
+    loadCategories()
+    loadAuthors()
+    loadBooks()
+    loadLoans()
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user_role')
+    localStorage.removeItem('user_id')
+    navigate('/login', { replace: true })
+  }
+
+  const stats = useMemo(
+    () => [
+      { label: 'Categories', value: categories.length, type: 'gold' },
+      { label: 'Authors', value: authors.length, type: 'blue' },
+      { label: 'Books', value: books.length, type: 'green' },
+      { label: 'Loans', value: loans.length, type: 'purple' }
+    ],
+    [categories, authors, books, loans]
+  )
+
+  async function loadCategories() {
+    try {
+      setCategories(await fetchCategories())
+    } catch {
+      setMessage('Unable to load categories.')
+    }
+  }
+
+  async function loadAuthors() {
+    try {
+      setAuthors(await fetchAuthors())
+    } catch {
+      setMessage('Unable to load authors.')
+    }
+  }
+
+  async function loadBooks() {
+    try {
+      setBooks(await fetchBooks())
+    } catch {
+      setMessage('Unable to load books.')
+    }
+  }
+
+  async function loadLoans() {
+    try {
+      setLoans(await fetchLoans())
+    } catch {
+      setMessage('Unable to load loans.')
+    }
+  }
+
+  async function handleAddCategory(event) {
+    event.preventDefault()
+    if (!categoryName.trim()) return
+    try {
+      await createCategory(categoryName)
+      setCategoryName('')
+      await loadCategories()
+      setMessage('Category saved successfully.')
+    } catch {
+      setMessage('Failed to save category.')
+    }
+  }
+
+  async function handleAddAuthor(event) {
+    event.preventDefault()
+    if (!authorName.trim()) return
+    try {
+      await createAuthor(authorName)
+      setAuthorName('')
+      await loadAuthors()
+      setMessage('Author saved successfully.')
+    } catch {
+      setMessage('Failed to save author.')
+    }
+  }
+
+  async function handleAddBook(event) {
+    event.preventDefault()
+    try {
+      await createBook(bookForm)
+      setBookForm({ title: '', author: '', isbn: '', available_copies: 1, total_copies: 1 })
+      await loadBooks()
+      setMessage('Book created successfully.')
+    } catch {
+      setMessage('Failed to create book.')
+    }
+  }
+
+  async function handleBorrowBook(event) {
+    event.preventDefault()
+    try {
+      await borrowBook(Number(borrowForm.book_id), Number(borrowForm.user_id))
+      setBorrowForm({ book_id: '', user_id: '' })
+      await loadLoans()
+      setMessage('Book issued successfully.')
+    } catch {
+      setMessage('Failed to issue book.')
+    }
+  }
+
+  async function handleReturnBook(event) {
+    event.preventDefault()
+    try {
+      await returnBook(Number(returnLoanId))
+      setReturnLoanId('')
+      await loadLoans()
+      setMessage('Book return recorded.')
+    } catch {
+      setMessage('Failed to return book.')
+    }
+  }
+
+  async function handleSearchStudent(event) {
+    event.preventDefault()
+    if (!studentId.trim()) return
+    try {
+      const found = await fetchStudent(Number(studentId))
+      setStudent(found)
+      setMessage('Student record loaded.')
+    } catch {
+      setStudent(null)
+      setMessage('Student not found.')
+    }
+  }
+
+  async function handleChangePassword(event) {
+    event.preventDefault()
+    try {
+      await changePassword(passwordForm.old_password, passwordForm.new_password)
+      setPasswordForm({ old_password: '', new_password: '' })
+      setMessage('Password changed successfully.')
+    } catch {
+      setMessage('Password change failed.')
+    }
+  }
+
+  function renderPage() {
+    if (activePage === 'overview') {
+      return (
+        <>
+          <div className="grid4">
+            {stats.map((stat) => (
+              <div key={stat.label} className={`stat ${stat.type}`}>
+                <div className="stat-label">{stat.label}</div>
+                <div className="stat-num">{stat.value}</div>
+                <div className="stat-sub">Current total</div>
+                <div className="stat-icon">{stat.label === 'Books' ? '📚' : stat.label === 'Loans' ? '🔄' : stat.label === 'Authors' ? '✍️' : '🗂'}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid2">
+            <div className="card">
+              <div className="card-hdr">
+                <div className="card-title">Overview</div>
+              </div>
+              <p>Welcome to the admin dashboard. Use the sidebar to manage books, loans, students, categories, and authors.</p>
+            </div>
+            <div className="card">
+              <div className="card-hdr">
+                <div className="card-title">Quick Actions</div>
+              </div>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <button className="btn btn-gold" type="button" onClick={() => setActivePage('categories')}>Add Category</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('authors')}>Add Author</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('books')}>Add Book</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )
+    }
+
+    if (activePage === 'categories') {
+      return (
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">Category Management</div>
+          </div>
+          <form className="admin-form" onSubmit={handleAddCategory}>
+            <div className="fgroup" style={{ flex: 1 }}>
+              <label>New category</label>
+              <input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Category name" />
+            </div>
+            <button className="btn btn-gold" type="submit">Add Category</button>
+          </form>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {categories.map((category) => (
+                  <tr key={category.category_id}>
+                    <td>{category.name}</td>
+                    <td>
+                      <button className="btn btn-outline btn-sm" type="button" onClick={async () => { await deleteCategory(category.category_id); await loadCategories() }}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
+    if (activePage === 'authors') {
+      return (
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">Author Management</div>
+          </div>
+          <form className="admin-form" onSubmit={handleAddAuthor}>
+            <div className="fgroup" style={{ flex: 1 }}>
+              <label>New author</label>
+              <input value={authorName} onChange={(event) => setAuthorName(event.target.value)} placeholder="Author name" />
+            </div>
+            <button className="btn btn-gold" type="submit">Add Author</button>
+          </form>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {authors.map((author) => (
+                  <tr key={author.author_id}>
+                    <td>{author.name}</td>
+                    <td>
+                      <button className="btn btn-outline btn-sm" type="button" onClick={async () => { await deleteAuthor(author.author_id); await loadAuthors() }}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
+    if (activePage === 'books') {
+      return (
+        <>
+          <div className="card">
+            <div className="card-hdr">
+              <div className="card-title">Add New Book</div>
+            </div>
+            <form className="admin-form" onSubmit={handleAddBook}>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Title</label>
+                  <input value={bookForm.title} onChange={(event) => setBookForm({ ...bookForm, title: event.target.value })} placeholder="Title" />
+                </div>
+                <div className="fgroup">
+                  <label>Author</label>
+                  <input value={bookForm.author} onChange={(event) => setBookForm({ ...bookForm, author: event.target.value })} placeholder="Author" />
+                </div>
+              </div>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>ISBN</label>
+                  <input value={bookForm.isbn} onChange={(event) => setBookForm({ ...bookForm, isbn: event.target.value })} placeholder="ISBN" />
+                </div>
+                <div className="fgroup">
+                  <label>Available copies</label>
+                  <input type="number" min="1" value={bookForm.available_copies} onChange={(event) => setBookForm({ ...bookForm, available_copies: Number(event.target.value) })} />
+                </div>
+              </div>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Total copies</label>
+                  <input type="number" min="1" value={bookForm.total_copies} onChange={(event) => setBookForm({ ...bookForm, total_copies: Number(event.target.value) })} />
+                </div>
+                <div className="fgroup" style={{ alignSelf: 'end' }}>
+                  <button className="btn btn-gold" type="submit">Save Book</button>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div className="card">
+            <div className="card-hdr">
+              <div className="card-title">Book Inventory</div>
+            </div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr><th>Title</th><th>Author</th><th>ISBN</th><th>Available</th></tr>
+                </thead>
+                <tbody>
+                  {books.map((book) => (
+                    <tr key={book.book_id}>
+                      <td>{book.title}</td>
+                      <td>{book.author}</td>
+                      <td>{book.isbn}</td>
+                      <td>{book.available_copies}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )
+    }
+
+    if (activePage === 'loans') {
+      return (
+        <>
+          <div className="grid2">
+            <div className="card">
+              <div className="card-hdr">
+                <div className="card-title">Issue Book</div>
+              </div>
+              <form className="admin-form" onSubmit={handleBorrowBook}>
+                <div className="fgroup"><label>Book ID</label><input value={borrowForm.book_id} onChange={(event) => setBorrowForm({ ...borrowForm, book_id: event.target.value })} placeholder="Book ID" /></div>
+                <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm({ ...borrowForm, user_id: event.target.value })} placeholder="Student ID" /></div>
+                <button className="btn btn-gold" type="submit">Issue</button>
+              </form>
+            </div>
+            <div className="card">
+              <div className="card-hdr">
+                <div className="card-title">Return Book</div>
+              </div>
+              <form className="admin-form" onSubmit={handleReturnBook}>
+                <div className="fgroup"><label>Loan ID</label><input value={returnLoanId} onChange={(event) => setReturnLoanId(event.target.value)} placeholder="Loan ID" /></div>
+                <button className="btn btn-gold" type="submit">Return</button>
+              </form>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Current Loans</div></div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr><th>Loan ID</th><th>Book</th><th>Student</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {loans.map((loan) => (
+                    <tr key={loan.loan_id}>
+                      <td>{loan.loan_id}</td>
+                      <td>{loan.book_title || loan.book_id}</td>
+                      <td>{loan.student_name || loan.user_id || loan.student_id}</td>
+                      <td>{loan.status || (loan.returned ? 'Returned' : 'Active')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )
+    }
+
+    if (activePage === 'students') {
+      return (
+        <>
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Student Lookup</div></div>
+            <form className="admin-form" onSubmit={handleSearchStudent}>
+              <div className="fgroup" style={{ flex: 1 }}>
+                <label>Student ID</label>
+                <input value={studentId} onChange={(event) => setStudentId(event.target.value)} placeholder="Student ID" />
+              </div>
+              <button className="btn btn-gold" type="submit">Search</button>
+            </form>
+          </div>
+          {student && (
+            <div className="card">
+              <div className="card-hdr"><div className="card-title">Student Detail</div></div>
+              <p><strong>Name:</strong> {student.full_name || student.name || '—'}</p>
+              <p><strong>ID:</strong> {student.user_id || student.student_id || '—'}</p>
+              <p><strong>Email:</strong> {student.email || '—'}</p>
+              <p><strong>Status:</strong> {student.status || 'Active'}</p>
+            </div>
+          )}
+        </>
+      )
+    }
+
+    if (activePage === 'account') {
+      return (
+        <div className="card">
+          <div className="card-hdr"><div className="card-title">Change Password</div></div>
+          <form className="admin-form" onSubmit={handleChangePassword}>
+            <div className="frow">
+              <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => setPasswordForm({ ...passwordForm, old_password: event.target.value })} placeholder="Current password" /></div>
+              <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })} placeholder="New password" /></div>
+            </div>
+            <button className="btn btn-gold" type="submit">Save password</button>
+          </form>
+        </div>
+      )
+    }
+
+    return null
+  }
+
+  return (
+    <div className="admin-dashboard-app">
+      <div className="sidebar">
+        <div className="logo">
+          <div className="logo-icon">📚</div>
+          <div className="logo-title">LibraX</div>
+          <div className="logo-sub">Administrator</div>
+        </div>
+        <nav className="nav">
+          {navSections.map((section) => (
+            <div key={section.section}>
+              <div className="nav-section">{section.section}</div>
+              {section.items.map((item) => (
+                <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
+                  <span className="nav-icon">{item.icon}</span>
+                  <span>{item.title}</span>
+                  {item.badge && <span className="nav-badge">{item.badge}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="avatar">AD</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Admin User</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>admin@librax.edu</div>
+            </div>
+            <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
+          </div>
+        </div>
+      </div>
+      {showLogoutConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', color: 'var(--text)' }}>
+            <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Confirm Logout</div>
+            <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '24px' }}>Are you sure you want to log out?</div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowLogoutConfirm(false)} style={{ padding: '8px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+              <button onClick={handleLogout} style={{ padding: '8px 16px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="main">
+        <div className="topbar">
+          <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
+          <div className="search-wrap">
+            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
+          </div>
+          <span style={{ fontSize: '18px', cursor: 'pointer' }}>🔔</span>
+          <div className="avatar">AD</div>
+        </div>
+        <div className="content">
+          {message && <div className="notif show">{message}</div>}
+          {renderPage()}
+        </div>
+      </div>
+    </div>
+  )
+}
+

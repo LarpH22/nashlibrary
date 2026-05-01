@@ -1,0 +1,19 @@
+from abc import ABC, abstractmethod
+
+
+class LoanRepository(ABC):
+    @abstractmethod
+    def create_loan(self, book_id: int, user_id: int, borrowed_at, due_date):
+        raise NotImplementedError
+
+    @abstractmethod
+    def close_loan(self, loan_id: int, returned_at):
+        raise NotImplementedError
+
+    @abstractmethod
+    def find_active_loan(self, book_id: int, user_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def calculate_fine(self, loan_id: int):
+        raise NotImplementedError

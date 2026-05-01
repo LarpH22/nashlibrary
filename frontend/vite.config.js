@@ -5,6 +5,25 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: '../dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    sourcemap: false,
+    minify: 'esbuild',
+    target: 'esnext'
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': 'http://localhost:5000',
+      '/users': 'http://localhost:5000',
+      '/books': 'http://localhost:5000',
+      '/fines': 'http://localhost:5000'
+    }
+  },
+  css: {
+    preprocessorOptions: {
+      css: {
+        charset: false
+      }
+    }
   }
 })
