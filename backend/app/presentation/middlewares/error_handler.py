@@ -11,6 +11,14 @@ def register_error_handlers(app):
     def not_found(error):
         return jsonify({'message': 'Endpoint not found', 'status': 404}), 404
 
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        return jsonify({
+            'message': 'Method not allowed',
+            'status': 405,
+            'valid_methods': getattr(error, 'valid_methods', None)
+        }), 405
+
     @app.errorhandler(400)
     def bad_request(error):
         return jsonify({'message': 'Bad request', 'status': 400}), 400

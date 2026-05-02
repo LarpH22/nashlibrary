@@ -13,7 +13,10 @@ import {
   returnBook,
   fetchStudent,
   fetchLoans,
-  changePassword
+  changePassword,
+  fetchRegistrationRequests,
+  approveRegistration,
+  rejectRegistration
 } from './adminService.js'
 import './AdminDashboard.css'
 
@@ -22,6 +25,7 @@ const navSections = [
     section: 'MAIN',
     items: [
       { id: 'overview', icon: '📊', title: 'Overview' },
+      { id: 'registrations', icon: '📝', title: 'Registration Approvals' },
       { id: 'books', icon: '📖', title: 'Books' },
       { id: 'loans', icon: '🔄', title: 'Issue / Return', badge: '3' },
       { id: 'students', icon: '👥', title: 'Students' }
@@ -44,6 +48,7 @@ const navSections = [
 
 const pageTitles = {
   overview: 'Overview',
+  registrations: 'Registration Approvals',
   books: 'Books',
   loans: 'Issue / Return',
   students: 'Students',
@@ -69,6 +74,7 @@ export function AdminDashboard() {
   const [borrowForm, setBorrowForm] = useState({ book_id: '', user_id: '' })
   const [returnLoanId, setReturnLoanId] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
+  const [registrationRequests, setRegistrationRequests] = useState([])
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   useEffect(() => {
@@ -76,6 +82,7 @@ export function AdminDashboard() {
     loadAuthors()
     loadBooks()
     loadLoans()
+    loadRegistrationRequests()
   }, [])
 
   const handleLogout = () => {
@@ -124,6 +131,14 @@ export function AdminDashboard() {
       setLoans(await fetchLoans())
     } catch {
       setMessage('Unable to load loans.')
+    }
+  }
+
+  async function loadRegistrationRequests() {
+    try {
+      setRegistrationRequests(await fetchRegistrationRequests())
+    } catch {
+      setMessage('Unable to load registration requests.')
     }
   }
 
@@ -246,6 +261,73 @@ export function AdminDashboard() {
             </div>
           </div>
         </>
+      )
+    }
+
+    if (activePage === 'registrations') {
+      return (
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">Registration Approvals</div>
+          </div>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Student ID</th>
+                  <th>Verified</th>
+                  <th>Submitted</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {registrationRequests.map((request) => (
+                  <tr key={request.request_id}>
+                    <td>{request.full_name}</td>
+                    <td>{request.email}</td>
+                    <td>{request.student_number}</td>
+                    <td>{request.email_verified ? '✅' : '❌'}</td>
+                    <td>{new Date(request.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <button
+                        className="btn btn-gold btn-sm"
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await approveRegistration(request.request_id)
+                            await loadRegistrationRequests()
+                            setMessage('Registration approved successfully.')
+                          } catch {
+                            setMessage('Failed to approve registration.')
+                          }
+                        }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await rejectRegistration(request.request_id)
+                            await loadRegistrationRequests()
+                            setMessage('Registration rejected.')
+                          } catch {
+                            setMessage('Failed to reject registration.')
+                          }
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )
     }
 

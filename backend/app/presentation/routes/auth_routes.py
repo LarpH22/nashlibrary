@@ -13,6 +13,17 @@ def register():
     return controller.register()
 
 
+@auth_bp.route('/verify-email', methods=['GET'])
+def verify_email():
+    return controller.verify_email()
+
+
+@auth_bp.route('/approve-registration', methods=['POST'])
+@jwt_required()
+def approve_registration():
+    return controller.approve_registration()
+
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     return controller.login()

@@ -28,6 +28,9 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'noreply@library.com'
 
+    # Frontend URL for email verification links
+    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:3000'
+
     # File upload configuration
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')

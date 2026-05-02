@@ -192,3 +192,54 @@ class AdminController:
                 )
                 loans = cur.fetchall()
         return jsonify(loans), 200
+
+    def list_registration_requests(self):
+        auth_error = self._require_admin()
+        if auth_error:
+            return auth_error
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''
+                    SELECT
+                        request_id,
+                        email,
+                        full_name,
+                        student_number,
+                        registration_document,
+                        email_verified,
+                        verified_at,
+                        created_at
+                    FROM registration_requests
+                    WHERE email_verified = TRUE
+                    ORDER BY created_at DESC
+                    '''
+                )
+                requests = cur.fetchall()
+        return jsonify(requests), 200
+
+    def reject_registration(self):
+        auth_error = self._require_admin()
+        if auth_error:
+            return auth_error
+
+        data = request.get_json() or {}
+        request_id = data.get('request_id')
+
+        if not request_id:
+            return jsonify({'message': 'Request ID is required'}), 400
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE registration_requests SET status=%s WHERE request_id=%s',
+                    ('rejected', request_id)
+                )
+                conn.commit()
+                updated = cur.rowcount
+
+        if not updated:
+            return jsonify({'message': 'Registration request not found'}), 404
+
+        return jsonify({'message': 'Registration request rejected'}), 200

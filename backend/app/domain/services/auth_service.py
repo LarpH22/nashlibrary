@@ -74,6 +74,11 @@ class AuthService:
             return None
         if not self.verify_password(password, user.get('password_hash', '')):
             return None
+        # Check if email is verified and account is active
+        if not user.get('email_verified', False):
+            return None
+        if user.get('status') != 'active':
+            return None
         return user
 
     def authenticate_librarian(self, email: str, password: str):

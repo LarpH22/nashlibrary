@@ -4,14 +4,14 @@ from ...domain.repositories.auth_repository import StudentAuthRepository, Librar
 
 class StudentAuthRepositoryImpl(StudentAuthRepository):
     """Student authentication repository implementation"""
-    
-    def create_student(self, email: str, full_name: str, password_hash: str, 
+
+    def create_student(self, email: str, full_name: str, password_hash: str,
                        student_number: str | None = None, status: str = 'pending'):
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """INSERT INTO students 
-                       (email, full_name, password_hash, student_number, status, created_at) 
+                    """INSERT INTO students
+                       (email, full_name, password_hash, student_number, status, created_at)
                        VALUES (%s, %s, %s, %s, %s, NOW())""",
                     (email, full_name, password_hash, student_number, status)
                 )
@@ -22,6 +22,12 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM students WHERE email=%s LIMIT 1", (email,))
+                return cur.fetchone()
+
+    def find_student_by_student_number(self, student_number: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM students WHERE student_number=%s LIMIT 1", (student_number,))
                 return cur.fetchone()
 
     def get_student_profile(self, email: str):
@@ -36,6 +42,7 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
             'department': student.get('department'),
             'year_level': student.get('year_level'),
             'status': student.get('status'),
+            'email_verified': student.get('email_verified'),
             'role': 'student'
         }
 
@@ -45,6 +52,65 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
                 cur.execute(
                     "UPDATE students SET status=%s, updated_at=NOW() WHERE email=%s",
                     (status, email)
+                )
+                conn.commit()
+                return cur.rowcount > 0
+
+    def create_registration_request(self, email: str, full_name: str, password_hash: str,
+                                   student_number: str, registration_document: str,
+                                   verification_token: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO registration_requests
+                       (email, full_name, password_hash, student_number, registration_document,
+                        verification_token, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, NOW())""",
+                    (email, full_name, password_hash, student_number, registration_document, verification_token)
+                )
+                conn.commit()
+                return cur.lastrowid
+
+    def find_registration_request_by_email(self, email: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM registration_requests WHERE email=%s LIMIT 1", (email,))
+                return cur.fetchone()
+
+    def find_registration_request_by_student_number(self, student_number: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM registration_requests WHERE student_number=%s LIMIT 1", (student_number,))
+                return cur.fetchone()
+
+    def find_registration_request_by_token(self, token: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM registration_requests WHERE verification_token=%s LIMIT 1", (token,))
+                return cur.fetchone()
+
+    def find_registration_request_by_id(self, request_id: int):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM registration_requests WHERE request_id=%s LIMIT 1", (request_id,))
+                return cur.fetchone()
+
+    def update_registration_request_verified(self, token: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE registration_requests SET email_verified=TRUE, verified_at=NOW() WHERE verification_token=%s",
+                    (token,)
+                )
+                conn.commit()
+                return cur.rowcount > 0
+
+    def update_registration_request_status(self, request_id: int, status: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE registration_requests SET status=%s WHERE request_id=%s",
+                    (status, request_id)
                 )
                 conn.commit()
                 return cur.rowcount > 0

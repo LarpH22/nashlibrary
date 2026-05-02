@@ -41,10 +41,15 @@ def delete_author(author_id):
 def search_student(student_id):
     return controller.search_student(student_id)
 
-@admin_bp.route('/password', methods=['POST'])
+@admin_bp.route('/registration-requests', methods=['GET'])
 @jwt_required()
-def change_password():
-    return controller.change_password()
+def list_registration_requests():
+    return controller.list_registration_requests()
+
+@admin_bp.route('/reject-registration', methods=['POST'])
+@jwt_required()
+def reject_registration():
+    return controller.reject_registration()
 
 @admin_bp.route('/loans', methods=['GET'])
 @jwt_required()

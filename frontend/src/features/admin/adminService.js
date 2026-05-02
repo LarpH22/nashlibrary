@@ -1,5 +1,20 @@
 import api from '../../shared/api.js'
 
+export async function fetchRegistrationRequests() {
+  const response = await api.get('/api/admin/registration-requests')
+  return response.data
+}
+
+export async function approveRegistration(requestId) {
+  const response = await api.post('/api/auth/approve-registration', { request_id: requestId })
+  return response.data
+}
+
+export async function rejectRegistration(requestId) {
+  const response = await api.post('/api/admin/reject-registration', { request_id: requestId })
+  return response.data
+}
+
 export async function fetchCategories() {
   const response = await api.get('/api/admin/categories')
   return response.data
