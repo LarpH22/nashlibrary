@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './StudentDashboard.css'
 
@@ -33,7 +33,6 @@ export function StudentDashboard() {
   const [activePage, setActivePage] = useState('overview')
   const [loans, setLoans] = useState([])
   const [profile, setProfile] = useState(null)
-  const [message, setMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [profileForm, setProfileForm] = useState({ full_name: '', email: '', phone: '' })
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
@@ -50,6 +49,36 @@ export function StudentDashboard() {
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
+  const loadLoans = useCallback(async () => {
+    try {
+      const response = await fetch('/api/loans/student')
+      if (!response.ok) {
+        throw new Error('Unable to load student loans')
+      }
+      setLoans(await response.json())
+    } catch {
+      addNotification('Unable to load your books.')
+    }
+  }, [])
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const response = await fetch('/api/students/profile')
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error('Unable to load profile')
+      }
+      setProfile(data)
+      setProfileForm({
+        full_name: data.full_name || data.name || '',
+        email: data.email || '',
+        phone: data.phone || ''
+      })
+    } catch {
+      addNotification('Unable to load profile.')
+    }
+  }, [])
+
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user_role')
@@ -60,7 +89,7 @@ export function StudentDashboard() {
   useEffect(() => {
     loadLoans()
     loadProfile()
-  }, [])
+  }, [loadLoans, loadProfile])
 
   const stats = useMemo(
     () => {
@@ -76,32 +105,6 @@ export function StudentDashboard() {
     },
     [loans]
   )
-
-  async function loadLoans() {
-    try {
-      const response = await fetch('/api/loans/student')
-      setLoans(await response.json())
-    } catch {
-      addNotification('Unable to load your books.')
-    }
-  }
-
-  async function loadProfile() {
-    try {
-      const response = await fetch('/api/students/profile')
-      setProfile(await response.json())
-      if (response.ok) {
-        const data = await response.json()
-        setProfileForm({
-          full_name: data.full_name || data.name || '',
-          email: data.email || '',
-          phone: data.phone || ''
-        })
-      }
-    } catch {
-      addNotification('Unable to load profile.')
-    }
-  }
 
   async function handleUpdateProfile(event) {
     event.preventDefault()

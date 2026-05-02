@@ -123,12 +123,18 @@ try:
             full_name VARCHAR(100) NOT NULL,
             student_number VARCHAR(20),
             role ENUM('student', 'librarian', 'admin') NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            registration_document VARCHAR(255),
+            verification_token VARCHAR(255),
+            email_verified BOOLEAN DEFAULT FALSE,
+            verified_at TIMESTAMP NULL,
             status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_email (email),
-            INDEX idx_status (status)
+            INDEX idx_status (status),
+            INDEX idx_verification_token (verification_token)
         )
-        ''')
+        ''' )
         
         # BOOKS TABLE
         cur.execute('''

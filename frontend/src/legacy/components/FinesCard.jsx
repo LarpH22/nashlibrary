@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 const FinesCard = ({ token }) => {
@@ -63,7 +63,6 @@ const FinesCard = ({ token }) => {
   }
 
   const hasPending = fines.total_pending > 0
-  const statusColor = hasPending ? '#f87171' : '#34d399'
 
   return (
     <div className={`fines-card ${hasPending ? 'pending' : 'paid'}`}>

@@ -4,6 +4,7 @@ import LibrxLanding from './LibrxLanding.jsx'
 import { Login } from '../features/auth/Login.jsx'
 import { Register } from '../features/auth/Register.jsx'
 import { VerifyEmail } from '../features/auth/VerifyEmail.jsx'
+import ResetPassword from '../features/auth/ResetPassword.jsx'
 import { Dashboard } from '../features/dashboard/Dashboard.jsx'
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>

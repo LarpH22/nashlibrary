@@ -1,4 +1,3 @@
-import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Book, Search, Calendar, ShieldCheck, ArrowRight, Zap } from 'lucide-react'
 import './LibrxLanding.css'

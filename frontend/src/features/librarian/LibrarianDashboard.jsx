@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import api from '../../shared/api.js'
 import './LibrarianDashboard.css'
 
 const navSections = [
@@ -43,7 +44,6 @@ export function LibrarianDashboard() {
   const [books, setBooks] = useState([])
   const [loans, setLoans] = useState([])
   const [students, setStudents] = useState([])
-  const [message, setMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [issueForm, setIssueForm] = useState({ book_id: '', student_id: '' })
   const [returnLoanId, setReturnLoanId] = useState('')
@@ -61,113 +61,138 @@ export function LibrarianDashboard() {
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
+  const safeBooks = useMemo(() => (Array.isArray(books) ? books : []), [books])
+  const safeLoans = useMemo(() => (Array.isArray(loans) ? loans : []), [loans])
+  const safeStudents = useMemo(() => (Array.isArray(students) ? students : []), [students])
+
+  const studentRecords = useMemo(() => {
+    const map = new Map()
+
+    safeLoans.forEach((loan) => {
+      const userId = loan.user_id ?? loan.student_id
+      if (!userId) return
+
+      const existing = map.get(userId) || {
+        user_id: userId,
+        full_name: loan.student_name || loan.full_name || 'Unknown',
+        email: loan.student_email || '',
+        status: loan.status || 'Active',
+        borrowed_books: 0
+      }
+
+      map.set(userId, existing)
+    })
+
+    safeLoans.forEach((loan) => {
+      const userId = loan.user_id ?? loan.student_id
+      if (!userId) return
+      const student = map.get(userId)
+      if (student && !loan.returned) {
+        student.borrowed_books = (student.borrowed_books || 0) + 1
+      }
+    })
+
+    return Array.from(map.values())
+  }, [safeLoans])
+
+  const studentList = safeStudents.length > 0 ? safeStudents : studentRecords
+
   const handleLogout = () => {
-    localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
     localStorage.removeItem('user_role')
     localStorage.removeItem('user_id')
     navigate('/login', { replace: true })
   }
 
+  const loadBooks = useCallback(async () => {
+    try {
+      const response = await api.get('/books/')
+      setBooks(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      console.error('Unable to load books:', error)
+      setBooks([])
+      addNotification('Unable to load books.')
+    }
+  }, [])
+
+  const loadLoans = useCallback(async () => {
+    try {
+      const response = await api.get('/api/admin/loans')
+      setLoans(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      console.error('Unable to load loans:', error)
+      setLoans([])
+      addNotification('Unable to load loans.')
+    }
+  }, [])
+
+  const loadStudents = useCallback(async () => {
+    try {
+      const response = await api.get('/api/admin/students')
+      setStudents(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      console.error('Unable to load students:', error)
+      setStudents([])
+      addNotification('Unable to load students.')
+    }
+  }, [])
+
   useEffect(() => {
     loadBooks()
     loadLoans()
     loadStudents()
-  }, [])
+  }, [loadBooks, loadLoans, loadStudents])
 
   const stats = useMemo(
     () => [
-      { label: 'Books', value: books.length, type: 'blue' },
-      { label: 'Active Loans', value: loans.filter(l => !l.returned).length, type: 'green' },
-      { label: 'Overdue', value: loans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length, type: 'red' },
-      { label: 'Students', value: students.length, type: 'purple' }
+      { label: 'Books', value: safeBooks.length, type: 'blue' },
+      { label: 'Active Loans', value: safeLoans.filter(l => !l.returned).length, type: 'green' },
+      { label: 'Overdue', value: safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length, type: 'red' },
+      { label: 'Students', value: studentList.length, type: 'purple' }
     ],
-    [books, loans, students]
+    [safeBooks, safeLoans, studentList]
   )
-
-  async function loadBooks() {
-    try {
-      const response = await fetch('/api/books')
-      setBooks(await response.json())
-    } catch {
-      addNotification('Unable to load books.')
-    }
-  }
-
-  async function loadLoans() {
-    try {
-      const response = await fetch('/api/loans')
-      setLoans(await response.json())
-    } catch {
-      addNotification('Unable to load loans.')
-    }
-  }
-
-  async function loadStudents() {
-    try {
-      const response = await fetch('/api/students')
-      setStudents(await response.json())
-    } catch {
-      addNotification('Unable to load students.')
-    }
-  }
 
   async function handleIssueBook(event) {
     event.preventDefault()
     try {
-      const response = await fetch('/api/loans/issue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          book_id: Number(issueForm.book_id),
-          user_id: Number(issueForm.student_id)
-        })
+      await api.post('/books/borrow', {
+        book_id: Number(issueForm.book_id),
+        user_id: Number(issueForm.student_id)
       })
-      if (response.ok) {
-        setIssueForm({ book_id: '', student_id: '' })
-        await loadLoans()
-        await loadBooks()
-        addNotification('Book issued successfully.')
-      } else {
-        addNotification('Failed to issue book.')
-      }
-    } catch {
-      addNotification('Error issuing book.')
+      setIssueForm({ book_id: '', student_id: '' })
+      await loadLoans()
+      await loadBooks()
+      addNotification('Book issued successfully.')
+    } catch (error) {
+      console.error('Error issuing book:', error)
+      addNotification('Failed to issue book.')
     }
   }
 
   async function handleReturnBook(event) {
     event.preventDefault()
     try {
-      const response = await fetch(`/api/loans/${returnLoanId}/return`, { method: 'POST' })
-      if (response.ok) {
-        setReturnLoanId('')
-        await loadLoans()
-        await loadBooks()
-        addNotification('Book return recorded.')
-      } else {
-        addNotification('Failed to return book.')
-      }
-    } catch {
-      addNotification('Error returning book.')
+      await api.post('/books/return', { loan_id: Number(returnLoanId) })
+      setReturnLoanId('')
+      await loadLoans()
+      await loadBooks()
+      addNotification('Book return recorded.')
+    } catch (error) {
+      console.error('Error returning book:', error)
+      addNotification('Failed to return book.')
     }
   }
 
   async function handleChangePassword(event) {
     event.preventDefault()
     try {
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(passwordForm)
-      })
-      if (response.ok) {
-        setPasswordForm({ old_password: '', new_password: '' })
-        addNotification('Password changed successfully.')
-      } else {
-        addNotification('Password change failed.')
-      }
-    } catch {
-      addNotification('Error changing password.')
+      await api.post('/api/admin/password', passwordForm)
+      setPasswordForm({ old_password: '', new_password: '' })
+      addNotification('Password changed successfully.')
+    } catch (error) {
+      console.error('Error changing password:', error)
+      addNotification('Password change failed.')
     }
   }
 
@@ -248,7 +273,7 @@ export function LibrarianDashboard() {
                 <tr><th>Title</th><th>ISBN</th><th>Available</th><th>Total</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {books.map((book) => (
+                {safeBooks.map((book) => (
                   <tr key={book.book_id}>
                     <td>{book.title}</td>
                     <td>{book.isbn || '—'}</td>
@@ -265,7 +290,7 @@ export function LibrarianDashboard() {
     }
 
     if (activePage === 'overdue') {
-      const overdueLoans = loans.filter(l => !l.returned && new Date(l.due_date) < new Date())
+      const overdueLoans = safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date())
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Overdue Books ({overdueLoans.length})</div></div>
@@ -304,8 +329,8 @@ export function LibrarianDashboard() {
                 <tr><th>Student ID</th><th>Name</th><th>Email</th><th>Status</th><th>Books Borrowed</th></tr>
               </thead>
               <tbody>
-                {students.map((student) => {
-                  const borrowedCount = loans.filter(l => l.user_id === student.user_id && !l.returned).length
+                {studentList.map((student) => {
+                  const borrowedCount = safeLoans.filter(l => l.user_id === student.user_id && !l.returned).length
                   return (
                     <tr key={student.user_id}>
                       <td>{student.user_id}</td>
@@ -324,7 +349,7 @@ export function LibrarianDashboard() {
     }
 
     if (activePage === 'search') {
-      const filtered = books.filter(b =>
+      const filtered = safeBooks.filter(b =>
         b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (b.author && b.author.toLowerCase().includes(searchQuery.toLowerCase()))
       )

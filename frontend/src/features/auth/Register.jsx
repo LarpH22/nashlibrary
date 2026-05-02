@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { registerUser } from './authService.js'
 
@@ -15,7 +15,7 @@ export function Register() {
     full_name: { isValid: null, message: 'Full name is required' },
     email: { isValid: null, message: 'Email is required (only Gmail or .edu.ph domains allowed)' },
     password: { isValid: null, message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' },
-    student_id: { isValid: null, message: 'Student ID must follow format: STUXXXXXXX (STU + 7 digits)' },
+    student_id: { isValid: null, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' },
     registration_document: { isValid: null, message: 'Please upload a PDF, JPG, JPEG, or PNG file (max 5MB)' }
   })
   const [message, setMessage] = useState('')
@@ -118,9 +118,9 @@ export function Register() {
     if (!value.trim()) {
       return { isValid: false, message: 'Student ID is required' }
     }
-    const pattern = /^STU\d{4}\d{3,}$/
+    const pattern = /^\d{3}-\d{4}$/
     if (!pattern.test(value.trim())) {
-      return { isValid: false, message: 'Student ID must be in format STU2024001 (STU + 4 digits year + 3+ digits)' }
+      return { isValid: false, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' }
     }
     return { isValid: true, message: 'Valid student ID format' }
   }
@@ -246,7 +246,7 @@ export function Register() {
         full_name: { isValid: null, message: 'Full name is required' },
         email: { isValid: null, message: 'Email is required (only Gmail or .edu.ph domains allowed)' },
         password: { isValid: null, message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' },
-        student_id: { isValid: null, message: 'Student ID must follow format: STUXXXXXXX (STU + 7 digits)' },
+        student_id: { isValid: null, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' },
         registration_document: { isValid: null, message: 'Please upload a PDF, JPG, JPEG, or PNG file (max 5MB)' }
       })
       // Don't navigate or set tokens - user needs to verify email first
@@ -315,7 +315,7 @@ export function Register() {
               value={form.student_id}
               onChange={handleChange}
               className={getInputClass('student_id')}
-              placeholder="e.g., STU2024001"
+              placeholder="e.g., 241-0449"
               required
             />
             <span className={getMessageClass('student_id')}>

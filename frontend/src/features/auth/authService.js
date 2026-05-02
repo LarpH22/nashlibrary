@@ -29,12 +29,9 @@ export async function registerUser(data) {
   formData.append('email', data.email)
   formData.append('full_name', data.full_name)
   formData.append('password', data.password)
+  formData.append('student_id', data.student_id || '')
   formData.append('role', 'student')
   formData.append('registration_document', data.registration_document)
-
-  if (data.student_id) {
-    formData.append('student_id', data.student_id)
-  }
 
   try {
     const response = await api.post('/api/auth/register', formData)
@@ -47,11 +44,42 @@ export async function registerUser(data) {
   }
 }
 
-export async function getUserProfile() {
+export async function forgotPassword(data) {
+  if (!data.email) {
+    throw new Error('Email is required')
+  }
   try {
-    const response = await api.get('/api/auth/profile')
+    const response = await api.post('/api/auth/forgot-password', {
+      email: data.email
+    })
     return response.data
   } catch (error) {
+    if (error.response?.status === 404) {
+      throw new Error('No active account found with this email')
+    }
     throw error
   }
+}
+
+export async function resetPassword(data) {
+  if (!data.token || !data.new_password) {
+    throw new Error('Reset token and new password are required')
+  }
+  try {
+    const response = await api.post('/api/auth/reset-password', {
+      token: data.token,
+      new_password: data.new_password
+    })
+    return response.data
+  } catch (error) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message)
+    }
+    throw new Error('Failed to reset password')
+  }
+}
+
+export async function getUserProfile() {
+  const response = await api.get('/api/auth/profile')
+  return response.data
 }

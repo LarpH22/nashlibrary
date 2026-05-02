@@ -143,7 +143,7 @@ curl -X POST http://localhost:5000/register \
     "full_name": "Test Student",
     "password": "Pass123!",
     "role": "student",
-    "student_number": "STU2024999"
+    "student_number": "241-0001"
   }'
 
 # Test Student Login

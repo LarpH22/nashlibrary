@@ -1,4 +1,5 @@
-from flask import jsonify, current_app
+import os
+from flask import jsonify, current_app, request, send_from_directory
 from flask_jwt_extended.exceptions import JWTExtendedException
 import traceback
 import sys
@@ -9,6 +10,13 @@ def register_error_handlers(app):
     
     @app.errorhandler(404)
     def not_found(error):
+        path = request.path or ''
+        if request.method == 'GET' and not path.startswith('/api/'):
+            frontend_dist = current_app.config.get('FRONTEND_DIST_FOLDER')
+            if frontend_dist:
+                index_path = os.path.join(frontend_dist, 'index.html')
+                if os.path.exists(index_path):
+                    return send_from_directory(frontend_dist, 'index.html')
         return jsonify({'message': 'Endpoint not found', 'status': 404}), 404
 
     @app.errorhandler(405)

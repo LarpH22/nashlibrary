@@ -5,7 +5,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
 sys.path.insert(0, PARENT_DIR)
 
-os.environ.setdefault('USE_DEV_FRONTEND', 'true')
+# Prefer serving the built frontend from the same backend port by default.
+os.environ.setdefault('USE_DEV_FRONTEND', 'false')
 os.environ.setdefault('FLASK_ENV', 'development')
 
 from backend.app import app

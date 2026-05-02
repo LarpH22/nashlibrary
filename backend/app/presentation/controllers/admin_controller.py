@@ -1,22 +1,31 @@
+import os
 from datetime import datetime
 
-from flask import jsonify, request
+from flask import jsonify, request, send_from_directory, url_for
 from flask_jwt_extended import get_jwt
 
 from ...domain.services.auth_service import AuthService
+from ...infrastructure.config import Config
 from ...infrastructure.database.db_connection import get_connection
-from ...infrastructure.repositories_impl.auth_repository_impl import AdminAuthRepositoryImpl
+from ...infrastructure.repositories_impl.auth_repository_impl import AdminAuthRepositoryImpl, LibrarianAuthRepositoryImpl
 
 
 class AdminController:
     def __init__(self):
         self.admin_repo = AdminAuthRepositoryImpl()
-        self.auth_service = AuthService(self.admin_repo, self.admin_repo, self.admin_repo)
+        self.librarian_repo = LibrarianAuthRepositoryImpl()
+        self.auth_service = AuthService(self.admin_repo, self.librarian_repo, self.admin_repo)
 
     def _require_admin(self):
         jwt_claims = get_jwt()
         if jwt_claims.get('role') != 'admin':
             return jsonify({'message': 'Admin access required'}), 403
+        return None
+
+    def _require_admin_or_librarian(self):
+        jwt_claims = get_jwt()
+        if jwt_claims.get('role') not in ['admin', 'librarian']:
+            return jsonify({'message': 'Admin or librarian access required'}), 403
         return None
 
     def list_categories(self):
@@ -137,11 +146,19 @@ class AdminController:
         student['loans'] = loans
         return jsonify(student), 200
 
-    def change_password(self):
-        auth_error = self._require_admin()
+    def list_students(self):
+        auth_error = self._require_admin_or_librarian()
         if auth_error:
             return auth_error
 
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT student_id AS user_id, email, full_name, status FROM students ORDER BY full_name ASC')
+                students = cur.fetchall()
+
+        return jsonify(students), 200
+
+    def change_password(self):
         data = request.get_json() or {}
         old_password = data.get('old_password')
         new_password = data.get('new_password')
@@ -150,23 +167,33 @@ class AdminController:
 
         jwt_claims = get_jwt()
         email = jwt_claims.get('email')
-        admin = self.admin_repo.find_admin_by_email(email)
-        if not admin:
-            return jsonify({'message': 'Admin account not found'}), 404
+        role = jwt_claims.get('role')
 
-        if not self.auth_service.verify_password(old_password, admin.get('password_hash', '')):
+        if role == 'admin':
+            account = self.admin_repo.find_admin_by_email(email)
+            password_table = 'admins'
+        elif role == 'librarian':
+            account = self.librarian_repo.find_librarian_by_email(email)
+            password_table = 'librarians'
+        else:
+            return jsonify({'message': 'Admin or librarian access required'}), 403
+
+        if not account:
+            return jsonify({'message': 'Account not found'}), 404
+
+        if not self.auth_service.verify_password(old_password, account.get('password_hash', '')):
             return jsonify({'message': 'Old password is incorrect'}), 401
 
         new_hash = self.auth_service.hash_password(new_password)
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('UPDATE admins SET password_hash=%s, updated_at=NOW() WHERE email=%s', (new_hash, email))
+                cur.execute(f'UPDATE {password_table} SET password_hash=%s, updated_at=NOW() WHERE email=%s', (new_hash, email))
                 conn.commit()
 
         return jsonify({'message': 'Password updated successfully'}), 200
 
     def list_loans(self):
-        auth_error = self._require_admin()
+        auth_error = self._require_admin_or_librarian()
         if auth_error:
             return auth_error
 
@@ -201,23 +228,97 @@ class AdminController:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    '''
-                    SELECT
-                        request_id,
-                        email,
-                        full_name,
-                        student_number,
-                        registration_document,
-                        email_verified,
-                        verified_at,
-                        created_at
-                    FROM registration_requests
-                    WHERE email_verified = TRUE
-                    ORDER BY created_at DESC
-                    '''
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() "
+                    "AND table_name = 'registration_requests' "
+                    "AND column_name IN ('status', 'registration_document', 'email_verified', 'verified_at')"
                 )
+                existing_columns = {row.get('column_name') for row in cur.fetchall()}
+
+                has_status = 'status' in existing_columns
+                has_document = 'registration_document' in existing_columns
+                has_email_verified = 'email_verified' in existing_columns
+                has_verified_at = 'verified_at' in existing_columns
+
+                select_columns = [
+                    'request_id',
+                    'email',
+                    'full_name',
+                    'student_number',
+                ]
+                if has_document:
+                    select_columns.append('registration_document')
+                if has_email_verified:
+                    select_columns.append('email_verified')
+                if has_verified_at:
+                    select_columns.append('verified_at')
+                select_columns.append('created_at')
+                if has_status:
+                    select_columns.append('status')
+
+                query = [
+                    'SELECT',
+                    ', '.join(select_columns),
+                    'FROM registration_requests'
+                ]
+
+                where_clauses = []
+                if has_email_verified:
+                    where_clauses.append('email_verified = TRUE')
+                if has_status:
+                    where_clauses.append("(status IS NULL OR status = 'pending')")
+
+                if where_clauses:
+                    query.append('WHERE ' + ' AND '.join(where_clauses))
+
+                query.append('ORDER BY created_at DESC')
+                cur.execute(' '.join(query))
+
                 requests = cur.fetchall()
+                if has_document:
+                    for request_row in requests:
+                        request_row['document_url'] = url_for(
+                            'admin.get_registration_request_document',
+                            request_id=request_row['request_id']
+                        )
+
         return jsonify(requests), 200
+
+    def get_registration_request_document(self, request_id):
+        auth_error = self._require_admin()
+        if auth_error:
+            return auth_error
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() "
+                    "AND table_name = 'registration_requests' "
+                    "AND column_name = 'registration_document'"
+                )
+                document_column = cur.fetchone()
+                if not document_column or not document_column.get('cnt'):
+                    return jsonify({'message': 'Registration document storage is not enabled'}), 404
+
+                cur.execute(
+                    'SELECT registration_document FROM registration_requests WHERE request_id=%s LIMIT 1',
+                    (request_id,)
+                )
+                request_row = cur.fetchone()
+
+        if not request_row:
+            return jsonify({'message': 'Registration request not found'}), 404
+
+        document_name = request_row.get('registration_document')
+        if not document_name:
+            return jsonify({'message': 'No registration document uploaded'}), 404
+
+        file_path = os.path.join(Config.UPLOAD_FOLDER, document_name)
+        if not os.path.exists(file_path):
+            return jsonify({'message': 'Registration document not found on server'}), 404
+
+        return send_from_directory(Config.UPLOAD_FOLDER, document_name, as_attachment=False)
 
     def reject_registration(self):
         auth_error = self._require_admin()

@@ -12,7 +12,6 @@ function AdminDashboard({ user, onLogout }) {
     setActivePanelState(panel)
     localStorage.setItem('adminActivePanel', panel)
   }
-  const [books, setBooks] = useState([])
   const [borrowings, setBorrowings] = useState([])
   const [users, setUsers] = useState([])
   const [fines, setFines] = useState([])
@@ -20,22 +19,11 @@ function AdminDashboard({ user, onLogout }) {
   const menuItems = ['System Overview', 'Registration Review', 'User Management', 'Library Settings', 'Reports & Analytics', 'System Logs']
 
   useEffect(() => {
-    fetchBooks()
     fetchBorrowings()
     fetchUsers()
     fetchFines()
     fetchPendingRegistrations()
   }, [])
-
-  const fetchBooks = async () => {
-    try {
-      const response = await axios.get('/books')
-      setBooks(Array.isArray(response.data) ? response.data : [])
-    } catch (error) {
-      console.error('Error fetching books:', error)
-      setBooks([])
-    }
-  }
 
   const fetchBorrowings = async () => {
     try {
@@ -137,7 +125,6 @@ function AdminDashboard({ user, onLogout }) {
     'System Health': 'Monitor uptime, error rates, and server availability.'
   }
 
-  const booksList = Array.isArray(books) ? books : []
   const borrowingsList = Array.isArray(borrowings) ? borrowings : []
   const usersList = Array.isArray(users) ? users : []
   const finesList = Array.isArray(fines) ? fines : []

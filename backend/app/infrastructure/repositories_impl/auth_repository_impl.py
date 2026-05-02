@@ -115,6 +115,34 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
                 conn.commit()
                 return cur.rowcount > 0
 
+    def update_student_reset_token(self, student_id: int, reset_token: str, reset_expires_at):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE students SET reset_token=%s, reset_expires_at=%s WHERE student_id=%s",
+                    (reset_token, reset_expires_at, student_id)
+                )
+                conn.commit()
+                return cur.rowcount > 0
+
+    def find_student_by_reset_token(self, reset_token: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM students WHERE reset_token=%s LIMIT 1", (reset_token,))
+                return cur.fetchone()
+
+    def update_student_password_and_clear_token(self, student_id: int, password_hash: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE students 
+                       SET password_hash=%s, reset_token=NULL, reset_expires_at=NULL, updated_at=NOW() 
+                       WHERE student_id=%s""",
+                    (password_hash, student_id)
+                )
+                conn.commit()
+                return cur.rowcount > 0
+
 
 class LibrarianAuthRepositoryImpl(LibrarianAuthRepository):
     """Librarian authentication repository implementation"""

@@ -2,7 +2,7 @@ from datetime import datetime
 import sys
 
 from flask import jsonify, request, url_for
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt
 
 from ...application.use_cases.user.create_user import CreateUserUseCase
 from ...application.use_cases.user.secure_student_registration import (
@@ -10,6 +10,8 @@ from ...application.use_cases.user.secure_student_registration import (
 )
 from ...application.use_cases.user.login_user import LoginUserUseCase
 from ...application.use_cases.user.get_user_profile import GetUserProfileUseCase
+from ...application.use_cases.user.forgot_password import ForgotPasswordUseCase
+from ...application.use_cases.user.reset_password import ResetPasswordUseCase
 from ...domain.services.auth_service import AuthService
 from ...domain.services.validation_service import ValidationService
 from ...infrastructure.repositories_impl.auth_repository_impl import (
@@ -44,6 +46,8 @@ class AuthController:
         )
         self.verify_email_use_case = VerifyEmailUseCase(self.auth_service)
         self.approve_registration_use_case = ApproveRegistrationUseCase(self.auth_service)
+        self.forgot_password_use_case = ForgotPasswordUseCase(self.auth_service, self.email_service)
+        self.reset_password_use_case = ResetPasswordUseCase(self.auth_service)
 
     def register(self):
         """Register a new user (student, librarian, or admin)"""
@@ -138,8 +142,11 @@ class AuthController:
         try:
             data = request.get_json() or {}
             request_id = data.get('request_id')
-            admin_email = data.get('admin_email')  # From JWT token in real implementation
+            jwt_claims = get_jwt()
+            if jwt_claims.get('role') != 'admin':
+                return jsonify({'message': 'Admin access required'}), 403
 
+            admin_email = jwt_claims.get('email')
             if not request_id:
                 return jsonify({'message': 'Request ID is required'}), 400
 
@@ -187,6 +194,44 @@ class AuthController:
             'email': user['email'],
             'full_name': user.get('full_name')
         }), 200
+
+    def forgot_password(self):
+        """Send password reset email to user"""
+        try:
+            data = request.get_json() or {}
+            email = data.get('email')
+            
+            if not email:
+                return jsonify({'message': 'Email is required'}), 400
+            
+            result = self.forgot_password_use_case.execute(email)
+            return jsonify(result), 200
+            
+        except ValueError as e:
+            return jsonify({'message': str(e)}), 400
+        except Exception as e:
+            return jsonify({'message': 'Failed to send reset email', 'error': str(e)}), 500
+
+    def reset_password(self):
+        """Reset password using reset token"""
+        try:
+            data = request.get_json() or {}
+            token = data.get('token')
+            new_password = data.get('new_password')
+            
+            if not token or not new_password:
+                return jsonify({'message': 'Token and new password are required'}), 400
+            
+            if len(new_password) < 6:
+                return jsonify({'message': 'Password must be at least 6 characters'}), 400
+            
+            result = self.reset_password_use_case.execute(token, new_password)
+            return jsonify(result), 200
+            
+        except ValueError as e:
+            return jsonify({'message': str(e)}), 400
+        except Exception as e:
+            return jsonify({'message': 'Failed to reset password', 'error': str(e)}), 500
 
     def profile(self):
         """Get the profile of the authenticated user using JWT identity."""

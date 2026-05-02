@@ -6,52 +6,67 @@ from ..controllers.admin_controller import AdminController
 admin_bp = Blueprint('admin', __name__)
 controller = AdminController()
 
-@admin_bp.route('/categories', methods=['GET'])
+@admin_bp.route('/categories', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def list_categories():
     return controller.list_categories()
 
-@admin_bp.route('/categories', methods=['POST'])
+@admin_bp.route('/categories', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def add_category():
     return controller.add_category()
 
-@admin_bp.route('/categories/<int:category_id>', methods=['DELETE'])
+@admin_bp.route('/categories/<int:category_id>', methods=['DELETE'], strict_slashes=False)
 @jwt_required()
 def delete_category(category_id):
     return controller.delete_category(category_id)
 
-@admin_bp.route('/authors', methods=['GET'])
+@admin_bp.route('/authors', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def list_authors():
     return controller.list_authors()
 
-@admin_bp.route('/authors', methods=['POST'])
+@admin_bp.route('/authors', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def add_author():
     return controller.add_author()
 
-@admin_bp.route('/authors/<int:author_id>', methods=['DELETE'])
+@admin_bp.route('/authors/<int:author_id>', methods=['DELETE'], strict_slashes=False)
 @jwt_required()
 def delete_author(author_id):
     return controller.delete_author(author_id)
 
-@admin_bp.route('/students/<int:student_id>', methods=['GET'])
+@admin_bp.route('/students', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def list_students():
+    return controller.list_students()
+
+@admin_bp.route('/students/<int:student_id>', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def search_student(student_id):
     return controller.search_student(student_id)
 
-@admin_bp.route('/registration-requests', methods=['GET'])
+@admin_bp.route('/registration-requests', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def list_registration_requests():
     return controller.list_registration_requests()
 
-@admin_bp.route('/reject-registration', methods=['POST'])
+@admin_bp.route('/registration-requests/<int:request_id>/document', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def get_registration_request_document(request_id):
+    return controller.get_registration_request_document(request_id)
+
+@admin_bp.route('/reject-registration', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def reject_registration():
     return controller.reject_registration()
 
-@admin_bp.route('/loans', methods=['GET'])
+@admin_bp.route('/loans', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def list_loans():
     return controller.list_loans()
+
+@admin_bp.route('/password', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def change_password():
+    return controller.change_password()

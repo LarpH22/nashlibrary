@@ -821,7 +821,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
           <div style={css.heroBar}>
             <div style={css.heroGreeting}>
               <h2 style={css.heroH2}>Good {greeting}, {userFirstName}</h2>
-              <p style={css.heroSub}>Here's your library overview for today</p>
+              <p style={css.heroSub}>Here is your library overview for today</p>
               <span style={css.heroBadge(onHold)}>{onHold ? "⚠ On Hold" : "✓ Good Standing"}</span>
             </div>
             <div style={css.newsRow}>

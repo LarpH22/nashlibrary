@@ -1,5 +1,5 @@
 import '../App.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 
 function StudentDashboard({ user, onLogout }) {
@@ -12,9 +12,9 @@ function StudentDashboard({ user, onLogout }) {
   useEffect(() => {
     fetchBooks()
     fetchBorrowings()
-  }, [])
+  }, [fetchBooks, fetchBorrowings])
 
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('access_token')
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
@@ -24,16 +24,16 @@ function StudentDashboard({ user, onLogout }) {
     } catch (error) {
       console.error('Error fetching books:', error.response?.status, error.response?.data || error.message)
     }
-  }
+  }, [searchQuery])
 
-  const fetchBorrowings = async () => {
+  const fetchBorrowings = useCallback(async () => {
     try {
       const response = await axios.get('/borrowings')
       setBorrowings(response.data)
     } catch (error) {
       console.error('Error fetching borrowings:', error)
     }
-  }
+  }, [])
 
   const filteredBooks = books.filter((book) => {
     const q = searchQuery.toLowerCase()
@@ -169,9 +169,9 @@ function StudentDashboard({ user, onLogout }) {
           <div className="recent-activity">
             <h3>Recent Activity</h3>
             <ul>
-              <li>Borrowed "The Great Gatsby" - Due: 2024-04-15</li>
-              <li>Returned "1984" - On time</li>
-              <li>Borrowed "To Kill a Mockingbird" - Due: 2024-04-20</li>
+              <li>Borrowed “The Great Gatsby” - Due: 2024-04-15</li>
+              <li>Returned “1984” - On time</li>
+              <li>Borrowed “To Kill a Mockingbird” - Due: 2024-04-20</li>
             </ul>
           </div>
         </main>

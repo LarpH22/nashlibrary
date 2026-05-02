@@ -15,6 +15,7 @@ import {
   fetchLoans,
   changePassword,
   fetchRegistrationRequests,
+  fetchRegistrationDocument,
   approveRegistration,
   rejectRegistration
 } from './adminService.js'
@@ -25,7 +26,7 @@ const navSections = [
     section: 'MAIN',
     items: [
       { id: 'overview', icon: '📊', title: 'Overview' },
-      { id: 'registrations', icon: '📝', title: 'Registration Approvals' },
+      { id: 'registrations', icon: '📝', title: 'Registration Requests' },
       { id: 'books', icon: '📖', title: 'Books' },
       { id: 'loans', icon: '🔄', title: 'Issue / Return', badge: '3' },
       { id: 'students', icon: '👥', title: 'Students' }
@@ -48,7 +49,7 @@ const navSections = [
 
 const pageTitles = {
   overview: 'Overview',
-  registrations: 'Registration Approvals',
+  registrations: 'Registration Requests',
   books: 'Books',
   loans: 'Issue / Return',
   students: 'Students',
@@ -228,6 +229,22 @@ export function AdminDashboard() {
     }
   }
 
+  async function handleViewDocument(documentUrl) {
+    if (!documentUrl) {
+      setMessage('No document available for this request.')
+      return
+    }
+
+    try {
+      const blob = await fetchRegistrationDocument(documentUrl)
+      const objectUrl = URL.createObjectURL(blob)
+      window.open(objectUrl, '_blank', 'noopener noreferrer')
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000)
+    } catch {
+      setMessage('Unable to load registration document.')
+    }
+  }
+
   function renderPage() {
     if (activePage === 'overview') {
       return (
@@ -268,8 +285,9 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr">
-            <div className="card-title">Registration Approvals</div>
+            <div className="card-title">Registration Requests</div>
           </div>
+          <p className="subtext">Review submitted student registration requests and verify the uploaded student documentation before approving access.</p>
           <div className="admin-table-container">
             <table>
               <thead>
@@ -278,6 +296,7 @@ export function AdminDashboard() {
                   <th>Email</th>
                   <th>Student ID</th>
                   <th>Verified</th>
+                  <th>Document</th>
                   <th>Submitted</th>
                   <th>Actions</th>
                 </tr>
@@ -289,6 +308,19 @@ export function AdminDashboard() {
                     <td>{request.email}</td>
                     <td>{request.student_number}</td>
                     <td>{request.email_verified ? '✅' : '❌'}</td>
+                    <td>
+                      {request.document_url ? (
+                        <button
+                          className="btn btn-outline btn-sm"
+                          type="button"
+                          onClick={() => handleViewDocument(request.document_url)}
+                        >
+                          View Document
+                        </button>
+                      ) : (
+                        'No document'
+                      )}
+                    </td>
                     <td>{new Date(request.created_at).toLocaleDateString()}</td>
                     <td>
                       <button

@@ -8,28 +8,38 @@ auth_bp = Blueprint('auth', __name__)
 controller = AuthController()
 
 
-@auth_bp.route('/register', methods=['POST'])
+@auth_bp.route('/register', methods=['POST'], strict_slashes=False)
 def register():
     return controller.register()
 
 
-@auth_bp.route('/verify-email', methods=['GET'])
+@auth_bp.route('/verify-email', methods=['GET'], strict_slashes=False)
 def verify_email():
     return controller.verify_email()
 
 
-@auth_bp.route('/approve-registration', methods=['POST'])
+@auth_bp.route('/approve-registration', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def approve_registration():
     return controller.approve_registration()
 
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'], strict_slashes=False)
 def login():
     return controller.login()
 
 
-@auth_bp.route('/profile', methods=['GET'])
+@auth_bp.route('/forgot-password', methods=['POST'], strict_slashes=False)
+def forgot_password():
+    return controller.forgot_password()
+
+
+@auth_bp.route('/reset-password', methods=['POST'], strict_slashes=False)
+def reset_password():
+    return controller.reset_password()
+
+
+@auth_bp.route('/profile', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def profile():
     """Get the profile of the authenticated user using JWT identity."""

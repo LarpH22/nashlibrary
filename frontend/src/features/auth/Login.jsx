@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { loginUser } from './authService.js'
+import { loginUser, forgotPassword } from './authService.js'
 
 export function Login({ onLoginSuccess }) {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotMessage, setForgotMessage] = useState('')
+  const [isForgotLoading, setIsForgotLoading] = useState(false)
 
   const handleChange = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
@@ -34,6 +38,26 @@ export function Login({ onLoginSuccess }) {
       setMessage(`Error: ${errorMsg}`)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault()
+    setIsForgotLoading(true)
+    setForgotMessage('')
+    try {
+      await forgotPassword({ email: forgotEmail })
+      setForgotMessage('Password reset link sent to your email')
+      setTimeout(() => {
+        setShowForgotPassword(false)
+        setForgotEmail('')
+        setForgotMessage('')
+      }, 3000)
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to send reset email'
+      setForgotMessage(`Error: ${errorMsg}`)
+    } finally {
+      setIsForgotLoading(false)
     }
   }
 
@@ -72,8 +96,49 @@ export function Login({ onLoginSuccess }) {
           <span>New to LIBRX?</span>
           <button type="button" className="auth-link" onClick={() => navigate('/register')}>Create an account</button>
         </div>
+        <div className="auth-card-footer">
+          <button 
+            type="button" 
+            className="auth-link forgot-password-link" 
+            onClick={() => setShowForgotPassword(true)}
+          >
+            Forgot Password?
+          </button>
+        </div>
         <p>{message}</p>
       </section>
+
+      {showForgotPassword && (
+        <div className="auth-modal-overlay" onClick={() => setShowForgotPassword(false)}>
+          <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Forgot Password</h3>
+            <p>Enter your email address and we will send you a link to reset your password.</p>
+            <form onSubmit={handleForgotPassword}>
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                  placeholder="Enter your email"
+                />
+              </label>
+              <button type="submit" disabled={isForgotLoading}>
+                {isForgotLoading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </form>
+            <p>{forgotMessage}</p>
+            <button 
+              type="button" 
+              className="auth-link" 
+              onClick={() => setShowForgotPassword(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -112,6 +112,7 @@ CREATE TABLE registration_requests (
     student_number VARCHAR(20),
     registration_document VARCHAR(255),
     role ENUM('admin', 'librarian', 'student') DEFAULT 'student',
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     verification_token VARCHAR(255),
     email_verified BOOLEAN DEFAULT FALSE,
     verified_at TIMESTAMP NULL,
@@ -752,9 +753,9 @@ INSERT INTO librarians (email, password_hash, full_name, employee_id, position, 
 
 -- Insert students
 INSERT INTO students (email, password_hash, full_name, phone, student_number, department, year_level, section, library_card_number, expiration_date, status) VALUES 
-('student1@library.com', '$2y$10$YourHashedPasswordHere', 'Bob Student', '+1234567893', 'STU2024001', 'Computer Science', 3, 'A', 'CARD2024001', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active'),
-('student2@library.com', '$2y$10$YourHashedPasswordHere', 'Alice Student', '+1234567894', 'STU2024002', 'Information Technology', 2, 'B', 'CARD2024002', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active'),
-('student3@library.com', '$2y$10$YourHashedPasswordHere', 'Charlie Student', '+1234567895', 'STU2024003', 'Computer Science', 1, 'A', 'CARD2024003', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active');
+('student1@library.com', '$2y$10$YourHashedPasswordHere', 'Bob Student', '+1234567893', '241-0001', 'Computer Science', 3, 'A', 'CARD2024001', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active'),
+('student2@library.com', '$2y$10$YourHashedPasswordHere', 'Alice Student', '+1234567894', '241-0002', 'Information Technology', 2, 'B', 'CARD2024002', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active'),
+('student3@library.com', '$2y$10$YourHashedPasswordHere', 'Charlie Student', '+1234567895', '241-0003', 'Computer Science', 1, 'A', 'CARD2024003', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active');
 
 -- Insert authors
 INSERT INTO authors (name) VALUES 

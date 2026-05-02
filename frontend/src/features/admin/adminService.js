@@ -10,6 +10,11 @@ export async function approveRegistration(requestId) {
   return response.data
 }
 
+export async function fetchRegistrationDocument(url) {
+  const response = await api.get(url, { responseType: 'blob' })
+  return response.data
+}
+
 export async function rejectRegistration(requestId) {
   const response = await api.post('/api/admin/reject-registration', { request_id: requestId })
   return response.data

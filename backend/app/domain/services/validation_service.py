@@ -68,12 +68,15 @@ class ValidationService:
 
     @staticmethod
     def validate_student_id(student_id: str) -> bool:
-        """Validate student ID format (e.g., STU2024001)"""
+        """Validate student ID format (e.g., 241-0449)"""
         if not student_id:
             return False
-        # Pattern: STU followed by 4 digits (year) followed by 3+ digits
-        pattern = r'^STU\d{4}\d{3,}$'
-        return re.match(pattern, student_id.strip()) is not None
+        cleaned = student_id.strip()
+        # Reject legacy student IDs like STU2024001 and accept only 3 digits, dash, 4 digits.
+        if cleaned.upper().startswith('STU'):
+            return False
+        pattern = r'^\d{3}-\d{4}$'
+        return re.match(pattern, cleaned) is not None
 
     @staticmethod
     def validate_password_strength(password: str) -> tuple[bool, str]:

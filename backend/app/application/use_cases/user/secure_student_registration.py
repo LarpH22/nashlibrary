@@ -29,7 +29,7 @@ class SecureStudentRegistrationUseCase:
             email: Student email
             full_name: Student full name
             password: Student password
-            student_id: Student ID (format: STU2024001)
+            student_id: Student ID (format: 241-0449)
             registration_document: Uploaded file object
 
         Returns:
@@ -54,7 +54,7 @@ class SecureStudentRegistrationUseCase:
 
         # Validate student ID format
         if not self.validation_service.validate_student_id(student_id):
-            raise ValueError("Invalid student ID format. Must be in format STU2024001")
+            raise ValueError("Invalid student ID format. Must be in format 241-0449 (3 digits, dash, 4 digits)")
 
         # Validate password strength
         valid, message = self.validation_service.validate_password_strength(password)
@@ -126,7 +126,7 @@ This link will expire in 24 hours for security reasons.
 If you did not request this registration, please ignore this email.
 
 Best regards,
-NashLibrary Team
+LIBRASYS Team
         """
 
         html_body = f"""

@@ -31,6 +31,9 @@ class Config:
     # Frontend URL for email verification links
     FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:3000'
 
+    # Frontend dist folder for serving built static files
+    FRONTEND_DIST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dist')
+
     # File upload configuration
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
