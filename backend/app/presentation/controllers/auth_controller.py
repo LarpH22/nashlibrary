@@ -1,12 +1,12 @@
 from datetime import datetime
 import sys
 
-from flask import jsonify, request, url_for
+from flask import jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt
 
 from ...application.use_cases.user.create_user import CreateUserUseCase
 from ...application.use_cases.user.secure_student_registration import (
-    SecureStudentRegistrationUseCase, VerifyEmailUseCase, ApproveRegistrationUseCase
+    SecureStudentRegistrationUseCase, VerifyEmailUseCase, ResendVerificationEmailUseCase, ApproveRegistrationUseCase
 )
 from ...application.use_cases.user.login_user import LoginUserUseCase
 from ...application.use_cases.user.get_user_profile import GetUserProfileUseCase
@@ -45,6 +45,7 @@ class AuthController:
             self.auth_service, self.email_service, self.file_storage, self.validation_service
         )
         self.verify_email_use_case = VerifyEmailUseCase(self.auth_service)
+        self.resend_verification_use_case = ResendVerificationEmailUseCase(self.auth_service, self.email_service)
         self.approve_registration_use_case = ApproveRegistrationUseCase(self.auth_service)
         self.forgot_password_use_case = ForgotPasswordUseCase(self.auth_service, self.email_service)
         self.reset_password_use_case = ResetPasswordUseCase(self.auth_service)
@@ -136,6 +137,22 @@ class AuthController:
             return jsonify({'message': str(e)}), 400
         except Exception as e:
             return jsonify({'message': 'Email verification failed', 'error': str(e)}), 500
+
+    def resend_verification_email(self):
+        """Resend verification email for pending registration"""
+        try:
+            data = request.get_json() or {}
+            email = data.get('email')
+            if not email:
+                return jsonify({'message': 'Email is required'}), 400
+
+            result = self.resend_verification_use_case.execute(email)
+            return jsonify(result), 200
+
+        except ValueError as e:
+            return jsonify({'message': str(e)}), 400
+        except Exception as e:
+            return jsonify({'message': 'Failed to resend verification email', 'error': str(e)}), 500
 
     def approve_registration(self):
         """Admin endpoint to approve student registration"""

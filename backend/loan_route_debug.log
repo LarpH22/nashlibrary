@@ -1,0 +1,18 @@
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 3 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 3 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 259 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 259 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'mojadopaulinealexa218@gmail.com', 'role': 'student', 'student_id': 10, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 3 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 259 bytes [200 OK]>, 200)

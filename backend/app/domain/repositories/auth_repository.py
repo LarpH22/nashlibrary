@@ -6,7 +6,10 @@ class StudentAuthRepository(ABC):
 
     @abstractmethod
     def create_student(self, email: str, full_name: str, password_hash: str,
-                       student_number: str | None = None, status: str = 'pending'):
+                       student_number: str | None = None, status: str = 'pending',
+                       email_verified: bool = False,
+                       registration_document: str | None = None,
+                       verification_token: str | None = None):
         raise NotImplementedError
 
     @abstractmethod
@@ -36,6 +39,10 @@ class StudentAuthRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def find_registration_request_by_email(self, email: str):
+        raise NotImplementedError
+
+    @abstractmethod
     def find_registration_request_by_student_number(self, student_number: str):
         raise NotImplementedError
 
@@ -49,6 +56,10 @@ class StudentAuthRepository(ABC):
 
     @abstractmethod
     def update_registration_request_verified(self, token: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_registration_request_token(self, email: str, new_token: str):
         raise NotImplementedError
 
     @abstractmethod

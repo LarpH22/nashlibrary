@@ -1,0 +1,249 @@
+2026-05-04 04:07:54,605 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-04 04:07:54,605 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-04 04:09:26,611 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-04 04:09:26,611 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-04 04:09:36,229 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:09:36] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:09:38,260 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:09:38] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-04 04:09:40,951 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:09:40] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:09:40,978 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:09:40] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-04 04:10:14,998 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:10:14] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:10:17,047 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:10:17] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-04 04:10:33,069 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-04 04:10:33,070 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-04 04:11:02,968 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:02] "[31m[1mGET /api/loans/student HTTP/1.1[0m" 422 -
+2026-05-04 04:11:08,205 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[36mGET /dashboard/ HTTP/1.1[0m" 304 -
+2026-05-04 04:11:08,230 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[36mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 304 -
+2026-05-04 04:11:08,232 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[36mGET /assets/index-DpnRt5ba.js HTTP/1.1[0m" 304 -
+2026-05-04 04:11:08,239 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[36mGET /assets/index-6gy5Yw1I.css HTTP/1.1[0m" 304 -
+2026-05-04 04:11:08,291 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[31m[1mGET /api/loans/student HTTP/1.1[0m" 401 -
+2026-05-04 04:11:08,294 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[31m[1mGET /api/students/profile HTTP/1.1[0m" 401 -
+2026-05-04 04:11:08,333 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:08] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-04 04:11:12,336 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:12] "GET /login HTTP/1.1" 200 -
+2026-05-04 04:11:12,365 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:12] "[36mGET /assets/index-DpnRt5ba.js HTTP/1.1[0m" 304 -
+2026-05-04 04:11:12,366 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:12] "[36mGET /assets/index-6gy5Yw1I.css HTTP/1.1[0m" 304 -
+2026-05-04 04:11:12,407 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:12] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-04 04:11:15,094 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:15] "[36mGET /assets/index-6gy5Yw1I.css HTTP/1.1[0m" 304 -
+2026-05-04 04:11:15,110 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:15] "[36mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 304 -
+2026-05-04 04:11:16,645 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:16] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:11:16,668 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:16] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-04 04:11:20,834 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:20] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:11:20,842 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:20] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-04 04:11:23,805 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:23] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:11:24,461 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:24] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:11:24,492 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:24] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-04 04:11:24,495 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:24] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-04 04:11:24,496 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:24] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-04 04:11:24,877 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:24] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-04 04:11:24,885 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:24] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-04 04:11:33,527 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:33] "OPTIONS /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-04 04:11:33,848 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 22, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-04 04:11:33,848 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 22, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-04 04:11:33,865 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:33] "[35m[1mGET /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1[0m" 500 -
+2026-05-04 04:11:45,017 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:11:45] "[36mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 304 -
+2026-05-04 04:12:06,158 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:12:06] "OPTIONS /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-04 04:12:06,466 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 22, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-04 04:12:06,466 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 22, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-04 04:12:06,472 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:12:06] "[35m[1mGET /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1[0m" 500 -

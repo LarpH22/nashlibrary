@@ -42,6 +42,8 @@ def register_error_handlers(app):
     @app.errorhandler(500)
     def internal_error(error):
         app.logger.error(f'Internal server error: {str(error)}')
+        print(f'\n[ERROR 500] Internal server error: {str(error)}', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return jsonify({'message': 'Internal server error', 'status': 500}), 500
 
     @app.errorhandler(Exception)
@@ -58,17 +60,5 @@ def register_error_handlers(app):
         if isinstance(e, JWTExtendedException):
             return jsonify({'message': str(e), 'status': 401}), 401
         
-        # Return error with more info in development
-        error_response = {
-            'message': 'Internal server error',
-            'status': 500
-        }
-        
-        # Add error details in development mode
-        if current_app.debug or current_app.config.get('ENV') == 'development':
-            error_response['error'] = {
-                'type': type(e).__name__,
-                'message': str(e)
-            }
-        
-        return jsonify(error_response), 500
+        # Return error response
+        return jsonify({'message': 'Internal server error', 'status': 500}), 500

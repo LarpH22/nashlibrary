@@ -28,8 +28,18 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'noreply@library.com'
 
-    # Frontend URL for email verification links
-    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:3000'
+    # Backend and frontend URLs for email links and redirects
+    BACKEND_URL = os.environ.get('BACKEND_URL') or 'http://127.0.0.1:5000'
+    _USE_DEV_FRONTEND = os.environ.get('USE_DEV_FRONTEND', 'false').lower() in ['true', '1', 'yes']
+    _configured_frontend_url = os.environ.get('FRONTEND_URL')
+
+    if _USE_DEV_FRONTEND:
+        FRONTEND_URL = _configured_frontend_url or 'http://127.0.0.1:3000'
+    else:
+        # When not using the Vite dev frontend, prefer the backend host for generated links.
+        FRONTEND_URL = _configured_frontend_url or BACKEND_URL
+        if _configured_frontend_url and _configured_frontend_url.startswith(('http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000')):
+            FRONTEND_URL = BACKEND_URL
 
     # Frontend dist folder for serving built static files
     FRONTEND_DIST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dist')

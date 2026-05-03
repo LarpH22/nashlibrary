@@ -31,16 +31,26 @@ class AuthService:
             except Exception:
                 return False
 
-    def register_student(self, email: str, full_name: str, password: str, 
-                        student_number: str | None = None):
+    def register_student(self, email: str, full_name: str, password: str | None = None,
+                        student_number: str | None = None, status: str = 'pending',
+                        email_verified: bool = False,
+                        registration_document: str | None = None,
+                        verification_token: str | None = None,
+                        password_hash: str | None = None):
         """Register a new student"""
-        password_hash = self.hash_password(password)
+        if password_hash is None:
+            if password is None:
+                raise ValueError('Password or password_hash is required')
+            password_hash = self.hash_password(password)
         return self.student_repo.create_student(
             email=email,
             full_name=full_name,
             password_hash=password_hash,
             student_number=student_number,
-            status='pending',
+            status=status,
+            email_verified=email_verified,
+            registration_document=registration_document,
+            verification_token=verification_token,
         )
 
     def register_librarian(self, email: str, full_name: str, password: str, 

@@ -19,6 +19,42 @@ class BookRepositoryImpl(BookRepository):
                 cur.execute("SELECT * FROM books ORDER BY title ASC")
                 return cur.fetchall()
 
+    def search_books(self, title: str = '', author: str = '', category: str = '', isbn: str = '', availability: str = ''):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                where_clauses = []
+                params = []
+
+                if title:
+                    where_clauses.append("title LIKE %s")
+                    params.append(f"%{title}%")
+
+                if author:
+                    where_clauses.append("author LIKE %s")
+                    params.append(f"%{author}%")
+
+                if category:
+                    where_clauses.append("category LIKE %s")
+                    params.append(f"%{category}%")
+
+                if isbn:
+                    where_clauses.append("isbn LIKE %s")
+                    params.append(f"%{isbn}%")
+
+                normalized_availability = availability.strip().lower()
+                if normalized_availability in ['available', 'true', '1', 'yes']:
+                    where_clauses.append("(status = 'available' OR available_copies > 0)")
+                elif normalized_availability in ['borrowed', 'checked-out', 'false', '0', 'no']:
+                    where_clauses.append("(status != 'available' OR available_copies <= 0)")
+
+                where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ''
+                query = (
+                    "SELECT book_id, isbn, title, author, category, status, available_copies, total_copies "
+                    f"FROM books{where_clause} ORDER BY title ASC"
+                )
+                cur.execute(query, tuple(params))
+                return cur.fetchall()
+
     def find_by_id(self, book_id: int):
         with get_connection() as conn:
             with conn.cursor() as cur:

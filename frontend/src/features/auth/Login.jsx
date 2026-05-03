@@ -25,6 +25,7 @@ export function Login({ onLoginSuccess }) {
         password: form.password
       })
       localStorage.setItem('access_token', data.access_token)
+      localStorage.setItem('token', data.access_token)
       localStorage.setItem('user_role', data.role)
       localStorage.setItem('user_email', data.email)
       if (onLoginSuccess) {

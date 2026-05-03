@@ -18,6 +18,11 @@ def verify_email():
     return controller.verify_email()
 
 
+@auth_bp.route('/resend-verification', methods=['POST'], strict_slashes=False)
+def resend_verification():
+    return controller.resend_verification_email()
+
+
 @auth_bp.route('/approve-registration', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def approve_registration():

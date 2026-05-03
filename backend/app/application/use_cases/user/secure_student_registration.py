@@ -111,39 +111,214 @@ class SecureStudentRegistrationUseCase:
         """Send email verification link"""
         verification_url = f"{Config.FRONTEND_URL}/verify-email?token={token}"
 
-        subject = "Verify Your Library Account"
+        subject = "Verify Your NashLibrary Account"
         body = f"""
 Dear {full_name},
 
-Thank you for registering with NashLibrary!
+Welcome to NashLibrary! Thank you for registering with our library system.
 
-To complete your registration, please verify your email address by clicking the link below:
+To complete your registration and activate your account, please verify your email address by clicking the link below:
 
 {verification_url}
 
-This link will expire in 24 hours for security reasons.
+This verification link will expire in 24 hours for security reasons.
 
 If you did not request this registration, please ignore this email.
 
 Best regards,
-LIBRASYS Team
+NashLibrary Team
+LIBRASYS
         """
 
         html_body = f"""
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your NashLibrary Account</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }}
+        .header h1 {{
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }}
+        .header p {{
+            margin: 8px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }}
+        .content {{
+            padding: 40px 30px;
+        }}
+        .greeting {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }}
+        .message {{
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }}
+        .button-container {{
+            text-align: center;
+            margin: 40px 0;
+        }}
+        .verify-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }}
+        .verify-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.5);
+        }}
+        .warning {{
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            font-size: 14px;
+            color: #92400e;
+        }}
+        .warning strong {{
+            color: #78350f;
+        }}
+        .footer {{
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }}
+        .footer-text {{
+            color: #64748b;
+            font-size: 14px;
+            margin: 0;
+        }}
+        .brand {{
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }}
+        .alternative-link {{
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            font-size: 14px;
+            color: #475569;
+        }}
+        .alternative-link a {{
+            color: #2563eb;
+            text-decoration: none;
+            word-break: break-all;
+        }}
+        .alternative-link a:hover {{
+            text-decoration: underline;
+        }}
+        @media (max-width: 640px) {{
+            .container {{
+                margin: 10px;
+                border-radius: 8px;
+            }}
+            .header {{
+                padding: 30px 20px;
+            }}
+            .header h1 {{
+                font-size: 24px;
+            }}
+            .content {{
+                padding: 30px 20px;
+            }}
+            .verify-button {{
+                padding: 14px 28px;
+                font-size: 15px;
+            }}
+        }}
+    </style>
+</head>
 <body>
-    <h2>Welcome to NashLibrary, {full_name}!</h2>
-    <p>Thank you for registering with our library system.</p>
-    <p>To complete your registration, please verify your email address by clicking the button below:</p>
-    <p style="text-align: center; margin: 30px 0;">
-        <a href="{verification_url}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Verify Email Address</a>
-    </p>
-    <p><strong>Important:</strong> This link will expire in 24 hours for security reasons.</p>
-    <p>If the button doesn't work, copy and paste this URL into your browser:</p>
-    <p><a href="{verification_url}">{verification_url}</a></p>
-    <p>If you did not request this registration, please ignore this email.</p>
-    <br>
-    <p>Best regards,<br>NashLibrary Team</p>
+    <div class="container">
+        <div class="header">
+            <h1>📚 NashLibrary</h1>
+            <p>Verify Your Account</p>
+        </div>
+
+        <div class="content">
+            <div class="greeting">Welcome, {full_name}!</div>
+
+            <div class="message">
+                Thank you for registering with NashLibrary. To complete your registration and start borrowing books, please verify your email address by clicking the button below.
+            </div>
+
+            <div class="button-container">
+                <a href="{verification_url}" class="verify-button" target="_blank" rel="noopener noreferrer">
+                    ✅ Verify Email Address
+                </a>
+            </div>
+
+            <div class="warning">
+                <strong>⏰ Important:</strong> This verification link will expire in 24 hours for security reasons. If the link expires, you'll need to register again.
+            </div>
+
+            <div class="alternative-link">
+                <strong>If the button doesn't work:</strong><br>
+                Copy and paste this URL into your browser:<br>
+                <a href="{verification_url}" target="_blank" rel="noopener noreferrer">{verification_url}</a>
+            </div>
+
+            <div class="message">
+                If you did not request this registration, please ignore this email. Your email address will not be used without verification.
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="brand">NashLibrary</div>
+            <p class="footer-text">
+                LIBRASYS - Library Management System<br>
+                Secure • Reliable • Modern
+            </p>
+        </div>
+    </div>
 </body>
 </html>
         """
@@ -195,6 +370,277 @@ class VerifyEmailUseCase:
         }
 
 
+class ResendVerificationEmailUseCase:
+    """Use case for resending verification email"""
+
+    def __init__(self, auth_service: AuthService, email_service: EmailService):
+        self.auth_service = auth_service
+        self.email_service = email_service
+
+    def execute(self, email: str) -> dict:
+        """
+        Resend verification email for pending registration
+
+        Args:
+            email: Email address
+
+        Returns:
+            dict: Result message
+        """
+        # Find pending registration request
+        request = self.auth_service.student_repo.find_registration_request_by_email(email)
+        if not request:
+            raise ValueError("No pending registration request found for this email")
+
+        if request.get('email_verified'):
+            raise ValueError("Email is already verified")
+
+        # Check if token is expired (24 hours)
+        created_at = request.get('created_at')
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+
+        if datetime.utcnow() - created_at > timedelta(hours=24):
+            # Generate new token for expired requests
+            new_token = str(uuid.uuid4())
+            self.auth_service.student_repo.update_registration_request_token(email, new_token)
+            verification_token = new_token
+        else:
+            verification_token = request.get('verification_token')
+
+        # Send verification email
+        full_name = request.get('full_name')
+        self._send_verification_email(email, full_name, verification_token)
+
+        return {
+            'message': 'Verification email sent successfully. Please check your email.',
+            'email': email
+        }
+
+    def _send_verification_email(self, email: str, full_name: str, token: str):
+        """Send email verification link"""
+        verification_url = f"{Config.FRONTEND_URL}/verify-email?token={token}"
+
+        subject = "Verify Your NashLibrary Account"
+        body = f"""
+Dear {full_name},
+
+Welcome to NashLibrary! Thank you for registering with our library system.
+
+To complete your registration and activate your account, please verify your email address by clicking the link below:
+
+{verification_url}
+
+This verification link will expire in 24 hours for security reasons.
+
+If you did not request this registration, please ignore this email.
+
+Best regards,
+NashLibrary Team
+LIBRASYS
+        """
+
+        html_body = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your NashLibrary Account</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }}
+        .header h1 {{
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }}
+        .header p {{
+            margin: 8px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }}
+        .content {{
+            padding: 40px 30px;
+        }}
+        .greeting {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }}
+        .message {{
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }}
+        .button-container {{
+            text-align: center;
+            margin: 40px 0;
+        }}
+        .verify-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }}
+        .verify-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.5);
+        }}
+        .warning {{
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            font-size: 14px;
+            color: #92400e;
+        }}
+        .warning strong {{
+            color: #78350f;
+        }}
+        .footer {{
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }}
+        .footer-text {{
+            color: #64748b;
+            font-size: 14px;
+            margin: 0;
+        }}
+        .brand {{
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }}
+        .alternative-link {{
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            font-size: 14px;
+            color: #475569;
+        }}
+        .alternative-link a {{
+            color: #2563eb;
+            text-decoration: none;
+            word-break: break-all;
+        }}
+        .alternative-link a:hover {{
+            text-decoration: underline;
+        }}
+        @media (max-width: 640px) {{
+            .container {{
+                margin: 10px;
+                border-radius: 8px;
+            }}
+            .header {{
+                padding: 30px 20px;
+            }}
+            .header h1 {{
+                font-size: 24px;
+            }}
+            .content {{
+                padding: 30px 20px;
+            }}
+            .verify-button {{
+                padding: 14px 28px;
+                font-size: 15px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 NashLibrary</h1>
+            <p>Verify Your Account</p>
+        </div>
+
+        <div class="content">
+            <div class="greeting">Welcome, {full_name}!</div>
+
+            <div class="message">
+                Thank you for registering with NashLibrary. To complete your registration and start borrowing books, please verify your email address by clicking the button below.
+            </div>
+
+            <div class="button-container">
+                <a href="{verification_url}" class="verify-button" target="_blank" rel="noopener noreferrer">
+                    ✅ Verify Email Address
+                </a>
+            </div>
+
+            <div class="warning">
+                <strong>⏰ Important:</strong> This verification link will expire in 24 hours for security reasons. If the link expires, you'll need to register again.
+            </div>
+
+            <div class="alternative-link">
+                <strong>If the button doesn't work:</strong><br>
+                Copy and paste this URL into your browser:<br>
+                <a href="{verification_url}" target="_blank" rel="noopener noreferrer">{verification_url}</a>
+            </div>
+
+            <div class="message">
+                If you did not request this registration, please ignore this email. Your email address will not be used without verification.
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="brand">NashLibrary</div>
+            <p class="footer-text">
+                LIBRASYS - Library Management System<br>
+                Secure • Reliable • Modern
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+        """
+
+        self.email_service.send_email(
+            subject=subject,
+            recipients=[email],
+            body=body,
+            html_body=html_body
+        )
+
+
 class ApproveRegistrationUseCase:
     """Use case for admin to approve student registration"""
 
@@ -224,8 +670,11 @@ class ApproveRegistrationUseCase:
         student_id = self.auth_service.register_student(
             email=request.get('email'),
             full_name=request.get('full_name'),
-            password=request.get('password_hash'),  # This is already hashed
-            student_number=request.get('student_number')
+            password_hash=request.get('password_hash'),
+            student_number=request.get('student_number'),
+            status='active',
+            email_verified=True,
+            registration_document=request.get('registration_document')
         )
 
         # Update registration request status

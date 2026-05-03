@@ -15,5 +15,9 @@ class BookRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def search_books(self, title: str = '', author: str = '', category: str = '', isbn: str = '', availability: str = ''):
+        raise NotImplementedError
+
+    @abstractmethod
     def update_book_status(self, book_id: int, status: str, available_copies: int | None = None):
         raise NotImplementedError

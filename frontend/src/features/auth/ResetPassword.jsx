@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { resetPassword } from './authService'
+import { resetPassword } from './authService.js'
 import '../../index.css'
 
 export default function ResetPassword() {

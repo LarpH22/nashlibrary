@@ -23,6 +23,20 @@ def create_app(config_object=None):
     CORS(app)
     jwt_manager.init_app(app)
 
+    # Add security headers to prevent embedding and context issues
+    @app.after_request
+    def add_security_headers(response):
+        # Prevent embedding in iframes
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' http://localhost:* https://*; frame-ancestors 'none';"
+        # Allow only same-origin and specific trusted origins
+        response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        return response
+
     # Initialize email service
     email_service = EmailService(app)
 
@@ -59,11 +73,6 @@ def create_app(config_object=None):
         return base_url
 
     # Explicitly register routes AFTER blueprints to ensure they have priority
-    @app.route('/register', methods=['GET'])
-    @app.route('/login', methods=['GET'])
-    def serve_auth_pages():
-        return serve_frontend(request.path.lstrip('/'))
-
     @app.route('/favicon.ico', methods=['GET'])
     def serve_favicon():
         frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
@@ -73,32 +82,79 @@ def create_app(config_object=None):
                 return send_from_directory(frontend_dist, 'favicon.ico')
         return jsonify({'message': 'Favicon not found', 'status': 404}), 404
 
+    def frontend_asset_response(path):
+        frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
+        if not frontend_dist or not path:
+            return None
+
+        normalized_path = path.replace('\\', '/')
+        if '..' in normalized_path.split('/'):
+            return None
+
+        if not normalized_path.startswith('assets/'):
+            normalized_path = f'assets/{normalized_path}'
+
+        full_asset_path = os.path.join(frontend_dist, *normalized_path.split('/'))
+        if os.path.isfile(full_asset_path):
+            return send_from_directory(frontend_dist, normalized_path)
+        return None
+
+    @app.route('/assets/<path:path>', methods=['GET'])
+    def serve_frontend_asset(path):
+        asset_response = frontend_asset_response(path)
+        if asset_response:
+            return asset_response
+        return jsonify({'message': 'Asset not found', 'status': 404}), 404
+
+    @app.route('/dashboard/api/<path:subpath>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+    def redirect_dashboard_api(subpath):
+        """Redirect relative dashboard API paths to the root API path."""
+        target = f"/api/{subpath}"
+        return redirect(target, code=307)
+
+    def serve_spa(path=''):
+        """Serve SPA - always return index.html for frontend routes"""
+        frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
+        
+        if use_dev_frontend:
+            # Get the full URL with query parameters
+            full_url = request.full_path
+            dev_base = find_frontend_url()
+            if dev_base:
+                # Redirect to dev frontend with full path and query string preserved
+                dev_url = f"{dev_base}{full_url.lstrip('/')}"
+                print(f"Redirecting to dev frontend: {dev_url}")
+                return redirect(dev_url, code=302)
+        
+        # Serve from built frontend
+        if frontend_dist:
+            # Always serve index.html for SPA routing to work
+            return send_from_directory(frontend_dist, 'index.html')
+        
+        return jsonify({'message': 'Backend is running', 'status': 'ok'})
+
+    # Register SPA routes - these should be handled by React Router
+    @app.route('/register', methods=['GET'])
+    @app.route('/login', methods=['GET'])
+    @app.route('/verify-email', methods=['GET'])
+    @app.route('/reset-password', methods=['GET'])
+    def serve_auth_pages():
+        return serve_spa()
+
     @app.route('/dashboard', defaults={'subpath': ''}, methods=['GET'])
     @app.route('/dashboard/', defaults={'subpath': ''}, methods=['GET'])
     @app.route('/dashboard/<path:subpath>', methods=['GET'])
     def serve_dashboard(subpath=''):
-        print(f"serve_dashboard called: subpath={subpath}")
-        return serve_frontend(f'dashboard/{subpath}' if subpath else 'dashboard')
+        return serve_spa()
 
     @app.route('/', defaults={'path': ''}, methods=['GET'])
     @app.route('/<path:path>', methods=['GET'])
-    def serve_frontend(path):
-        frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
-        print(f"serve_frontend called: path={path} frontend_dist={frontend_dist}")
+    def serve_frontend(path=''):
+        """Catch-all for frontend routes"""
         if path.startswith('api/'):
             return jsonify({'message': 'Endpoint not found', 'status': 404}), 404
 
-        dev_url = get_dev_frontend_url(path or '/') if use_dev_frontend else None
-        print(f"serve_frontend dev_url={dev_url}")
-        if dev_url:
-            return redirect(dev_url, code=302)
-        if frontend_dist:
-            requested_path = path or 'index.html'
-            full_path = os.path.join(frontend_dist, requested_path)
-            if path and os.path.exists(full_path):
-                return send_from_directory(frontend_dist, requested_path)
-            return send_from_directory(frontend_dist, 'index.html')
-        return jsonify({'message': 'Backend is running', 'status': 'ok'})
+        return serve_spa(path)
 
     print(f"\n=== Routes Registered ===")
     print(f"Total routes: {len(list(app.url_map.iter_rules()))}")

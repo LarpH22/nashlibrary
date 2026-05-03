@@ -104,6 +104,22 @@ export function LibrarianDashboard() {
     navigate('/login', { replace: true })
   }
 
+  useEffect(() => {
+    loadBooks()
+    loadLoans()
+    loadStudents()
+  }, [loadBooks, loadLoans, loadStudents])
+
+  const stats = useMemo(
+    () => [
+      { label: 'Books', value: safeBooks.length, type: 'blue' },
+      { label: 'Active Loans', value: safeLoans.filter(l => !l.returned).length, type: 'green' },
+      { label: 'Overdue', value: safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length, type: 'red' },
+      { label: 'Students', value: studentList.length, type: 'purple' }
+    ],
+    [safeBooks, safeLoans, studentList]
+  )
+
   const loadBooks = useCallback(async () => {
     try {
       const response = await api.get('/books/')
@@ -136,22 +152,6 @@ export function LibrarianDashboard() {
       addNotification('Unable to load students.')
     }
   }, [])
-
-  useEffect(() => {
-    loadBooks()
-    loadLoans()
-    loadStudents()
-  }, [loadBooks, loadLoans, loadStudents])
-
-  const stats = useMemo(
-    () => [
-      { label: 'Books', value: safeBooks.length, type: 'blue' },
-      { label: 'Active Loans', value: safeLoans.filter(l => !l.returned).length, type: 'green' },
-      { label: 'Overdue', value: safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length, type: 'red' },
-      { label: 'Students', value: studentList.length, type: 'purple' }
-    ],
-    [safeBooks, safeLoans, studentList]
-  )
 
   async function handleIssueBook(event) {
     event.preventDefault()

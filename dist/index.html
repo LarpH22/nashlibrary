@@ -4,9 +4,50 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nash Library</title>
-    <script type="module" crossorigin src="/assets/index-pp689KQB.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CAX5o8ax.css">
+    <title>NashLibrary</title>
+    
+    <!-- Security headers are applied by the backend via HTTP response headers -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- Frame-busting JavaScript for invalid contexts -->
+    <script>
+      // Detect and prevent running in invalid browser contexts
+      (function() {
+        try {
+          // Check for invalid origin
+          if (window.location.origin === 'null' || window.location.origin.includes('chrome-error')) {
+            console.error('Invalid browser context detected');
+            try {
+              window.location.href = 'about:blank';
+            } catch (e) {
+              document.body.innerHTML = '<h1>Browser Context Error</h1><p>This application cannot run in this context.</p>';
+            }
+            throw new Error('Invalid context');
+          }
+
+          // Break out of iframe if in an unexpected frame
+          if (window.self !== window.top) {
+            console.warn('Application is running in an iframe');
+            try {
+              window.top.location = window.self.location;
+            } catch (e) {
+              // Silently fail if cross-origin - React component will handle it
+              console.warn('Cannot break out of iframe (cross-origin)');
+            }
+          }
+
+          // Check protocol
+          if (!window.location.protocol.match(/^https?:/)) {
+            throw new Error('Invalid protocol: ' + window.location.protocol);
+          }
+        } catch (error) {
+          console.error('Context validation error:', error);
+          document.body.innerHTML = '<h1>Browser Error</h1><p>Please refresh the page or try again later.</p>';
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-DpnRt5ba.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-6gy5Yw1I.css">
   </head>
   <body>
     <div id="root"></div>

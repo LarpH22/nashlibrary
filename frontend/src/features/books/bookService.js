@@ -5,6 +5,11 @@ export async function fetchBooks() {
   return response.data
 }
 
+export async function searchBooks(filters) {
+  const response = await api.get('/api/books/search', { params: filters })
+  return response.data
+}
+
 export async function borrowBook(loanRequest) {
   const response = await api.post('/books/borrow', loanRequest)
   return response.data

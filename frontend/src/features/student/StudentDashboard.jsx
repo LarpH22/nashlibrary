@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BookSearch } from '../books/BookSearch.jsx'
 import './StudentDashboard.css'
 
 const navSections = [
@@ -8,6 +9,7 @@ const navSections = [
     items: [
       { id: 'overview', icon: '📊', title: 'Overview' },
       { id: 'books', icon: '📖', title: 'My Borrowed Books' },
+      { id: 'catalog', icon: '🔍', title: 'Search Catalog' },
       { id: 'history', icon: '📚', title: 'Borrowing History' }
     ]
   },
@@ -23,6 +25,7 @@ const navSections = [
 const pageTitles = {
   overview: 'Overview',
   books: 'My Borrowed Books',
+  catalog: 'Search Catalog',
   history: 'Borrowing History',
   profile: 'My Profile',
   password: 'Change Password'
@@ -39,34 +42,125 @@ export function StudentDashboard() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
+  const [authStatus, setAuthStatus] = useState('pending')
+  const [authMessage, setAuthMessage] = useState('')
 
-  const addNotification = (text) => {
+  const addNotification = useCallback((text) => {
     const id = Date.now()
-    setNotifications(prev => [...prev, { id, text, timestamp: new Date() }])
-  }
+    setNotifications((prev) => [...prev, { id, text, timestamp: new Date() }])
+  }, [])
 
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
+  const getAuthToken = useCallback(() => {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token')
+    if (token) {
+      return token
+    }
+
+    const cookies = document.cookie
+      .split(';')
+      .map((cookie) => cookie.trim())
+      .reduce((acc, cookie) => {
+        const [name, value] = cookie.split('=')
+        if (name && value) {
+          acc[name] = decodeURIComponent(value)
+        }
+        return acc
+      }, {})
+    return cookies['access_token'] || cookies['token'] || ''
+  }, [])
+
+  const decodeTokenRole = useCallback((token) => {
+    if (!token || token.split('.').length !== 3) {
+      return null
+    }
+    try {
+      const payload = token.split('.')[1]
+      const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+      const json = decodeURIComponent(decoded.split('').map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`).join(''))
+      const parsed = JSON.parse(json)
+      return parsed?.role || parsed?.user_role || null
+    } catch (error) {
+      console.warn('[StudentDashboard] decodeTokenRole failed', error)
+      return null
+    }
+  }, [])
+
+  const removeNotification = useCallback((id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  }, [])
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user_role')
+    localStorage.removeItem('user_id')
+  }, [])
+
+  const redirectToLogin = useCallback(() => {
+    clearSession()
+    navigate('/login', { replace: true })
+  }, [clearSession, navigate])
+
+  const handleLogout = () => {
+    clearSession()
+    navigate('/login', { replace: true })
   }
 
   const loadLoans = useCallback(async () => {
     try {
-      const response = await fetch('/api/loans/student')
-      if (!response.ok) {
-        throw new Error('Unable to load student loans')
+      const token = getAuthToken()
+      const response = await fetch('/api/loans/student', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
+      if (response.status === 401) {
+        console.warn('[StudentDashboard] loadLoans unauthorized', response)
+        redirectToLogin()
+        return
       }
-      setLoans(await response.json())
-    } catch {
-      addNotification('Unable to load your books.')
+      const data = await response.json()
+      console.log('[StudentDashboard] loadLoans response', response.status, data)
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to load student loans')
+      }
+      setLoans(Array.isArray(data) ? data : [])
+    } catch (err) {
+      const message = err?.message || 'Unable to load your books.'
+      console.error('[StudentDashboard] loadLoans error', err)
+      setFetchError(message)
+      addNotification(message)
     }
-  }, [])
+  }, [addNotification, getAuthToken, redirectToLogin])
 
   const loadProfile = useCallback(async () => {
     try {
-      const response = await fetch('/api/students/profile')
+      const token = getAuthToken()
+      const response = await fetch('/api/students/profile', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
+      if (response.status === 401) {
+        console.warn('[StudentDashboard] loadProfile unauthorized', response)
+        redirectToLogin()
+        return
+      }
       const data = await response.json()
+      console.log('[StudentDashboard] loadProfile response', response.status, data)
       if (!response.ok) {
-        throw new Error('Unable to load profile')
+        throw new Error(data?.message || 'Unable to load profile')
+      }
+      const role = data?.role || data?.user_role || localStorage.getItem('user_role')
+      if (role && role !== 'student') {
+        setAuthStatus('unauthorized')
+        setAuthMessage('Unauthorized access. Login with a student account to continue.')
+        console.warn('[StudentDashboard] profile role mismatch', { role, data })
+        return
       }
       setProfile(data)
       setProfileForm({
@@ -74,22 +168,39 @@ export function StudentDashboard() {
         email: data.email || '',
         phone: data.phone || ''
       })
-    } catch {
-      addNotification('Unable to load profile.')
+    } catch (err) {
+      const message = err?.message || 'Unable to load profile.'
+      console.error('[StudentDashboard] loadProfile error', err)
+      setFetchError(message)
+      addNotification(message)
     }
-  }, [])
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user_role')
-    localStorage.removeItem('user_id')
-    navigate('/login', { replace: true })
-  }
+  }, [addNotification, getAuthToken, redirectToLogin])
 
   useEffect(() => {
-    loadLoans()
-    loadProfile()
-  }, [loadLoans, loadProfile])
+    const token = getAuthToken()
+    const storedRole = localStorage.getItem('user_role')
+    const tokenRole = decodeTokenRole(token)
+    const role = storedRole || tokenRole
+
+    if (!token) {
+      console.warn('[StudentDashboard] missing token', { storedRole })
+      redirectToLogin()
+      return
+    }
+
+    if (role && role !== 'student') {
+      console.warn('[StudentDashboard] wrong role', { role })
+      setAuthStatus('unauthorized')
+      setAuthMessage('Unauthorized access. Login with a student account to continue.')
+      setLoading(false)
+      return
+    }
+
+    setAuthStatus('authorized')
+    setLoading(true)
+    setFetchError('')
+    Promise.allSettled([loadLoans(), loadProfile()]).finally(() => setLoading(false))
+  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, redirectToLogin])
 
   const stats = useMemo(
     () => {
@@ -239,6 +350,10 @@ export function StudentDashboard() {
       )
     }
 
+    if (activePage === 'catalog') {
+      return <BookSearch initialKeyword={searchQuery} />
+    }
+
     if (activePage === 'history') {
       const history = loans.filter(l => l.returned)
       return (
@@ -323,7 +438,12 @@ export function StudentDashboard() {
       )
     }
 
-    return null
+    return (
+      <div className="card">
+        <div className="card-hdr"><div className="card-title">Page unavailable</div></div>
+        <p>Unable to render this section. Please refresh or choose another page.</p>
+      </div>
+    )
   }
 
   return (
@@ -405,7 +525,30 @@ export function StudentDashboard() {
           <div className="avatar">ST</div>
         </div>
         <div className="content">
-          {renderPage()}
+          {authStatus === 'unauthorized' ? (
+            <div className="card">
+              <div className="card-hdr"><div className="card-title">Unauthorized access</div></div>
+              <p>{authMessage || 'You do not have permission to view this dashboard.'}</p>
+              <button className="btn btn-outline" type="button" onClick={handleLogout}>Go to Login</button>
+            </div>
+          ) : loading ? (
+            <div className="card">
+              <div className="card-hdr"><div className="card-title">Loading Dashboard</div></div>
+              <p>Loading your student data. Please wait...</p>
+            </div>
+          ) : fetchError ? (
+            <div className="card">
+              <div className="card-hdr"><div className="card-title">Unable to load dashboard</div></div>
+              <p>{fetchError}</p>
+              <button className="btn btn-outline" type="button" onClick={() => {
+                setLoading(true)
+                setFetchError('')
+                Promise.allSettled([loadLoans(), loadProfile()]).finally(() => setLoading(false))
+              }}>Retry</button>
+            </div>
+          ) : (
+            renderPage()
+          )}
         </div>
       </div>
     </div>

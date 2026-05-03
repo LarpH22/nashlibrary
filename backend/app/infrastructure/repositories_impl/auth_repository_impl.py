@@ -6,14 +6,27 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
     """Student authentication repository implementation"""
 
     def create_student(self, email: str, full_name: str, password_hash: str,
-                       student_number: str | None = None, status: str = 'pending'):
+                       student_number: str | None = None, status: str = 'pending',
+                       email_verified: bool = False,
+                       registration_document: str | None = None,
+                       verification_token: str | None = None):
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """INSERT INTO students
-                       (email, full_name, password_hash, student_number, status, created_at)
-                       VALUES (%s, %s, %s, %s, %s, NOW())""",
-                    (email, full_name, password_hash, student_number, status)
+                       (email, full_name, password_hash, student_number, status,
+                        email_verified, registration_document, verification_token, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())""",
+                    (
+                        email,
+                        full_name,
+                        password_hash,
+                        student_number,
+                        status,
+                        email_verified,
+                        registration_document,
+                        verification_token,
+                    )
                 )
                 conn.commit()
                 return cur.lastrowid
@@ -77,6 +90,12 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
                 cur.execute("SELECT * FROM registration_requests WHERE email=%s LIMIT 1", (email,))
                 return cur.fetchone()
 
+    def find_registration_request_by_email(self, email: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM registration_requests WHERE email=%s LIMIT 1", (email,))
+                return cur.fetchone()
+
     def find_registration_request_by_student_number(self, student_number: str):
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -101,6 +120,16 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
                 cur.execute(
                     "UPDATE registration_requests SET email_verified=TRUE, verified_at=NOW() WHERE verification_token=%s",
                     (token,)
+                )
+                conn.commit()
+                return cur.rowcount > 0
+
+    def update_registration_request_token(self, email: str, new_token: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE registration_requests SET verification_token=%s, created_at=NOW() WHERE email=%s",
+                    (new_token, email)
                 )
                 conn.commit()
                 return cur.rowcount > 0
