@@ -247,3 +247,107 @@ Traceback (most recent call last):
     raise errorclass(errno, errval)
 pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
 2026-05-04 04:12:06,472 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:12:06] "[35m[1mGET /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1[0m" 500 -
+2026-05-04 04:12:44,846 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:12:44] "OPTIONS /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-04 04:12:45,177 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 22, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-04 04:12:45,177 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 22, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-04 04:12:45,185 INFO werkzeug 127.0.0.1 - - [04/May/2026 04:12:45] "[35m[1mGET /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1[0m" 500 -
