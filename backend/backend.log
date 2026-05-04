@@ -3734,3 +3734,224 @@ pymysql.err.OperationalError: (1054, "Unknown column 'loan_id' in 'field list'")
 2026-05-05 02:06:25,817 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:06:25] "POST /api/admin/password HTTP/1.1" 200 -
 2026-05-05 02:06:35,975 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:06:35] "[36mGET /assets/index-h01Htb1w.css HTTP/1.1[0m" 304 -
 2026-05-05 02:06:36,040 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:06:36] "[36mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 304 -
+2026-05-05 02:17:35,477 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:35] "GET /dashboard/ HTTP/1.1" 200 -
+2026-05-05 02:17:35,527 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:35] "GET /assets/index-h01Htb1w.css HTTP/1.1" 200 -
+2026-05-05 02:17:35,527 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:35] "GET /assets/index-BRL4xVM_.js HTTP/1.1" 200 -
+2026-05-05 02:17:35,595 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:35] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 02:17:35,656 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:35] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 02:17:36,061 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "OPTIONS /api/admin/categories HTTP/1.1" 200 -
+2026-05-05 02:17:36,063 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "OPTIONS /api/admin/authors HTTP/1.1" 200 -
+2026-05-05 02:17:36,065 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "OPTIONS /books/ HTTP/1.1" 200 -
+2026-05-05 02:17:36,068 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "OPTIONS /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 02:17:36,071 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "OPTIONS /api/admin/registration-requests HTTP/1.1" 200 -
+2026-05-05 02:17:36,310 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "[31m[1mGET /api/admin/categories HTTP/1.1[0m" 401 -
+2026-05-05 02:17:36,412 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "[31m[1mGET /api/admin/authors HTTP/1.1[0m" 401 -
+2026-05-05 02:17:36,414 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "[31m[1mGET /api/admin/loans HTTP/1.1[0m" 401 -
+2026-05-05 02:17:36,416 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "[31m[1mGET /api/admin/registration-requests HTTP/1.1[0m" 401 -
+2026-05-05 02:17:36,435 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:36] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 02:17:40,757 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:40] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:17:46,245 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:46] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+2026-05-05 02:17:47,431 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:47] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 02:17:47,490 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:47] "OPTIONS /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 02:17:47,512 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:47] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:17:47,520 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:47] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 02:17:47,617 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:47] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 02:17:47,812 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'b.author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 14, in most_borrowed_books
+    return controller.most_borrowed_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 36, in most_borrowed_books
+    books = self.most_borrowed_books_use_case.execute(limit=limit)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\book\most_borrowed_books.py", line 9, in execute
+    return self.book_repository.most_borrowed_books(limit=limit)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 61, in most_borrowed_books
+    cur.execute(
+    ~~~~~~~~~~~^
+        """
+        ^^^
+    ...<16 lines>...
+        (limit,)
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'b.author' in 'field list'")
+2026-05-05 02:17:47,812 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'b.author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 14, in most_borrowed_books
+    return controller.most_borrowed_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 36, in most_borrowed_books
+    books = self.most_borrowed_books_use_case.execute(limit=limit)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\book\most_borrowed_books.py", line 9, in execute
+    return self.book_repository.most_borrowed_books(limit=limit)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 61, in most_borrowed_books
+    cur.execute(
+    ~~~~~~~~~~~^
+        """
+        ^^^
+    ...<16 lines>...
+        (limit,)
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'b.author' in 'field list'")
+2026-05-05 02:17:47,831 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:47] "[35m[1mGET /api/books/most-borrowed?limit=5 HTTP/1.1[0m" 500 -
+2026-05-05 02:17:50,247 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:50] "OPTIONS /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 02:17:50,577 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 24, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-05 02:17:50,577 ERROR backend.app Unhandled exception: OperationalError: (1054, "Unknown column 'author' in 'field list'")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 24, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<3 lines>...
+        availability=availability
+    )
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 9, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        availability=availability
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 55, in search_books
+    cur.execute(query, tuple(params))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
+2026-05-05 02:17:50,591 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:17:50] "[35m[1mGET /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1[0m" 500 -
