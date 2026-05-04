@@ -65,6 +65,8 @@ class AuthController:
             full_name = request.form.get('full_name')
             password = request.form.get('password')
             student_id = request.form.get('student_id')
+            department = request.form.get('department')
+            year_level = request.form.get('year_level')
             registration_document = request.files.get('registration_document')
 
             result = self.secure_student_registration_use_case.execute(
@@ -72,7 +74,9 @@ class AuthController:
                 full_name=full_name,
                 password=password,
                 student_id=student_id,
-                registration_document=registration_document
+                registration_document=registration_document,
+                department=department,
+                year_level=year_level
             )
 
             return jsonify(result), 201
@@ -189,6 +193,9 @@ class AuthController:
         print("User:", user, "Role:", auth_role)
         if not user:
             return jsonify({'message': 'Invalid credentials'}), 401
+
+        if auth_role == 'student' and user.get('student_id'):
+            self.student_repo.update_student_last_login(user['student_id'])
 
         # Create JWT token with role information
         token_data = {

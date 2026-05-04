@@ -7,6 +7,7 @@ from flask_jwt_extended import get_jwt
 from ...domain.services.auth_service import AuthService
 from ...infrastructure.config import Config
 from ...infrastructure.database.db_connection import get_connection
+from ...infrastructure.repositories_impl.inventory_schema import ensure_inventory_schema
 from ...infrastructure.repositories_impl.auth_repository_impl import AdminAuthRepositoryImpl, LibrarianAuthRepositoryImpl
 
 
@@ -198,12 +199,16 @@ class AdminController:
             return auth_error
 
         with get_connection() as conn:
+            ensure_inventory_schema(conn)
+            conn.commit()
             with conn.cursor() as cur:
                 cur.execute(
                     '''
                     SELECT
                         br.borrow_id AS loan_id,
                         br.book_id,
+                        br.copy_id,
+                        bc.copy_code,
                         b.title AS book_title,
                         br.student_id,
                         s.full_name AS student_name,
@@ -213,6 +218,7 @@ class AdminController:
                         br.status
                     FROM borrow_records br
                     LEFT JOIN books b ON br.book_id = b.book_id
+                    LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
                     LEFT JOIN students s ON br.student_id = s.student_id
                     ORDER BY br.borrow_date DESC
                     '''
@@ -231,7 +237,7 @@ class AdminController:
                     "SELECT column_name FROM information_schema.columns "
                     "WHERE table_schema = DATABASE() "
                     "AND table_name = 'registration_requests' "
-                    "AND column_name IN ('status', 'registration_document', 'email_verified', 'verified_at')"
+                    "AND column_name IN ('status', 'registration_document', 'email_verified', 'verified_at', 'department', 'year_level')"
                 )
                 existing_columns = {row.get('column_name') for row in cur.fetchall()}
 
@@ -239,6 +245,8 @@ class AdminController:
                 has_document = 'registration_document' in existing_columns
                 has_email_verified = 'email_verified' in existing_columns
                 has_verified_at = 'verified_at' in existing_columns
+                has_department = 'department' in existing_columns
+                has_year_level = 'year_level' in existing_columns
 
                 select_columns = [
                     'request_id',
@@ -248,6 +256,10 @@ class AdminController:
                 ]
                 if has_document:
                     select_columns.append('registration_document')
+                if has_department:
+                    select_columns.append('department')
+                if has_year_level:
+                    select_columns.append('year_level')
                 if has_email_verified:
                     select_columns.append('email_verified')
                 if has_verified_at:

@@ -166,7 +166,8 @@ export function LibrarianDashboard() {
       addNotification('Book issued successfully.')
     } catch (error) {
       console.error('Error issuing book:', error)
-      addNotification('Failed to issue book.')
+      await Promise.allSettled([loadLoans(), loadBooks()])
+      addNotification(error?.response?.data?.message || 'Failed to issue book.')
     }
   }
 
@@ -180,7 +181,8 @@ export function LibrarianDashboard() {
       addNotification('Book return recorded.')
     } catch (error) {
       console.error('Error returning book:', error)
-      addNotification('Failed to return book.')
+      await Promise.allSettled([loadLoans(), loadBooks()])
+      addNotification(error?.response?.data?.message || 'Failed to return book.')
     }
   }
 

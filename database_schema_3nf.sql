@@ -84,8 +84,6 @@ CREATE TABLE students (
     department VARCHAR(100),
     year_level INT,
     section VARCHAR(10),
-    library_card_number VARCHAR(20) UNIQUE,
-    expiration_date DATE,
     registration_document VARCHAR(255),
     status ENUM('active', 'inactive', 'suspended', 'pending') DEFAULT 'pending',
     email_verified BOOLEAN DEFAULT FALSE,
@@ -97,7 +95,6 @@ CREATE TABLE students (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
     INDEX idx_student_number (student_number),
-    INDEX idx_library_card (library_card_number),
     INDEX idx_status (status)
 );
 
@@ -109,7 +106,9 @@ CREATE TABLE registration_requests (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
-    student_number VARCHAR(20),
+    student_number VARCHAR(20) UNIQUE NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    year_level INT NOT NULL,
     registration_document VARCHAR(255),
     role ENUM('admin', 'librarian', 'student') DEFAULT 'student',
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
@@ -118,6 +117,7 @@ CREATE TABLE registration_requests (
     verified_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_email (email),
+    INDEX idx_student_number (student_number),
     INDEX idx_verification_token (verification_token)
 );
 
@@ -752,10 +752,10 @@ INSERT INTO librarians (email, password_hash, full_name, employee_id, position, 
 ('librarian2@library.com', '$2y$10$YourHashedPasswordHere', 'Mark Librarian', 'LIB002', 'Junior Librarian', '2024-01-10', '+1234567892', '1:00 PM - 9:00 PM', 'Reference', 'active');
 
 -- Insert students
-INSERT INTO students (email, password_hash, full_name, phone, student_number, department, year_level, section, library_card_number, expiration_date, status) VALUES 
-('student1@library.com', '$2y$10$YourHashedPasswordHere', 'Bob Student', '+1234567893', '241-0001', 'Computer Science', 3, 'A', 'CARD2024001', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active'),
-('student2@library.com', '$2y$10$YourHashedPasswordHere', 'Alice Student', '+1234567894', '241-0002', 'Information Technology', 2, 'B', 'CARD2024002', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active'),
-('student3@library.com', '$2y$10$YourHashedPasswordHere', 'Charlie Student', '+1234567895', '241-0003', 'Computer Science', 1, 'A', 'CARD2024003', DATE_ADD(CURDATE(), INTERVAL 2 YEAR), 'active');
+INSERT INTO students (email, password_hash, full_name, phone, student_number, department, year_level, section, status) VALUES
+('student1@library.com', '$2y$10$YourHashedPasswordHere', 'Bob Student', '+1234567893', '241-0001', 'Computer Science', 3, 'A', 'active'),
+('student2@library.com', '$2y$10$YourHashedPasswordHere', 'Alice Student', '+1234567894', '241-0002', 'Information Technology', 2, 'B', 'active'),
+('student3@library.com', '$2y$10$YourHashedPasswordHere', 'Charlie Student', '+1234567895', '241-0003', 'Computer Science', 1, 'A', 'active');
 
 -- Insert authors
 INSERT INTO authors (name) VALUES 

@@ -16,8 +16,6 @@ class Student:
     status: str = 'pending'
     student_id: int | None = None
     email_verified: bool = False
-    library_card_number: str | None = None
-    expiration_date: str | None = None
 
 
 @dataclass

@@ -21,7 +21,8 @@ class SecureStudentRegistrationUseCase:
         self.validation_service = validation_service
 
     def execute(self, email: str, full_name: str, password: str,
-                student_id: str, registration_document) -> dict:
+                student_id: str, registration_document,
+                department: str, year_level) -> dict:
         """
         Execute secure student registration process
 
@@ -31,6 +32,8 @@ class SecureStudentRegistrationUseCase:
             password: Student password
             student_id: Student ID (format: 241-0449)
             registration_document: Uploaded file object
+            department: Student department or program
+            year_level: Student year level
 
         Returns:
             dict: Registration result with message and request_id
@@ -39,10 +42,13 @@ class SecureStudentRegistrationUseCase:
         email = self.validation_service.sanitize_text(email)
         full_name = self.validation_service.sanitize_text(full_name)
         student_id = self.validation_service.sanitize_text(student_id)
+        department = self.validation_service.sanitize_text(department)
+        year_level = self.validation_service.sanitize_text(str(year_level))
 
         # Validate required fields
         valid, message = self.validation_service.validate_required_fields(
-            email=email, full_name=full_name, password=password, student_id=student_id
+            email=email, full_name=full_name, password=password, student_id=student_id,
+            department=department, year_level=year_level
         )
         if not valid:
             raise ValueError(message)
@@ -55,6 +61,17 @@ class SecureStudentRegistrationUseCase:
         # Validate student ID format
         if not self.validation_service.validate_student_id(student_id):
             raise ValueError("Invalid student ID format. Must be in format 241-0449 (3 digits, dash, 4 digits)")
+
+        # Validate year level
+        try:
+            year_level_value = int(year_level)
+        except (TypeError, ValueError):
+            raise ValueError("Year level must be a valid number")
+        if year_level_value < 1 or year_level_value > 10:
+            raise ValueError("Year level must be between 1 and 10")
+
+        if not department:
+            raise ValueError("Department / Program is required")
 
         # Validate password strength
         valid, message = self.validation_service.validate_password_strength(password)
@@ -96,6 +113,8 @@ class SecureStudentRegistrationUseCase:
             password_hash=password_hash,
             student_number=student_id,
             registration_document=filename,
+            department=department,
+            year_level=year_level_value,
             verification_token=verification_token
         )
 
@@ -663,18 +682,40 @@ class ApproveRegistrationUseCase:
         if not request:
             raise ValueError("Registration request not found")
 
+        if request.get('status') not in (None, 'pending'):
+            raise ValueError("Only pending registration requests can be approved")
+
         if not request.get('email_verified'):
             raise ValueError("Email must be verified before approval")
+
+        student_number = request.get('student_number')
+        department = request.get('department')
+        year_level = request.get('year_level')
+
+        if not student_number:
+            raise ValueError("Approved registration is missing Student ID")
+        if not department:
+            raise ValueError("Approved registration is missing Department / Program")
+        if year_level is None:
+            raise ValueError("Approved registration is missing Year Level")
+
+        existing_student = self.auth_service.student_repo.find_student_by_student_number(student_number)
+        if existing_student:
+            raise ValueError("Student ID already registered")
+        if self.auth_service.student_repo.find_student_by_email(request.get('email')):
+            raise ValueError("Email already registered")
 
         # Create the student account
         student_id = self.auth_service.register_student(
             email=request.get('email'),
             full_name=request.get('full_name'),
             password_hash=request.get('password_hash'),
-            student_number=request.get('student_number'),
+            student_number=student_number,
             status='active',
             email_verified=True,
-            registration_document=request.get('registration_document')
+            registration_document=request.get('registration_document'),
+            department=department,
+            year_level=year_level
         )
 
         # Update registration request status
