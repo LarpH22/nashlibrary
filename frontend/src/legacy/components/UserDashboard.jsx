@@ -98,7 +98,7 @@ function UserDashboard({ user, onLogout }) {
     'View Borrowings': 'Track book checkouts, due dates, and overdue records.',
     'Manage Users': 'Approve students, handle user status and permissions.',
     'Reports': 'Generate activity, borrowings, and fine report summaries.',
-    'Support': 'Reach out to admin support at support@nashlibrary.com.'
+    'Support': 'Reach out to admin support at support@librasys.edu.'
   }
 
   return (
@@ -286,7 +286,7 @@ function UserDashboard({ user, onLogout }) {
               <h2>Support</h2>
               <p>{panelContent['Support']}</p>
               <div className="support-card">
-                <p><strong>Email:</strong> support@nashlibrary.com</p>
+                <p><strong>Email:</strong> support@librasys.edu</p>
                 <p><strong>Direct line:</strong> +1 555 987 6543</p>
                 <p><strong>Hours:</strong> Monday - Friday, 9am - 5pm</p>
               </div>

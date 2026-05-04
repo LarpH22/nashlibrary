@@ -17,7 +17,11 @@ class FineController:
         loan_id = request.args.get('loan_id')
         if not loan_id:
             return jsonify({'message': 'loan_id is required'}), 400
-        fine = self.calculate_fine_use_case.execute(int(loan_id))
+        try:
+            loan_id = int(loan_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'loan_id must be a valid integer'}), 400
+        fine = self.calculate_fine_use_case.execute(loan_id)
         return jsonify({'loan_id': loan_id, 'fine_amount': fine}), 200
 
     def pay_fine(self):
@@ -25,5 +29,9 @@ class FineController:
         loan_id = data.get('loan_id')
         if not loan_id:
             return jsonify({'message': 'loan_id is required'}), 400
-        payment = self.pay_fine_use_case.execute(int(loan_id))
+        try:
+            loan_id = int(loan_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'loan_id must be a valid integer'}), 400
+        payment = self.pay_fine_use_case.execute(loan_id)
         return jsonify({'message': 'Fine paid', 'loan': payment}), 200

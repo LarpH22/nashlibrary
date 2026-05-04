@@ -66,7 +66,7 @@ export function ResourceDetailPage({ type }) {
     return (
       <main className="resource-page">
         <section className="resource-panel">
-          <div className="resource-kicker">LibraX Library</div>
+          <div className="resource-kicker">LIBRASYS Library</div>
           <h1>Loading resource</h1>
         </section>
       </main>

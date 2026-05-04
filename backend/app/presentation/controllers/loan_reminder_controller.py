@@ -1,4 +1,5 @@
 import logging
+import pymysql
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt
 
@@ -43,17 +44,30 @@ class LoanReminderController:
             result = self.reminder_service.send_due_date_reminders(days_before_due=days)
             
             return jsonify({
-                'message': 'Reminders sent successfully',
+                'message': 'Reminders processed',
                 'data': {
-                    'sent': result['sent'],
-                    'failed': result['failed'],
-                    'total': result['total']
+                    'sent': result.get('sent', 0),
+                    'failed': result.get('failed', 0),
+                    'skipped': result.get('skipped', 0),
+                    'total': result.get('total', 0),
+                    'failures': result.get('failures', [])
                 }
             }), 200
-            
+
+        except pymysql.MySQLError as e:
+            logger.exception('Database error while sending due reminders')
+            return jsonify({
+                'message': 'Unable to query loans due soon. Please verify the library database schema and try again.',
+                'error': str(e),
+                'data': {'sent': 0, 'failed': 0, 'skipped': 0, 'total': 0, 'failures': []}
+            }), 503
         except Exception as e:
             logger.exception('Error sending reminders')
-            return jsonify({'message': f'Error sending reminders: {str(e)}'}), 500
+            return jsonify({
+                'message': 'Unable to process due reminders.',
+                'error': str(e),
+                'data': {'sent': 0, 'failed': 0, 'skipped': 0, 'total': 0, 'failures': []}
+            }), 503
 
     def get_loans_due_soon(self):
         """
@@ -83,9 +97,17 @@ class LoanReminderController:
                 'count': len(loans)
             }), 200
             
+        except pymysql.MySQLError as e:
+            logger.exception('Database error while fetching loans due soon')
+            return jsonify({
+                'message': 'Unable to query loans due soon. Please verify the library database schema and try again.',
+                'error': str(e),
+                'data': [],
+                'count': 0
+            }), 503
         except Exception as e:
             logger.exception('Error fetching loans due soon')
-            return jsonify({'message': f'Error fetching loans: {str(e)}'}), 500
+            return jsonify({'message': 'Unable to fetch loans due soon', 'error': str(e), 'data': [], 'count': 0}), 503
 
     def send_overdue_reminders(self):
         """

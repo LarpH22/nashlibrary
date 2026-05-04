@@ -233,7 +233,7 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
                 <tr><td colSpan="6" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No books found. Update the filters and try again.</td></tr>
               ) : (
                 books.map((book) => {
-                  const unavailable = book.status !== 'available' || book.available_copies === 0
+                  const unavailable = book.status !== 'available' || Number(book.available_copies || 0) === 0
                   const alreadyBorrowed = activeBorrowedIds.has(Number(book.book_id))
                   const availabilityLabel = book.status === 'available'
                     ? 'Available'
@@ -257,10 +257,10 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
                         <button
                           className="btn btn-green btn-sm"
                           type="button"
-                          disabled={loading || unavailable || alreadyBorrowed || borrowingId === book.book_id}
+                          disabled={loading || alreadyBorrowed || borrowingId === book.book_id}
                           onClick={() => handleBorrow(book)}
                         >
-                          {unavailable ? 'Unavailable' : alreadyBorrowed ? 'Requested' : borrowingId === book.book_id ? 'Requesting...' : 'Request'}
+                          {alreadyBorrowed ? 'Requested' : borrowingId === book.book_id ? 'Requesting...' : unavailable ? 'Reserve' : 'Request'}
                         </button>
                       </td>
                     </tr>

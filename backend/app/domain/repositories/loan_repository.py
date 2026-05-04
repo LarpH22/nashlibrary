@@ -25,3 +25,11 @@ class LoanRepository(ABC):
     @abstractmethod
     def find_loans_due_soon(self, days_before_due=3):
         raise NotImplementedError
+
+    @abstractmethod
+    def find_overdue_loans(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def record_reminder(self, borrow_id, reminder_type, sent_to, status='sent', error_message=None):
+        raise NotImplementedError

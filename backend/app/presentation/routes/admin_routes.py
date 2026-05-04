@@ -66,6 +66,11 @@ def reject_registration():
 def list_loans():
     return controller.list_loans()
 
+@admin_bp.route('/loans', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def create_loan():
+    return controller.create_loan()
+
 @admin_bp.route('/password', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def change_password():

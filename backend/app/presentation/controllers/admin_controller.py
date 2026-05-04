@@ -9,6 +9,7 @@ from ...infrastructure.config import Config
 from ...infrastructure.database.db_connection import get_connection
 from ...infrastructure.repositories_impl.inventory_schema import ensure_inventory_schema
 from ...infrastructure.repositories_impl.auth_repository_impl import AdminAuthRepositoryImpl, LibrarianAuthRepositoryImpl
+from ...infrastructure.repositories_impl.loan_repository_impl import LoanRepositoryImpl
 
 
 class AdminController:
@@ -16,6 +17,7 @@ class AdminController:
         self.admin_repo = AdminAuthRepositoryImpl()
         self.librarian_repo = LibrarianAuthRepositoryImpl()
         self.auth_service = AuthService(self.admin_repo, self.librarian_repo, self.admin_repo)
+        self.loan_repository = LoanRepositoryImpl()
 
     def _require_admin(self):
         jwt_claims = get_jwt()
@@ -204,36 +206,121 @@ class AdminController:
         if auth_error:
             return auth_error
 
+        loan_filter = (request.args.get('status') or 'active').strip().lower()
+        if loan_filter not in ['active', 'borrowed', 'overdue', 'returned', 'all']:
+            return jsonify({'message': 'Invalid loan status filter'}), 400
+
+        where_clauses = []
+        if loan_filter == 'active':
+            where_clauses.append('br.return_date IS NULL')
+        elif loan_filter == 'borrowed':
+            where_clauses.append('br.return_date IS NULL')
+            where_clauses.append('(br.due_date IS NULL OR DATE(br.due_date) >= CURDATE())')
+        elif loan_filter == 'overdue':
+            where_clauses.append('br.return_date IS NULL')
+            where_clauses.append('br.due_date IS NOT NULL')
+            where_clauses.append('DATE(br.due_date) < CURDATE()')
+        elif loan_filter == 'returned':
+            where_clauses.append('br.return_date IS NOT NULL')
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ''
+
         with get_connection() as conn:
             ensure_inventory_schema(conn)
             conn.commit()
             with conn.cursor() as cur:
                 cur.execute(
-                    '''
+                    f'''
                     SELECT
                         br.borrow_id AS loan_id,
                         br.book_id,
                         br.copy_id,
                         bc.copy_code,
+                        bc.barcode_value,
+                        bc.qr_token,
                         b.title AS book_title,
                         br.student_id,
+                        br.student_id AS user_id,
                         s.full_name AS student_name,
+                        s.email AS student_email,
+                        s.student_number,
                         br.borrow_date AS borrowed_at,
                         br.due_date,
                         br.return_date AS returned_at,
-                        br.status,
-                        CASE WHEN br.status='returned' THEN TRUE ELSE FALSE END AS returned,
-                        COALESCE(f.amount, 0) AS fine_amount
+                        CASE
+                            WHEN br.return_date IS NOT NULL THEN 'returned'
+                            WHEN br.due_date IS NOT NULL AND DATE(br.due_date) < CURDATE() THEN 'overdue'
+                            ELSE 'borrowed'
+                        END AS status,
+                        CASE WHEN br.return_date IS NOT NULL THEN TRUE ELSE FALSE END AS returned,
+                        CASE
+                            WHEN br.return_date IS NULL
+                             AND br.due_date IS NOT NULL
+                             AND DATE(br.due_date) < CURDATE()
+                            THEN DATEDIFF(CURDATE(), DATE(br.due_date))
+                            ELSE 0
+                        END AS days_overdue,
+                        CASE
+                            WHEN br.return_date IS NULL
+                             AND br.due_date IS NOT NULL
+                             AND DATE(br.due_date) < CURDATE()
+                            THEN ROUND(DATEDIFF(CURDATE(), DATE(br.due_date)) * 1.0, 2)
+                            ELSE COALESCE(f.fine_amount, 0)
+                        END AS fine_amount
                     FROM borrow_records br
                     LEFT JOIN books b ON br.book_id = b.book_id
-                    LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
+                    LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id AND bc.book_id = br.book_id
                     LEFT JOIN students s ON br.student_id = s.student_id
-                    LEFT JOIN fines f ON br.borrow_id = f.borrow_id
+                    LEFT JOIN (
+                        SELECT borrow_id, SUM(amount) AS fine_amount
+                        FROM fines
+                        GROUP BY borrow_id
+                    ) f ON br.borrow_id = f.borrow_id
+                    {where_sql}
                     ORDER BY br.borrow_date DESC
                     '''
                 )
                 loans = cur.fetchall()
         return jsonify(loans), 200
+
+    def create_loan(self):
+        auth_error = self._require_admin_or_librarian()
+        if auth_error:
+            return auth_error
+
+        data = request.get_json(silent=True) or {}
+        book_id = data.get('book_id')
+        student_id = data.get('student_id') or data.get('user_id')
+        due_date = data.get('due_date')
+
+        if not book_id or not student_id:
+            return jsonify({'message': 'book_id and student_id are required'}), 400
+
+        try:
+            book_id = int(book_id)
+            student_id = int(student_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'book_id and student_id must be valid integers'}), 400
+
+        if book_id <= 0 or student_id <= 0:
+            return jsonify({'message': 'book_id and student_id must be greater than zero'}), 400
+
+        borrowed_at = datetime.utcnow()
+        if due_date:
+            try:
+                due_date = datetime.strptime(str(due_date), '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'message': 'due_date must use YYYY-MM-DD format'}), 400
+        else:
+            from datetime import timedelta
+            due_date = (borrowed_at + timedelta(days=14)).date()
+
+        try:
+            loan_id = self.loan_repository.create_loan(book_id, student_id, borrowed_at, due_date)
+        except ValueError as exc:
+            return jsonify({'message': str(exc)}), 400
+
+        return jsonify({'message': 'Book issued', 'loan_id': loan_id, 'due_date': due_date.isoformat()}), 201
 
     def list_registration_requests(self):
         auth_error = self._require_admin()

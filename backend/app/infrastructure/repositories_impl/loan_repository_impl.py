@@ -99,16 +99,15 @@ class LoanRepositoryImpl(LoanRepository):
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        SELECT copy_id
-                        FROM book_copies
-                        WHERE book_id=%s AND status='available'
-                        ORDER BY copy_id
+                        SELECT book_id
+                        FROM books
+                        WHERE book_id=%s
                         LIMIT 1
                         """,
                         (book_id,),
                     )
                     if not cur.fetchone():
-                        raise ValueError('Book is not available for request')
+                        raise ValueError('Book not found')
 
                     cur.execute(
                         """
@@ -597,6 +596,8 @@ class LoanRepositoryImpl(LoanRepository):
         """
         try:
             with get_connection() as conn:
+                ensure_inventory_schema(conn)
+                conn.commit()
                 with conn.cursor() as cur:
                     cur.execute(
                         """
@@ -604,16 +605,22 @@ class LoanRepositoryImpl(LoanRepository):
                             br.borrow_id,
                             br.student_id,
                             br.book_id,
-                            b.title AS book_title,
+                            br.copy_id,
+                            bc.copy_code,
+                            COALESCE(b.title, 'Unknown Book') AS book_title,
                             br.due_date,
                             s.email AS student_email,
-                            s.full_name AS student_name
+                            COALESCE(NULLIF(s.full_name, ''), 'Student') AS student_name
                         FROM borrow_records br
                         LEFT JOIN books b ON br.book_id = b.book_id
-                        LEFT JOIN student_accounts s ON br.student_id = s.student_id
-                        WHERE br.status = 'active'
-                        AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
-                        AND s.email IS NOT NULL
+                        LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id AND bc.book_id = br.book_id
+                        LEFT JOIN students s ON br.student_id = s.student_id
+                        WHERE br.return_date IS NULL
+                          AND br.due_date IS NOT NULL
+                          AND br.status IN ('active', 'borrowed', 'overdue')
+                          AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+                          AND s.email IS NOT NULL
+                          AND TRIM(s.email) <> ''
                         ORDER BY br.due_date ASC
                         """,
                         (days_before_due,)
@@ -622,3 +629,63 @@ class LoanRepositoryImpl(LoanRepository):
         except Exception as exc:
             logger.exception('Failed to query loans due soon')
             raise
+
+    def find_overdue_loans(self):
+        """
+        Find active borrowed books whose due date has passed.
+        Active loans are determined by return_date IS NULL; overdue is computed from due_date.
+        """
+        try:
+            with get_connection() as conn:
+                ensure_inventory_schema(conn)
+                conn.commit()
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            br.borrow_id,
+                            br.student_id,
+                            br.book_id,
+                            br.copy_id,
+                            bc.copy_code,
+                            b.title AS book_title,
+                            br.borrow_date,
+                            br.due_date,
+                            s.email AS student_email,
+                            s.full_name AS student_name,
+                            DATEDIFF(CURDATE(), DATE(br.due_date)) AS days_overdue,
+                            ROUND(DATEDIFF(CURDATE(), DATE(br.due_date)) * %s, 2) AS fine_amount
+                        FROM borrow_records br
+                        LEFT JOIN books b ON br.book_id = b.book_id
+                        LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id AND bc.book_id = br.book_id
+                        LEFT JOIN students s ON br.student_id = s.student_id
+                        WHERE br.return_date IS NULL
+                          AND br.due_date IS NOT NULL
+                          AND DATE(br.due_date) < CURDATE()
+                          AND br.status IN ('active', 'borrowed', 'overdue')
+                        ORDER BY br.due_date ASC
+                        """,
+                        (FINE_RATE_PER_DAY,),
+                    )
+                    return cur.fetchall()
+        except Exception:
+            logger.exception('Failed to query overdue loans')
+            raise
+
+    def record_reminder(self, borrow_id, reminder_type, sent_to, status='sent', error_message=None):
+        with get_connection() as conn:
+            try:
+                ensure_inventory_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO loan_reminders
+                            (borrow_id, reminder_type, sent_to, status, error_message)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (borrow_id, reminder_type, sent_to, status, error_message),
+                    )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise

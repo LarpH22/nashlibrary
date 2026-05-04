@@ -74,7 +74,7 @@ export function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [authorName, setAuthorName] = useState('')
-  const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', available_copies: 1, total_copies: 1 })
+  const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', available_copies: '1', total_copies: '1' })
   const [borrowForm, setBorrowForm] = useState({ book_id: '', user_id: '' })
   const [returnLoanId, setReturnLoanId] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
@@ -179,8 +179,12 @@ export function AdminDashboard() {
   async function handleAddBook(event) {
     event.preventDefault()
     try {
-      await createBook(bookForm)
-      setBookForm({ title: '', author: '', isbn: '', available_copies: 1, total_copies: 1 })
+      await createBook({
+        ...bookForm,
+        available_copies: Number(bookForm.available_copies || 1),
+        total_copies: Number(bookForm.total_copies || 1)
+      })
+      setBookForm({ title: '', author: '', isbn: '', available_copies: '1', total_copies: '1' })
       await loadBooks()
       setMessage('Book created successfully.')
     } catch {
@@ -474,27 +478,27 @@ export function AdminDashboard() {
               <div className="frow">
                 <div className="fgroup">
                   <label>Title</label>
-                  <input value={bookForm.title} onChange={(event) => setBookForm({ ...bookForm, title: event.target.value })} placeholder="Title" />
+                  <input value={bookForm.title} onChange={(event) => setBookForm((current) => ({ ...current, title: event.target.value }))} placeholder="Title" />
                 </div>
                 <div className="fgroup">
                   <label>Author</label>
-                  <input value={bookForm.author} onChange={(event) => setBookForm({ ...bookForm, author: event.target.value })} placeholder="Author" />
+                  <input value={bookForm.author} onChange={(event) => setBookForm((current) => ({ ...current, author: event.target.value }))} placeholder="Author" />
                 </div>
               </div>
               <div className="frow">
                 <div className="fgroup">
                   <label>ISBN</label>
-                  <input value={bookForm.isbn} onChange={(event) => setBookForm({ ...bookForm, isbn: event.target.value })} placeholder="ISBN" />
+                  <input value={bookForm.isbn} onChange={(event) => setBookForm((current) => ({ ...current, isbn: event.target.value }))} placeholder="ISBN" />
                 </div>
                 <div className="fgroup">
                   <label>Available copies</label>
-                  <input type="number" min="1" value={bookForm.available_copies} onChange={(event) => setBookForm({ ...bookForm, available_copies: Number(event.target.value) })} />
+                  <input type="number" min="1" value={bookForm.available_copies} onChange={(event) => setBookForm((current) => ({ ...current, available_copies: event.target.value }))} />
                 </div>
               </div>
               <div className="frow">
                 <div className="fgroup">
                   <label>Total copies</label>
-                  <input type="number" min="1" value={bookForm.total_copies} onChange={(event) => setBookForm({ ...bookForm, total_copies: Number(event.target.value) })} />
+                  <input type="number" min="1" value={bookForm.total_copies} onChange={(event) => setBookForm((current) => ({ ...current, total_copies: event.target.value }))} />
                 </div>
                 <div className="fgroup" style={{ alignSelf: 'end' }}>
                   <button className="btn btn-gold" type="submit">Save Book</button>
@@ -537,8 +541,8 @@ export function AdminDashboard() {
                 <div className="card-title">Issue Book</div>
               </div>
               <form className="admin-form" onSubmit={handleBorrowBook}>
-                <div className="fgroup"><label>Book ID</label><input value={borrowForm.book_id} onChange={(event) => setBorrowForm({ ...borrowForm, book_id: event.target.value })} placeholder="Book ID" /></div>
-                <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm({ ...borrowForm, user_id: event.target.value })} placeholder="Student ID" /></div>
+                <div className="fgroup"><label>Book ID</label><input value={borrowForm.book_id} onChange={(event) => setBorrowForm((current) => ({ ...current, book_id: event.target.value }))} placeholder="Book ID" /></div>
+                <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm((current) => ({ ...current, user_id: event.target.value }))} placeholder="Student ID" /></div>
                 <button className="btn btn-gold" type="submit">Issue</button>
               </form>
             </div>
@@ -626,7 +630,7 @@ export function AdminDashboard() {
       <div className="sidebar">
         <div className="logo">
           <div className="logo-icon">📚</div>
-          <div className="logo-title">LibraX</div>
+          <div className="logo-title">LIBRASYS</div>
           <div className="logo-sub">Administrator</div>
         </div>
         <nav className="nav">
@@ -648,7 +652,7 @@ export function AdminDashboard() {
             <div className="avatar">AD</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Admin User</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>admin@librax.edu</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>admin@librasys.edu</div>
             </div>
             <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
           </div>

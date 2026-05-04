@@ -24,6 +24,7 @@ export function Register() {
   })
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [fileInputKey, setFileInputKey] = useState(0)
 
   // Validation functions
   const validateFullName = (value) => {
@@ -173,21 +174,21 @@ export function Register() {
 
     if (name === 'registration_document') {
       const file = files?.[0] || null
-      setForm({
-        ...form,
+      setForm((current) => ({
+        ...current,
         registration_document: file
-      })
-      setValidation({
-        ...validation,
+      }))
+      setValidation((current) => ({
+        ...current,
         registration_document: validateFile(file)
-      })
+      }))
       return
     }
 
-    setForm({
-      ...form,
+    setForm((current) => ({
+      ...current,
       [name]: value
-    })
+    }))
 
     // Validate the field
     let validationResult
@@ -214,10 +215,10 @@ export function Register() {
         validationResult = { isValid: null, message: '' }
     }
 
-    setValidation({
-      ...validation,
+    setValidation((current) => ({
+      ...current,
       [name]: validationResult
-    })
+    }))
   }
 
   // Validate all fields on form submission
@@ -276,6 +277,7 @@ export function Register() {
         year_level: '',
         registration_document: null
       })
+      setFileInputKey((current) => current + 1)
       // Reset validation
       setValidation({
         full_name: { isValid: null, message: 'Full name is required' },
@@ -394,6 +396,7 @@ export function Register() {
           <label>
             Registration Document
             <input
+              key={fileInputKey}
               type="file"
               name="registration_document"
               accept=".pdf,.jpg,.jpeg,.png"
