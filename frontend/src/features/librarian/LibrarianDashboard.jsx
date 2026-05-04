@@ -174,15 +174,22 @@ export function LibrarianDashboard() {
 
   async function handleReturnBook(event) {
     event.preventDefault()
+    const loanId = Number(returnLoanId)
+    if (!returnLoanId || Number.isNaN(loanId) || loanId <= 0) {
+      addNotification('Please enter a valid Loan ID before returning a book.')
+      return
+    }
+
     try {
-      await api.post('/books/return', { loan_id: Number(returnLoanId) })
+      await api.post('/books/return', { loan_id: loanId })
       setReturnLoanId('')
       await loadLoans()
       await loadBooks()
       addNotification('Book return recorded.')
     } catch (error) {
       console.error('Error returning book:', error)
-      addNotification('Failed to return book.')
+      const errorMsg = error.response?.data?.message || 'Failed to return book.'
+      addNotification(errorMsg)
     }
   }
 

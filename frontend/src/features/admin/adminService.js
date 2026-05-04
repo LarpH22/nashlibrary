@@ -71,7 +71,7 @@ export async function returnBook(loanId) {
 }
 
 export async function fetchStudent(studentId) {
-  const response = await api.get(`/api/admin/students/${studentId}`)
+  const response = await api.get(`/api/admin/students/${encodeURIComponent(studentId)}`)
   return response.data
 }
 

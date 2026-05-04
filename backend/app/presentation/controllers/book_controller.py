@@ -53,7 +53,23 @@ class BookController:
     def return_book(self):
         data = request.get_json() or {}
         loan_id = data.get('loan_id')
-        if not loan_id:
+        if loan_id is None:
             return jsonify({'message': 'loan_id is required'}), 400
-        returned_loan = self.return_book_use_case.execute(loan_id, datetime.utcnow())
+
+        try:
+            loan_id = int(loan_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'loan_id must be a valid integer'}), 400
+
+        if loan_id <= 0:
+            return jsonify({'message': 'loan_id must be greater than zero'}), 400
+
+        try:
+            returned_loan = self.return_book_use_case.execute(loan_id, datetime.utcnow())
+        except ValueError as exc:
+            return jsonify({'message': str(exc)}), 400
+
+        if not returned_loan:
+            return jsonify({'message': 'Loan not found or already returned.'}), 404
+
         return jsonify({'message': 'Book returned', 'loan': returned_loan}), 200

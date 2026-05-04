@@ -275,7 +275,7 @@ class AuthController:
                 return jsonify({'message': 'Account not found'}), 404
 
             if not self.auth_service.verify_password(old_password, account.get('password_hash', '')):
-                return jsonify({'message': 'Old password is incorrect'}), 401
+                return jsonify({'message': 'Old password is incorrect'}), 400
 
             new_hash = self.auth_service.hash_password(new_password)
             updated = self.student_repo.update_student_password_and_clear_token(

@@ -22,7 +22,10 @@ class LibraryService:
 
     def return_book(self, loan_id: int, returned_at):
         loan = self.loan_repository.close_loan(loan_id, returned_at)
-        if loan and loan.get('book_id'):
+        if loan is None:
+            raise ValueError('Loan not found')
+
+        if loan.get('book_id'):
             book_id = loan['book_id']
             book = self.book_repository.find_by_id(book_id)
             available = book.get('available_copies', 0) + 1 if book else 1

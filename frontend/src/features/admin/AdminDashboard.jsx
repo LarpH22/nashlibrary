@@ -67,8 +67,9 @@ export function AdminDashboard() {
   const [loans, setLoans] = useState([])
   const [studentId, setStudentId] = useState('')
   const [student, setStudent] = useState(null)
-  const [message, setMessage] = useState('')
+  const [, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [showPasswordSuccessModal, setShowPasswordSuccessModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -88,6 +89,14 @@ export function AdminDashboard() {
   }, [])
 
   const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user_role')
+    localStorage.removeItem('user_id')
+    navigate('/login', { replace: true })
+  }
+
+  const handlePasswordSuccessConfirm = () => {
+    setShowPasswordSuccessModal(false)
     localStorage.removeItem('token')
     localStorage.removeItem('user_role')
     localStorage.removeItem('user_id')
@@ -208,9 +217,10 @@ export function AdminDashboard() {
 
   async function handleSearchStudent(event) {
     event.preventDefault()
-    if (!studentId.trim()) return
+    const trimmedId = studentId.trim()
+    if (!trimmedId) return
     try {
-      const found = await fetchStudent(Number(studentId))
+      const found = await fetchStudent(trimmedId)
       setStudent(found)
       setMessage('Student record loaded.')
     } catch {
@@ -236,12 +246,14 @@ export function AdminDashboard() {
     try {
       await changePassword(passwordForm.old_password, passwordForm.new_password)
       setPasswordForm({ old_password: '', new_password: '' })
-      setMessage('Password changed successfully.')
       setPasswordError('')
+      setShowPasswordSuccessModal(true)
     } catch (error) {
       console.error('Password change error:', error)
-      const errorMsg = error.response?.data?.message || error.message || 'Password change failed.'
-      setMessage('Password change failed.')
+      const responseData = error.response?.data
+      const errorMsg = typeof responseData === 'string'
+        ? responseData
+        : responseData?.message || responseData?.error || error.message || 'Password change failed.'
       setPasswordError(errorMsg)
     }
   }
@@ -578,7 +590,7 @@ export function AdminDashboard() {
             <div className="card">
               <div className="card-hdr"><div className="card-title">Student Detail</div></div>
               <p><strong>Name:</strong> {student.full_name || student.name || '—'}</p>
-              <p><strong>ID:</strong> {student.user_id || student.student_id || '—'}</p>
+              <p><strong>ID:</strong> {student.student_number || student.user_id || student.student_id || '—'}</p>
               <p><strong>Email:</strong> {student.email || '—'}</p>
               <p><strong>Status:</strong> {student.status || 'Active'}</p>
             </div>
@@ -651,6 +663,17 @@ export function AdminDashboard() {
           </div>
         </div>
       )}
+      {showPasswordSuccessModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '420px', width: '100%', color: 'var(--text)' }}>
+            <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Password Updated</div>
+            <div style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '24px' }}>Your password has been changed successfully.</div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button onClick={handlePasswordSuccessConfirm} className="btn btn-primary" type="button">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
@@ -661,7 +684,6 @@ export function AdminDashboard() {
           <div className="avatar">AD</div>
         </div>
         <div className="content">
-          {message && <div className="notif show">{message}</div>}
           {renderPage()}
         </div>
       </div>

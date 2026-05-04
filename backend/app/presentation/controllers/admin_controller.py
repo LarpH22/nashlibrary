@@ -129,17 +129,23 @@ class AdminController:
 
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    'SELECT student_id, email, full_name, student_number, department, year_level, status FROM students WHERE student_id=%s LIMIT 1',
-                    (student_id,)
-                )
+                if str(student_id).isdigit():
+                    cur.execute(
+                        'SELECT student_id, email, full_name, student_number, department, year_level, status FROM students WHERE student_id=%s OR student_number=%s LIMIT 1',
+                        (int(student_id), student_id)
+                    )
+                else:
+                    cur.execute(
+                        'SELECT student_id, email, full_name, student_number, department, year_level, status FROM students WHERE student_number=%s LIMIT 1',
+                        (student_id,)
+                    )
                 student = cur.fetchone()
                 if not student:
                     return jsonify({'message': 'Student not found'}), 404
 
                 cur.execute(
-                    'SELECT loan_id, book_id, user_id, borrowed_at, due_date, returned_at, status FROM borrow_records WHERE user_id=%s ORDER BY borrowed_at DESC',
-                    (student_id,)
+                    'SELECT borrow_id, book_id, student_id, borrow_date, due_date, return_date, status FROM borrow_records WHERE student_id=%s ORDER BY borrow_date DESC',
+                    (student['student_id'],)
                 )
                 loans = cur.fetchall()
 
@@ -182,7 +188,7 @@ class AdminController:
             return jsonify({'message': 'Account not found'}), 404
 
         if not self.auth_service.verify_password(old_password, account.get('password_hash', '')):
-            return jsonify({'message': 'Old password is incorrect'}), 401
+            return jsonify({'message': 'Old password is incorrect'}), 400
 
         new_hash = self.auth_service.hash_password(new_password)
         with get_connection() as conn:

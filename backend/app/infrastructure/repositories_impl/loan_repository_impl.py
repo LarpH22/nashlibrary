@@ -24,33 +24,47 @@ class LoanRepositoryImpl(LoanRepository):
     def close_loan(self, loan_id: int, returned_at):
         with get_connection() as conn:
             with conn.cursor() as cur:
+                cur.execute("SELECT * FROM borrow_records WHERE borrow_id=%s", (loan_id,))
+                loan = cur.fetchone()
+                if not loan:
+                    return None
+
+                if loan.get('status') == 'returned':
+                    raise ValueError('Loan is already returned')
+
                 cur.execute(
                     "UPDATE borrow_records SET return_date=%s, status='returned' WHERE borrow_id=%s",
                     (returned_at, loan_id)
                 )
                 conn.commit()
-                cur.execute("SELECT * FROM borrow_records WHERE borrow_id=%s", (loan_id,))
-                loan = cur.fetchone()
 
-                if loan:
-                    due_date = loan.get('due_date')
-                    student_id = loan.get('student_id')
-                    fine_amount = self._compute_fine(due_date, returned_at)
-                    loan['fine_amount'] = fine_amount
-                    loan['days_overdue'] = self._compute_days_overdue(due_date, returned_at)
+                due_date = loan.get('due_date')
+                student_id = loan.get('student_id')
+                fine_amount = self._compute_fine(due_date, returned_at)
+                loan['fine_amount'] = fine_amount
+                loan['days_overdue'] = self._compute_days_overdue(due_date, returned_at)
+                loan['return_date'] = returned_at
+                loan['status'] = 'returned'
 
-                    if fine_amount > 0 and student_id:
+                # Convert datetime fields to ISO format for JSON serialization
+                for field in ['borrow_date', 'due_date', 'return_date']:
+                    if field in loan and loan[field] is not None:
+                        value = loan[field]
+                        if hasattr(value, 'isoformat'):
+                            loan[field] = value.isoformat()
+
+                if fine_amount > 0 and student_id:
+                    cur.execute(
+                        "SELECT 1 FROM fines WHERE borrow_id=%s LIMIT 1",
+                        (loan_id,)
+                    )
+                    existing_fine = cur.fetchone()
+                    if not existing_fine:
                         cur.execute(
-                            "SELECT 1 FROM fines WHERE borrow_id=%s LIMIT 1",
-                            (loan_id,)
+                            "INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date) VALUES (%s, %s, %s, %s, 'pending', %s)",
+                            (loan_id, student_id, fine_amount, 'Overdue book return', returned_at.date())
                         )
-                        existing_fine = cur.fetchone()
-                        if not existing_fine:
-                            cur.execute(
-                                "INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date) VALUES (%s, %s, %s, %s, 'pending', %s)",
-                                (loan_id, student_id, fine_amount, 'Overdue book return', returned_at.date())
-                            )
-                            conn.commit()
+                        conn.commit()
                 return loan
 
     def find_active_loan(self, book_id: int, user_id: int):
