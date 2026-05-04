@@ -8064,3 +8064,726 @@ pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts'
 2026-05-05 04:53:24,351 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:53:24] "GET /books/copies/1196/qr.svg HTTP/1.1" 200 -
 2026-05-05 04:53:24,381 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:53:24] "GET /books/copies/540/qr.svg HTTP/1.1" 200 -
 2026-05-05 04:53:24,403 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:53:24] "GET /books/copies/541/qr.svg HTTP/1.1" 200 -
+2026-05-05 04:59:17,067 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:59:17] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 04:59:17,812 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:59:17] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:02:37,970 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:37] "[36mGET /dashboard/ HTTP/1.1[0m" 304 -
+2026-05-05 05:02:38,000 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:37] "[36mGET /assets/index-bGGZJTsd.js HTTP/1.1[0m" 304 -
+2026-05-05 05:02:38,002 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:02:38,051 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:02:38,215 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:02:38,223 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:02:38,229 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:02:38,258 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:02:38,288 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:02:38,302 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:02:38,336 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:38] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:02:41,196 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/336/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,242 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/274/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,279 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/456/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,306 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/508/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,314 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/138/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,347 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/335/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,355 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/26/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,374 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/406/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,386 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/181/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:41,402 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:41] "[36mGET /books/199/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:02:49,437 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:49] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:02:59,071 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:59] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:02:59,102 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:59] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:02:59,141 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:59] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:02:59,190 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:59] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:02:59,200 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:59] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:02:59,268 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:02:59] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:03:01,364 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:01] "POST /books/return HTTP/1.1" 200 -
+2026-05-05 05:03:01,428 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:01] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:03:03,007 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:03] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:03:19,954 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:19] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:03:22,856 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:22] "[35m[1mPOST /books/borrow HTTP/1.1[0m" 201 -
+2026-05-05 05:03:23,003 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:23] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:03:23,080 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:23] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:03:40,712 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:40] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:03:48,636 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:03:48,679 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:03:48,801 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:03:48,803 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:03:48,807 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:03:48,842 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:03:48,901 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:03:48,926 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:03:48,928 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:03:48] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:04:26,449 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:26] "POST /books/borrow-requests/1/approve HTTP/1.1" 200 -
+2026-05-05 05:04:26,543 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:26] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:04:26,561 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:26] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:04:26,621 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:26] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:04:26,646 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:26] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:04:29,326 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/508/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,368 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/456/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,372 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/336/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,395 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/274/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,437 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/335/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,452 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/138/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,464 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/26/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,483 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/406/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,495 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/181/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:29,507 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:29] "[36mGET /books/199/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:30,372 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:30] "[36mGET /uploads/qr_codes/ebooks/ebook_1.png HTTP/1.1[0m" 304 -
+2026-05-05 05:04:30,786 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:30] "GET /books/copies/826/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:30,898 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:30] "GET /books/copies/825/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:30,947 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:30] "GET /books/copies/995/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:30,975 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:30] "GET /books/copies/827/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:30,995 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:30] "GET /books/copies/996/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,031 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/828/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,321 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/998/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,346 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/997/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,471 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/412/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,498 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/1351/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,546 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/1349/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,570 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/1350/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,891 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/1505/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,934 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/994/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,954 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/1506/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:31,996 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:31] "GET /books/copies/1507/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,070 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/1508/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,115 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/1509/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,335 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/68/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,460 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/1196/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,485 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/1195/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,524 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/539/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,555 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/540/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:32,576 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:32] "GET /books/copies/541/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:04:40,830 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:40] "[32mGET /dashboard HTTP/1.1[0m" 308 -
+2026-05-05 05:04:40,838 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:40] "[36mGET /dashboard/ HTTP/1.1[0m" 304 -
+2026-05-05 05:04:40,871 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:40] "[36mGET /assets/index-bGGZJTsd.js HTTP/1.1[0m" 304 -
+2026-05-05 05:04:40,880 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:40] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:04:40,972 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:40] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:04:41,071 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:04:41,078 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:04:41,117 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:04:41,157 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:04:41,229 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:04:41,239 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:04:41,259 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:41] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:04:45,861 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:45] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:04:58,208 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:58] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:04:58,235 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:58] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:04:58,274 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:58] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:04:58,321 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:58] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:04:58,345 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:58] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:04:58,413 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:04:58] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:05:06,549 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:05:06] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:08:01,009 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:08:01] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:12:45,531 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "[32mGET /dashboard HTTP/1.1[0m" 308 -
+2026-05-05 05:12:45,611 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /dashboard/ HTTP/1.1" 200 -
+2026-05-05 05:12:45,654 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /assets/index-DsKOAKT6.css HTTP/1.1" 200 -
+2026-05-05 05:12:45,748 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /assets/index-DIji7XTu.js HTTP/1.1" 200 -
+2026-05-05 05:12:45,820 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:12:45,834 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:12:45,880 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:12:45,909 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:12:45,971 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:45] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:12:46,791 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:46] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:12:47,625 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:47] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:12:47,712 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:47] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:12:48,044 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:48] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:12:48,437 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:48] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:12:49,216 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:49] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:12:52,238 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:52] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:12:53,629 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:12:53] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:01,754 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:01] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:13:01,791 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:01] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:01,824 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:01] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:13:01,870 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:01] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:13:01,894 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:01] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:13:03,036 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:03] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:05,001 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:05] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:05,049 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:05] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:13:05,106 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:05] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:13:05,129 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:05] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:13:06,001 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:06] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:06,588 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:06] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:06,637 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:06] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:13:06,683 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:06] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:13:06,690 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:06] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:13:07,426 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "[32mGET /dashboard HTTP/1.1[0m" 308 -
+2026-05-05 05:13:07,435 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "[36mGET /dashboard/ HTTP/1.1[0m" 304 -
+2026-05-05 05:13:07,465 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "[36mGET /assets/index-DIji7XTu.js HTTP/1.1[0m" 304 -
+2026-05-05 05:13:07,466 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:13:07,541 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:13:07,543 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:07,592 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:13:07,622 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:13:07,682 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:07] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:13:08,173 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:08] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:09,037 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:09] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:10,148 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:10] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:11,233 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:11] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:13:11,315 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:11] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:13:24,407 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:13:24] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:15:59,873 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:15:59] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:16:02,834 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:02] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:16:10,621 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:16:10,664 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:16:10,766 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:16:10,776 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:16:10,806 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:16:10,808 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:16:10,870 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:16:10,921 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:16:10,965 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:10] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:16:14,098 ERROR backend.app.infrastructure.repositories_impl.loan_repository_impl Failed to query loans due soon
+Traceback (most recent call last):
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\loan_repository_impl.py", line 601, in find_loans_due_soon
+    with conn.cursor() as cur:
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<18 lines>...
+              AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+    
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts' doesn't exist")
+2026-05-05 05:16:14,098 ERROR backend.app.infrastructure.repositories_impl.loan_repository_impl Failed to query loans due soon
+Traceback (most recent call last):
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\loan_repository_impl.py", line 601, in find_loans_due_soon
+    with conn.cursor() as cur:
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<18 lines>...
+              AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+    
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts' doesn't exist")
+2026-05-05 05:16:14,112 ERROR backend.app.domain.services.loan_reminder_service Failed to send loan reminders
+Traceback (most recent call last):
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\loan_reminder_service.py", line 22, in send_due_date_reminders
+    loans = self.loan_repository.find_loans_due_soon(days_before_due)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\loan_repository_impl.py", line 601, in find_loans_due_soon
+    with conn.cursor() as cur:
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<18 lines>...
+              AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+    
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts' doesn't exist")
+2026-05-05 05:16:14,112 ERROR backend.app.domain.services.loan_reminder_service Failed to send loan reminders
+Traceback (most recent call last):
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\loan_reminder_service.py", line 22, in send_due_date_reminders
+    loans = self.loan_repository.find_loans_due_soon(days_before_due)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\loan_repository_impl.py", line 601, in find_loans_due_soon
+    with conn.cursor() as cur:
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<18 lines>...
+              AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+    
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts' doesn't exist")
+2026-05-05 05:16:14,115 ERROR backend.app.presentation.controllers.loan_reminder_controller Error sending reminders
+Traceback (most recent call last):
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\loan_reminder_controller.py", line 43, in send_due_reminders
+    result = self.reminder_service.send_due_date_reminders(days_before_due=days)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\loan_reminder_service.py", line 22, in send_due_date_reminders
+    loans = self.loan_repository.find_loans_due_soon(days_before_due)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\loan_repository_impl.py", line 601, in find_loans_due_soon
+    with conn.cursor() as cur:
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<18 lines>...
+              AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+    
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts' doesn't exist")
+2026-05-05 05:16:14,115 ERROR backend.app.presentation.controllers.loan_reminder_controller Error sending reminders
+Traceback (most recent call last):
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\loan_reminder_controller.py", line 43, in send_due_reminders
+    result = self.reminder_service.send_due_date_reminders(days_before_due=days)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\loan_reminder_service.py", line 22, in send_due_date_reminders
+    loans = self.loan_repository.find_loans_due_soon(days_before_due)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\loan_repository_impl.py", line 601, in find_loans_due_soon
+    with conn.cursor() as cur:
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<18 lines>...
+              AND DATE(br.due_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL %s DAY)
+    
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+    ~~~~~~~~~~^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 558, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 822, in _read_query_result
+    result.read()
+    ~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1200, in read
+    first_packet = self.connection._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'library_system_v2.student_accounts' doesn't exist")
+2026-05-05 05:16:14,119 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:14] "[35m[1mPOST /api/reminders/send-due-reminders HTTP/1.1[0m" 500 -
+2026-05-05 05:16:32,681 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:32] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:16:32,703 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:16:32] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 05:17:55,160 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "[32mGET /dashboard HTTP/1.1[0m" 308 -
+2026-05-05 05:17:55,218 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /dashboard/ HTTP/1.1" 200 -
+2026-05-05 05:17:55,267 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 05:17:55,286 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /assets/index-DsKOAKT6.css HTTP/1.1" 200 -
+2026-05-05 05:17:55,411 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /assets/index-DVmG_RIh.js HTTP/1.1" 200 -
+2026-05-05 05:17:55,512 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:17:55,606 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:17:55,625 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:17:55,725 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:17:55,767 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:17:55,784 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:17:55,842 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:17:55,874 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:55] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:17:58,612 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:58] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:17:59,407 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:17:59] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:18:00,078 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "[36mGET /dashboard/ HTTP/1.1[0m" 304 -
+2026-05-05 05:18:00,109 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:18:00,112 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:18:00,162 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:18:00,291 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:18:00,299 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:18:00,334 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:18:00,342 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:18:00,380 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:18:00,399 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:18:00,416 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:18:00] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:18:16,517 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.167:5000
+2026-05-05 05:18:16,518 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 05:18:25,890 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:25] "GET / HTTP/1.1" 200 -
+2026-05-05 05:18:25,914 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:25] "GET /assets/index-DVmG_RIh.js HTTP/1.1" 200 -
+2026-05-05 05:18:25,915 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:25] "GET /assets/index-DsKOAKT6.css HTTP/1.1" 200 -
+2026-05-05 05:18:26,082 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:26] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:18:28,889 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:28] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:18:40,324 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:40] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:18:40,383 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:40] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:18:40,407 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:40] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:18:40,459 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:40] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:18:40,463 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:40] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:18:40,520 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:40] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:18:42,362 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:42] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:18:42,397 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:42] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:18:42,443 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:42] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:18:42,464 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:42] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:18:42,542 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:42] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:18:46,161 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "[32mGET /dashboard HTTP/1.1[0m" 308 -
+2026-05-05 05:18:46,169 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "GET /dashboard/ HTTP/1.1" 200 -
+2026-05-05 05:18:46,198 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:18:46,200 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:18:46,268 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:18:46,278 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:18:46,338 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:18:46,353 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:18:46,415 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:46] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:18:49,779 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:18:49] "GET /api/books/search?page=1&limit=10 HTTP/1.1" 200 -
+2026-05-05 05:21:32,251 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.167:5000
+2026-05-05 05:21:32,252 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 05:21:44,123 INFO backend.app.domain.services.loan_reminder_service Loan reminders processed: {'sent': 1, 'failed': 0, 'skipped': 0, 'total': 1, 'failures': []}
+2026-05-05 05:21:44,123 INFO backend.app.domain.services.loan_reminder_service Loan reminders processed: {'sent': 1, 'failed': 0, 'skipped': 0, 'total': 1, 'failures': []}
+2026-05-05 05:21:44,126 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:21:44] "POST /api/reminders/send-due-reminders?days=30 HTTP/1.1" 200 -
+2026-05-05 05:21:58,957 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:58] "GET /dashboard/ HTTP/1.1" 200 -
+2026-05-05 05:21:58,984 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:58] "GET /assets/index-DVmG_RIh.js HTTP/1.1" 200 -
+2026-05-05 05:21:58,984 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:58] "GET /assets/index-DsKOAKT6.css HTTP/1.1" 200 -
+2026-05-05 05:21:59,083 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:59] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:21:59,108 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:59] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:21:59,138 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:59] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:21:59,159 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:59] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:21:59,220 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:21:59] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:22:05,081 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:05] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:22:10,580 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:22:10,616 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:22:10,712 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:22:10,719 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:22:10,733 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:22:10,733 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:22:10,827 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:22:10,836 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:22:10,854 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:10] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:22:17,552 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:17] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:22:55,141 INFO backend.app.domain.services.loan_reminder_service Overdue loan reminders sent: {'sent': 1, 'failed': 0, 'total': 1}
+2026-05-05 05:22:55,141 INFO backend.app.domain.services.loan_reminder_service Overdue loan reminders sent: {'sent': 1, 'failed': 0, 'total': 1}
+2026-05-05 05:22:55,141 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:22:55] "POST /api/reminders/send-overdue-reminders HTTP/1.1" 200 -
+2026-05-05 05:23:00,586 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:00] "GET /uploads/qr_codes/ebooks/ebook_1.png HTTP/1.1" 200 -
+2026-05-05 05:23:01,138 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/996/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,169 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/995/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,164 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/828/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,169 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/826/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,195 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/825/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,198 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/827/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,497 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/1349/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,658 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/1350/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,688 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/456/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:01,725 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/998/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,742 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/1351/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,772 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/412/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,808 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/copies/997/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:01,841 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/336/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:01,857 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/138/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:01,905 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/274/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:01,919 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:01] "GET /books/335/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:02,376 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/994/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,538 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/1505/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,571 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/1506/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,603 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/1507/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,707 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/1508/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,731 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/1509/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,806 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/copies/68/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:02,959 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:02] "GET /books/508/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:03,043 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/copies/539/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:03,086 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/copies/1195/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:03,132 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/copies/1196/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:03,207 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/26/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:03,241 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/copies/540/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:03,256 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/406/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:03,278 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/copies/541/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:23:03,289 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/181/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:03,291 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:03] "GET /books/199/qr.png HTTP/1.1" 200 -
+2026-05-05 05:23:06,668 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:06] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:23:08,612 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:08] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:23:22,933 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:22] "GET / HTTP/1.1" 200 -
+2026-05-05 05:23:22,971 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:22] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:23:22,971 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:22] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:23:23,081 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:23:23] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:24:12,312 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:12] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:24:27,704 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:27] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:24:27,731 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:27] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:24:27,766 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:27] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:24:27,798 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:27] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:24:27,813 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:27] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:24:27,883 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:24:27] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:27:00,208 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:00] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:27:05,029 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:27:05,092 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:27:05,204 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:27:05,210 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:27:05,234 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:27:05,238 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:27:05,257 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:27:05,291 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:27:05,316 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:27:05] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:34:58,681 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:34:58] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:35:03,702 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:35:03] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:37:59,992 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:37:59] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:38:00,023 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:00] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:38:00,025 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:00] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:38:00,095 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:00] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,438 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,466 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,467 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,502 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,676 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,702 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,706 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,738 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,915 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,946 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,946 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:38:01,979 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:01] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:38:04,209 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:04] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:38:04,244 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:04] "[36mGET /assets/index-DVmG_RIh.js HTTP/1.1[0m" 304 -
+2026-05-05 05:38:04,249 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:04] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:38:04,288 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:38:04] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:39:19,987 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:39:19] "GET / HTTP/1.1" 200 -
+2026-05-05 05:39:20,028 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:39:20] "GET /assets/index-26FNL1J-.css HTTP/1.1" 200 -
+2026-05-05 05:39:20,123 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:39:20] "GET /assets/index-C3QTZj_F.js HTTP/1.1" 200 -
+2026-05-05 05:39:20,191 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:39:20] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:39:37,564 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:39:37] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:39:40,409 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:39:40] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:40:29,001 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:29] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:40:30,930 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:30] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:40:57,374 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:57] "GET / HTTP/1.1" 200 -
+2026-05-05 05:40:57,409 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:57] "GET /assets/index-SzExCowv.js HTTP/1.1" 200 -
+2026-05-05 05:40:57,410 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:57] "GET /assets/index-26FNL1J-.css HTTP/1.1" 200 -
+2026-05-05 05:40:57,470 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:57] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:40:59,263 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,292 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,293 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,333 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,795 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,821 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,826 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:40:59,857 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:40:59] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:41:00,212 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:41:00] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:41:00,242 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:41:00] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:41:00,242 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:41:00] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:41:00,278 INFO werkzeug 192.168.254.167 - - [05/May/2026 05:41:00] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:41:14,793 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.167:5000
+2026-05-05 05:41:14,794 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 05:41:16,475 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:16] "GET / HTTP/1.1" 200 -
+2026-05-05 05:41:16,533 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:16] "GET /assets/index-SzExCowv.js HTTP/1.1" 200 -
+2026-05-05 05:41:16,541 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:16] "GET /assets/index-26FNL1J-.css HTTP/1.1" 200 -
+2026-05-05 05:41:16,723 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:16] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:41:19,395 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:19] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:41:26,701 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:26] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:41:26,739 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:26] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:41:26,766 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:26] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 05:41:26,794 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:26] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:41:26,827 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:26] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 05:41:26,911 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:26] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 05:41:38,161 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:38] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:41:46,171 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:41:46,226 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:41:46,296 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:41:46,306 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:41:46,325 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:41:46,379 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:41:46,447 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:41:46,467 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:41:46,469 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:46] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:41:54,475 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/508/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,483 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/274/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,506 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/336/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,543 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/138/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,552 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/335/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,559 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/456/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,601 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/26/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,604 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/406/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,618 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/181/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,622 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /books/199/qr.png HTTP/1.1" 200 -
+2026-05-05 05:41:54,659 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:54] "GET /uploads/qr_codes/ebooks/ebook_1.png HTTP/1.1" 200 -
+2026-05-05 05:41:55,026 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/825/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,067 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/827/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,123 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/995/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,176 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/826/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,191 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/996/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,214 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/828/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,444 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/997/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,521 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/998/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,670 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/1349/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,925 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/1351/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,950 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/1505/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:55,990 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:55] "GET /books/copies/412/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,024 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/994/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,049 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1350/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,115 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1506/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,430 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1507/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,467 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1508/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,533 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/68/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,564 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1195/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,602 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1509/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,628 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/1196/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,801 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/539/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,837 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/541/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:41:56,861 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:41:56] "GET /books/copies/540/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:02,386 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:02] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:42:08,989 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:08] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:42:09,027 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:09] "GET /api/admin/categories HTTP/1.1" 200 -
+2026-05-05 05:42:09,031 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:09] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:42:09,033 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:09] "GET /api/admin/authors HTTP/1.1" 200 -
+2026-05-05 05:42:09,048 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:09] "GET /api/admin/registration-requests HTTP/1.1" 200 -
+2026-05-05 05:42:09,109 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:09] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:42:09,147 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:09] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:42:35,327 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:35] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:42:44,737 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 05:42:44,800 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 05:42:44,903 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "GET /books/ebooks HTTP/1.1" 200 -
+2026-05-05 05:42:44,909 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:42:44,910 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "GET /books/borrow-requests HTTP/1.1" 200 -
+2026-05-05 05:42:44,924 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 05:42:44,948 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 05:42:44,988 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:44] "GET /books/copies HTTP/1.1" 200 -
+2026-05-05 05:42:45,048 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:45] "GET /api/books/search?page=1&limit=10&title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 05:42:55,550 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/138/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,567 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/336/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,594 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/508/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,617 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/335/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,646 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/456/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,653 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/274/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,693 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/26/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,703 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/406/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,715 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/181/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:55,719 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:55] "[36mGET /books/199/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:58,326 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "[36mGET /uploads/qr_codes/ebooks/ebook_1.png HTTP/1.1[0m" 304 -
+2026-05-05 05:42:58,609 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "GET /books/copies/826/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:58,827 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "GET /books/copies/995/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:58,835 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "GET /books/copies/996/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:58,890 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "GET /books/copies/825/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:58,927 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "GET /books/copies/827/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:58,975 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:58] "GET /books/copies/828/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,070 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/997/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,317 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/998/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,350 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/1349/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,472 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/1350/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,524 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/1351/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,568 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/412/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,605 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/994/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,796 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/1505/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:42:59,855 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:42:59] "GET /books/copies/1506/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,013 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/1507/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,063 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/1508/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,108 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/1509/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,153 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/68/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,264 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/1195/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,298 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/1196/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,410 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/539/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,435 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/540/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:43:00,468 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:43:00] "GET /books/copies/541/qr.svg HTTP/1.1" 200 -
+2026-05-05 05:44:41,623 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/336/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,693 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/335/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,694 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/138/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,706 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/508/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,707 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/274/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,725 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/456/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,731 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/26/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,804 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/181/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,811 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/199/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:41,812 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:41] "[36mGET /books/406/qr.png HTTP/1.1[0m" 304 -
+2026-05-05 05:44:46,632 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:46] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:44:48,553 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:48] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:44:51,714 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:51] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:44:51,745 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:51] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:44:51,752 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:51] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:44:51,822 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:44:51] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:42,833 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:42] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:45:42,865 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:42] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:45:42,869 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:42] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:45:42,929 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:42] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:43,469 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:43] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:45:43,490 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:43] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:45:43,498 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:43] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:45:43,530 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:43] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:46,352 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:46] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:48,871 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:48] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:50,039 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:50] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:56,635 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:56] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:45:57,764 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:45:57] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:46:50,722 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:50] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:46:50,756 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:50] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:46:50,758 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:50] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:46:50,815 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:50] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,233 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,260 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,261 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,300 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,419 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,440 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,447 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,478 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,609 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,636 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,637 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:46:51,681 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:51] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:46:55,018 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:55] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:46:55,037 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:46:55] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 05:49:18,524 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:49:18] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-05 05:49:18,552 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:49:18] "[36mGET /assets/index-SzExCowv.js HTTP/1.1[0m" 304 -
+2026-05-05 05:49:18,557 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:49:18] "[36mGET /assets/index-26FNL1J-.css HTTP/1.1[0m" 304 -
+2026-05-05 05:49:18,645 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:49:18] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:51:40,727 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:51:40] "GET / HTTP/1.1" 200 -
+2026-05-05 05:51:40,763 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:51:40] "GET /assets/index-UBCk9ktx.css HTTP/1.1" 200 -
+2026-05-05 05:51:40,853 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:51:40] "GET /assets/index-Dsuxjlaa.js HTTP/1.1" 200 -
+2026-05-05 05:51:40,913 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:51:40] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:51:54,667 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:51:54] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:51:57,190 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:51:57] "[36mGET /vite.svg HTTP/1.1[0m" 304 -

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginUser, forgotPassword } from './authService.js'
-import { clearStoredAuth, saveLoginSession } from '../../shared/authStorage.js'
+import { clearStoredAuth, getStoredAuthToken, getStoredUserRole, isJwtExpired, saveLoginSession } from '../../shared/authStorage.js'
 
 export function Login({ onLoginSuccess }) {
   const navigate = useNavigate()
@@ -13,8 +13,17 @@ export function Login({ onLoginSuccess }) {
   const [forgotMessage, setForgotMessage] = useState('')
   const [isForgotLoading, setIsForgotLoading] = useState(false)
 
+  useEffect(() => {
+    const token = getStoredAuthToken()
+    const role = getStoredUserRole()
+    if (token && !isJwtExpired(token) && ['admin', 'librarian', 'student'].includes(role)) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [navigate])
+
   const handleChange = (event) => {
-    setForm({ ...form, [event.target.name]: event.target.value })
+    const { name, value } = event.target
+    setForm((current) => ({ ...current, [name]: value }))
   }
 
   const handleSubmit = async (event) => {
@@ -65,7 +74,7 @@ export function Login({ onLoginSuccess }) {
     <div className="auth-page">
       <section className="auth-card">
         <h2>Login</h2>
-        <p className="auth-card-subtitle">Access your LIBRX account to manage books, loans, and members.</p>
+        <p className="auth-card-subtitle">Access your LIBRASYS account to manage books, loans, and members.</p>
         <form onSubmit={handleSubmit}>
           <label>
             Email
@@ -93,7 +102,7 @@ export function Login({ onLoginSuccess }) {
         </form>
         <div className="auth-card-footer">
           <button type="button" className="auth-link" onClick={() => navigate('/')}>Back</button>
-          <span>New to LIBRX?</span>
+          <span>New to LIBRASYS?</span>
           <button type="button" className="auth-link" onClick={() => navigate('/register')}>Create an account</button>
         </div>
         <div className="auth-card-footer">

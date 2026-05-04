@@ -15,6 +15,11 @@ export function saveLoginSession(data) {
   localStorage.setItem('token', data.access_token)
   localStorage.setItem('user_role', data.role)
   localStorage.setItem('user_email', data.email)
+  const payload = decodeJwtPayload(data.access_token) || {}
+  const userId = data.user_id || data.student_id || data.librarian_id || data.admin_id || payload.student_id || payload.librarian_id || payload.admin_id || ''
+  if (userId) {
+    localStorage.setItem('user_id', String(userId))
+  }
 }
 
 export function decodeJwtPayload(token) {

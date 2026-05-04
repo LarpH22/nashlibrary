@@ -51,7 +51,7 @@ function StudentDashboard({ user, onLogout }) {
     'Search Books': 'Search by title, author, or ISBN and add books to your reading list.',
     'My Borrowed Books': 'View due dates, return status, and renew any borrowed titles.',
     'Profile': `${user?.full_name || 'Student'} - Update your contact details and password.`,
-    'Support': 'Contact support at support@nashlibrary.com for help.'
+    'Support': 'Contact support at support@librasys.edu for help.'
   }
 
   return (
@@ -145,7 +145,7 @@ function StudentDashboard({ user, onLogout }) {
               <p>{panelContent['Support']}</p>
               <div className="table-card">
                 <p>Phone: +1 555 123 4567</p>
-                <p>Email: support@nashlibrary.com</p>
+                <p>Email: support@librasys.edu</p>
                 <p>FAQ: See the documentation for details.</p>
               </div>
             </>

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   BarChart3,
@@ -756,7 +756,7 @@ export function StudentDashboard() {
       <div className="sidebar">
         <div className="logo">
           <div className="logo-icon"><Library size={26} strokeWidth={1.8} aria-hidden="true" /></div>
-          <div className="logo-title">LibraX</div>
+          <div className="logo-title">LIBRASYS</div>
           <div className="logo-sub">Student</div>
         </div>
         <nav className="nav">

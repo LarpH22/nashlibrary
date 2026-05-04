@@ -716,7 +716,7 @@ Library Management System
             <html>
                 <body style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#1f2937;padding:20px;">
                     <div style="max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-                        <h1 style="font-size:24px;margin-bottom:16px;color:#0f172a;">Verify your NashLibrary account</h1>
+                        <h1 style="font-size:24px;margin-bottom:16px;color:#0f172a;">Verify your LIBRASYS account</h1>
                         <p style="font-size:16px;line-height:1.6;margin-bottom:24px;">Hello {full_name},</p>
                         <p style="font-size:16px;line-height:1.6;margin-bottom:24px;">Thank you for registering. Click the button below to confirm your email address and complete the verification process.</p>
                         <a href="{verification_url}" style="display:inline-block;padding:14px 24px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">Verify Email</a>
@@ -947,7 +947,7 @@ def verify_email(token):
     <div class="container">
         <h1>You are now verified.</h1>
         <p>Your email has been confirmed successfully. Please wait for approval by the admin before logging in.</p>
-        <a href="/" class="button">Return to NashLibrary</a>
+        <a href="/" class="button">Return to LIBRASYS</a>
     </div>
 </body>
 </html>''', 200

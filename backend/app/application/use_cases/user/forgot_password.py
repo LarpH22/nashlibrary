@@ -54,21 +54,21 @@ Library Management System
         <html>
             <body style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#1f2937;padding:20px;">
                 <div style="max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-                    <h1 style="font-size:24px;margin-bottom:16px;color:#0f172a;">Reset your NashLibrary password</h1>
+                    <h1 style="font-size:24px;margin-bottom:16px;color:#0f172a;">Reset your LIBRASYS password</h1>
                     <p style="font-size:16px;line-height:1.6;margin-bottom:24px;">Hello {student['full_name']},</p>
                     <p style="font-size:16px;line-height:1.6;margin-bottom:24px;">You requested a password reset for your library account. Click the button below to reset your password.</p>
                     <a href="{reset_url}" style="display:inline-block;padding:14px 24px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">Reset Password</a>
                     <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">This link will expire in 1 hour.</p>
                     <p style="font-size:14px;word-break:break-all;color:#2563eb;margin-top:12px;">{reset_url}</p>
                     <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">If you did not request this, please ignore this email.</p>
-                    <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">Best regards,<br/>NashLibrary Team</p>
+                    <p style="font-size:14px;line-height:1.6;color:#475569;margin-top:24px;">Best regards,<br/>LIBRASYS Team</p>
                 </div>
             </body>
         </html>
         """
 
         self.email_service.send_email(
-            subject="Password Reset Request - NashLibrary",
+            subject="Password Reset Request - LIBRASYS",
             recipients=[email],
             body=email_body,
             html_body=html_body

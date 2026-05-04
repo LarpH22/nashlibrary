@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import api from '../shared/api.js'
+import api from '../api.js'
 
 export function useAuth() {
   const [user, setUser] = useState(null)
@@ -8,7 +8,7 @@ export function useAuth() {
   useEffect(() => {
     async function fetchUser() {
       try {
-        const response = await api.get('/user')
+        const response = await api.get('/api/auth/profile')
         setUser(response.data)
       } catch (error) {
         setUser(null)

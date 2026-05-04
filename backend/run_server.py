@@ -29,7 +29,7 @@ app.logger.addHandler(file_handler)
 if __name__ == '__main__':
     host = os.environ.get('HOST', '0.0.0.0')
     port = int(os.environ.get('PORT', '5000'))
-    print(f'Starting NashLibrary backend on {Config.BACKEND_URL}')
+    print(f'Starting LIBRASYS backend on {Config.BACKEND_URL}')
     print(f'Listening on {host}:{port}')
     print(f'USE_DEV_FRONTEND={os.environ.get("USE_DEV_FRONTEND")}')
     print(f'FRONTEND_URL={Config.FRONTEND_URL}')

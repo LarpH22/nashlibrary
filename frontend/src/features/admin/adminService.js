@@ -61,7 +61,7 @@ export async function createBook(book) {
 }
 
 export async function borrowBook(bookId, userId) {
-  const response = await api.post('/books/borrow', { book_id: bookId, user_id: userId })
+  const response = await api.post('/api/admin/loans', { book_id: bookId, student_id: userId })
   return response.data
 }
 

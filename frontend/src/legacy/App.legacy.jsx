@@ -372,7 +372,7 @@ function App() {
         <div className="brand-area">
           <div className="brand-mark">📚</div>
           <div className="brand-copy">
-            <span className="brand-name">Nash Library</span>
+            <span className="brand-name">LIBRASYS</span>
             <span className="brand-tag">Access books anytime, anywhere</span>
           </div>
         </div>
@@ -472,7 +472,7 @@ function App() {
         </section>
 
         <footer id="contact" className="site-footer">
-          © {new Date().getFullYear()} Nash Library
+          © {new Date().getFullYear()} LIBRASYS
         </footer>
       </main>
 

@@ -12,8 +12,13 @@ export function Dashboard() {
 
   useEffect(() => {
     const validRoles = ['admin', 'librarian', 'student']
-    if (!token || isJwtExpired(token) || !validRoles.includes(role)) {
+    if (token && isJwtExpired(token)) {
       clearStoredAuth()
+      navigate('/login', { replace: true })
+      return
+    }
+
+    if (!token || !validRoles.includes(role)) {
       navigate('/login', { replace: true })
     }
   }, [navigate, role, token])
@@ -24,7 +29,10 @@ export function Dashboard() {
       if (event.key === 'access_token' || event.key === 'token' || event.key === 'user_role') {
         const nextToken = getStoredAuthToken()
         const nextRole = getStoredUserRole()
-        if (!nextToken || isJwtExpired(nextToken) || !['admin', 'librarian', 'student'].includes(nextRole)) {
+        if (nextToken && isJwtExpired(nextToken)) {
+          clearStoredAuth()
+          redirectToLogin()
+        } else if (!nextToken || !['admin', 'librarian', 'student'].includes(nextRole)) {
           redirectToLogin()
         }
       }

@@ -130,11 +130,11 @@ class SecureStudentRegistrationUseCase:
         """Send email verification link"""
         verification_url = f"{Config.FRONTEND_URL}/verify-email?token={token}"
 
-        subject = "Verify Your NashLibrary Account"
+        subject = "Verify Your LIBRASYS Account"
         body = f"""
 Dear {full_name},
 
-Welcome to NashLibrary! Thank you for registering with our library system.
+Welcome to LIBRASYS! Thank you for registering with our library system.
 
 To complete your registration and activate your account, please verify your email address by clicking the link below:
 
@@ -145,7 +145,7 @@ This verification link will expire in 24 hours for security reasons.
 If you did not request this registration, please ignore this email.
 
 Best regards,
-NashLibrary Team
+LIBRASYS Team
 LIBRASYS
         """
 
@@ -155,7 +155,7 @@ LIBRASYS
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Your NashLibrary Account</title>
+    <title>Verify Your LIBRASYS Account</title>
     <style>
         body {{
             margin: 0;
@@ -298,7 +298,7 @@ LIBRASYS
 <body>
     <div class="container">
         <div class="header">
-            <h1>📚 NashLibrary</h1>
+            <h1>📚 LIBRASYS</h1>
             <p>Verify Your Account</p>
         </div>
 
@@ -306,7 +306,7 @@ LIBRASYS
             <div class="greeting">Welcome, {full_name}!</div>
 
             <div class="message">
-                Thank you for registering with NashLibrary. To complete your registration and start borrowing books, please verify your email address by clicking the button below.
+                Thank you for registering with LIBRASYS. To complete your registration and start borrowing books, please verify your email address by clicking the button below.
             </div>
 
             <div class="button-container">
@@ -331,7 +331,7 @@ LIBRASYS
         </div>
 
         <div class="footer">
-            <div class="brand">NashLibrary</div>
+            <div class="brand">LIBRASYS</div>
             <p class="footer-text">
                 LIBRASYS - Library Management System<br>
                 Secure • Reliable • Modern
@@ -440,11 +440,11 @@ class ResendVerificationEmailUseCase:
         """Send email verification link"""
         verification_url = f"{Config.FRONTEND_URL}/verify-email?token={token}"
 
-        subject = "Verify Your NashLibrary Account"
+        subject = "Verify Your LIBRASYS Account"
         body = f"""
 Dear {full_name},
 
-Welcome to NashLibrary! Thank you for registering with our library system.
+Welcome to LIBRASYS! Thank you for registering with our library system.
 
 To complete your registration and activate your account, please verify your email address by clicking the link below:
 
@@ -455,7 +455,7 @@ This verification link will expire in 24 hours for security reasons.
 If you did not request this registration, please ignore this email.
 
 Best regards,
-NashLibrary Team
+LIBRASYS Team
 LIBRASYS
         """
 
@@ -465,7 +465,7 @@ LIBRASYS
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Your NashLibrary Account</title>
+    <title>Verify Your LIBRASYS Account</title>
     <style>
         body {{
             margin: 0;
@@ -608,7 +608,7 @@ LIBRASYS
 <body>
     <div class="container">
         <div class="header">
-            <h1>📚 NashLibrary</h1>
+            <h1>📚 LIBRASYS</h1>
             <p>Verify Your Account</p>
         </div>
 
@@ -616,7 +616,7 @@ LIBRASYS
             <div class="greeting">Welcome, {full_name}!</div>
 
             <div class="message">
-                Thank you for registering with NashLibrary. To complete your registration and start borrowing books, please verify your email address by clicking the button below.
+                Thank you for registering with LIBRASYS. To complete your registration and start borrowing books, please verify your email address by clicking the button below.
             </div>
 
             <div class="button-container">
@@ -641,7 +641,7 @@ LIBRASYS
         </div>
 
         <div class="footer">
-            <div class="brand">NashLibrary</div>
+            <div class="brand">LIBRASYS</div>
             <p class="footer-text">
                 LIBRASYS - Library Management System<br>
                 Secure • Reliable • Modern

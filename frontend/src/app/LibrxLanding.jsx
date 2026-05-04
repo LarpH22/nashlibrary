@@ -12,7 +12,7 @@ const LibrxLanding = () => {
         <div className="nav-container">
           <div className="logo">
             <Book className="logo-icon" />
-            <span>LIBRX</span>
+            <span>LIBRASYS</span>
           </div>
           <div className="nav-links">
             <a href="#features">Features</a>
@@ -28,7 +28,7 @@ const LibrxLanding = () => {
         <div className="hero-content">
           <div className="badge"><Zap size={14} /> The Future of Reading</div>
           <h1>Your Entire Library, <br /> <span className="gradient-text">In One Dashboard.</span></h1>
-          <p>Manage your loans, track due dates, and discover your next favorite book with the LIBRX intelligent management system.</p>
+          <p>Manage your loans, track due dates, and discover your next favorite book with the LIBRASYS intelligent management system.</p>
           <div className="hero-actions">
             <button className="primary-cta" onClick={() => navigate('/login')}>
               Open My Library <ArrowRight size={18} />

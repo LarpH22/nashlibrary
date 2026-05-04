@@ -788,7 +788,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
       {/* ── HEADER ── */}
       <header style={css.header}>
         <div style={css.brandNav}>
-          <div style={css.brandMark}>LIBRX</div>
+          <div style={css.brandMark}>LIBRASYS</div>
           <nav style={css.topNav}>
             {["Dashboard", "Catalog", "My Books", "History"].map((t) => (
               <button key={t} style={css.navBtn(activeTab === t)} onClick={() => setActiveTab(t)}>{t}</button>

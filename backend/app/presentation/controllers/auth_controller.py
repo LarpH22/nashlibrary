@@ -1,5 +1,4 @@
 from datetime import datetime
-import sys
 
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt
@@ -181,16 +180,15 @@ class AuthController:
 
     def login(self):
         """Authenticate a user"""
-        print("Login called")
         data = request.get_json() or {}
-        print("Data:", data)
         email = data.get('email')
         password = data.get('password')
         role = data.get('role')  # Optional role hint
 
-        print("Email:", email, "Password:", password, "Role:", role)
+        if not email or not password:
+            return jsonify({'message': 'Email and password are required'}), 400
+
         user, auth_role = self.login_user_use_case.execute(email, password, role)
-        print("User:", user, "Role:", auth_role)
         if not user:
             return jsonify({'message': 'Invalid credentials'}), 401
 
@@ -216,7 +214,11 @@ class AuthController:
             'access_token': token,
             'role': auth_role,
             'email': user['email'],
-            'full_name': user.get('full_name')
+            'full_name': user.get('full_name'),
+            'user_id': user.get('student_id') or user.get('librarian_id') or user.get('admin_id'),
+            'student_id': user.get('student_id'),
+            'librarian_id': user.get('librarian_id'),
+            'admin_id': user.get('admin_id'),
         }), 200
 
     def forgot_password(self):

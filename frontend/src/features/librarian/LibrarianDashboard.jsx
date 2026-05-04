@@ -920,7 +920,7 @@ export function LibrarianDashboard() {
       <div className="sidebar">
         <div className="logo">
           <div className="logo-icon">📚</div>
-          <div className="logo-title">LibraX</div>
+          <div className="logo-title">LIBRASYS</div>
           <div className="logo-sub">Librarian</div>
         </div>
         <nav className="nav">
@@ -942,7 +942,7 @@ export function LibrarianDashboard() {
             <div className="avatar">LI</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Librarian</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>librarian@librax.edu</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>librarian@librasys.edu</div>
             </div>
             <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
           </div>

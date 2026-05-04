@@ -48,8 +48,7 @@ api.interceptors.response.use(
     const isAuthRequest = requestUrl.includes('/api/auth/login') || requestUrl.includes('/api/auth/register')
 
     if (error.response?.status === 401 && !isAuthRequest) {
-      console.warn('[API] Unauthorized - clearing token')
-      clearStoredAuth()
+      console.warn('[API] Unauthorized response from protected endpoint')
     }
     console.error(`[API] Error ${error.response?.status}:`, error.response?.data || error.message)
     return Promise.reject(error)
