@@ -95,7 +95,7 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
         await onBorrowed(book)
       }
     } catch (err) {
-      const message = err?.response?.data?.message || 'Unable to borrow this book. Please try again.'
+      const message = err?.response?.data?.message || 'Unable to request this book. Please try again.'
       await loadBooks()
       setError(message)
     } finally {
@@ -201,7 +201,7 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
                           disabled={loading || unavailable || alreadyBorrowed || borrowingId === book.book_id}
                           onClick={() => handleBorrow(book)}
                         >
-                          {unavailable ? 'Unavailable' : alreadyBorrowed ? 'Borrowed' : borrowingId === book.book_id ? 'Borrowing...' : 'Borrow'}
+                          {unavailable ? 'Unavailable' : alreadyBorrowed ? 'Requested' : borrowingId === book.book_id ? 'Requesting...' : 'Request'}
                         </button>
                       </td>
                     </tr>

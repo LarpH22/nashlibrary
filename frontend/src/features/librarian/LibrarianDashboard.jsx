@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../shared/api.js'
+import { clearStoredAuth } from '../../shared/authStorage.js'
 import './LibrarianDashboard.css'
 
-const navSections = [
+const baseNavSections = [
   {
     section: 'MAIN',
     items: [
       { id: 'overview', icon: '📊', title: 'Overview' },
-      { id: 'issue-return', icon: '📖', title: 'Issue / Return Books' },
+      { id: 'issue-return', icon: '📖', title: 'Borrow Approvals' },
       { id: 'availability', icon: '🔍', title: 'Book Availability' },
-      { id: 'overdue', icon: '⏰', title: 'Overdue Books', badge: '5' }
+      { id: 'overdue', icon: '⏰', title: 'Overdue Books' }
     ]
   },
   {
@@ -30,7 +31,7 @@ const navSections = [
 
 const pageTitles = {
   overview: 'Overview',
-  'issue-return': 'Issue / Return Books',
+  'issue-return': 'Borrow Approvals',
   availability: 'Book Availability',
   overdue: 'Overdue Books',
   students: 'Student Records',
@@ -38,14 +39,26 @@ const pageTitles = {
   account: 'Change Password'
 }
 
+const isLoanReturned = (loan) => loan.returned || String(loan.status || '').toLowerCase() === 'returned'
+
+const isLoanOverdue = (loan) => {
+  if (isLoanReturned(loan) || !loan.due_date) {
+    return false
+  }
+
+  const dueDate = new Date(loan.due_date)
+  return !Number.isNaN(dueDate.getTime()) && dueDate < new Date()
+}
+
 export function LibrarianDashboard() {
   const navigate = useNavigate()
   const [activePage, setActivePage] = useState('overview')
   const [books, setBooks] = useState([])
   const [loans, setLoans] = useState([])
+  const [borrowRequests, setBorrowRequests] = useState([])
   const [students, setStudents] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [issueForm, setIssueForm] = useState({ book_id: '', student_id: '' })
+  const [requestDueDates, setRequestDueDates] = useState({})
   const [returnLoanId, setReturnLoanId] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [notifications, setNotifications] = useState([])
@@ -65,7 +78,21 @@ export function LibrarianDashboard() {
 
   const safeBooks = useMemo(() => (Array.isArray(books) ? books : []), [books])
   const safeLoans = useMemo(() => (Array.isArray(loans) ? loans : []), [loans])
+  const safeBorrowRequests = useMemo(() => (Array.isArray(borrowRequests) ? borrowRequests : []), [borrowRequests])
   const safeStudents = useMemo(() => (Array.isArray(students) ? students : []), [students])
+  const pendingBorrowRequests = useMemo(() => safeBorrowRequests.filter((request) => request.status === 'pending'), [safeBorrowRequests])
+  const overdueLoans = useMemo(() => safeLoans.filter(isLoanOverdue), [safeLoans])
+  const navigationSections = useMemo(
+    () => baseNavSections.map((section) => ({
+      ...section,
+      items: section.items.map((item) => (
+        item.id === 'overdue'
+          ? { ...item, badge: overdueLoans.length > 0 ? String(overdueLoans.length) : '' }
+          : item
+      ))
+    })),
+    [overdueLoans.length]
+  )
 
   const studentRecords = useMemo(() => {
     const map = new Map()
@@ -100,9 +127,7 @@ export function LibrarianDashboard() {
   const studentList = safeStudents.length > 0 ? safeStudents : studentRecords
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user_role')
-    localStorage.removeItem('user_id')
+    clearStoredAuth()
     navigate('/login', { replace: true })
   }
 
@@ -139,37 +164,71 @@ export function LibrarianDashboard() {
     }
   }, [])
 
+  const loadBorrowRequests = useCallback(async () => {
+    try {
+      const response = await api.get('/books/borrow-requests')
+      setBorrowRequests(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      console.error('Unable to load borrow requests:', error)
+      setBorrowRequests([])
+      addNotification('Unable to load borrow requests.')
+    }
+  }, [])
+
   useEffect(() => {
     loadBooks()
     loadLoans()
+    loadBorrowRequests()
     loadStudents()
-  }, [loadBooks, loadLoans, loadStudents])
+  }, [loadBooks, loadLoans, loadBorrowRequests, loadStudents])
 
   const stats = useMemo(
     () => [
       { label: 'Books', value: safeBooks.length, type: 'blue' },
-      { label: 'Active Loans', value: safeLoans.filter(l => !l.returned).length, type: 'green' },
-      { label: 'Overdue', value: safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length, type: 'red' },
+      { label: 'Pending Requests', value: pendingBorrowRequests.length, type: 'gold' },
+      { label: 'Active Loans', value: safeLoans.filter(l => !isLoanReturned(l)).length, type: 'green' },
+      { label: 'Overdue', value: overdueLoans.length, type: 'red' },
       { label: 'Students', value: studentList.length, type: 'purple' }
     ],
-    [safeBooks, safeLoans, studentList]
+    [safeBooks, pendingBorrowRequests, safeLoans, overdueLoans.length, studentList]
   )
 
-  async function handleIssueBook(event) {
-    event.preventDefault()
+  async function handleApproveRequest(requestId) {
+    const dueDate = requestDueDates[requestId]
+    if (!dueDate) {
+      addNotification('Set a due date before approving this request.')
+      return
+    }
+
     try {
-      await api.post('/books/borrow', {
-        book_id: Number(issueForm.book_id),
-        user_id: Number(issueForm.student_id)
+      await api.post(`/books/borrow-requests/${requestId}/approve`, {
+        due_date: dueDate
       })
-      setIssueForm({ book_id: '', student_id: '' })
-      await loadLoans()
-      await loadBooks()
-      addNotification('Book issued successfully.')
+      setRequestDueDates((prev) => {
+        const next = { ...prev }
+        delete next[requestId]
+        return next
+      })
+      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks()])
+      addNotification('Borrow request approved.')
     } catch (error) {
-      console.error('Error issuing book:', error)
-      await Promise.allSettled([loadLoans(), loadBooks()])
-      addNotification(error?.response?.data?.message || 'Failed to issue book.')
+      console.error('Error approving request:', error)
+      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks()])
+      addNotification(error?.response?.data?.message || 'Failed to approve request.')
+    }
+  }
+
+  async function handleRejectRequest(requestId) {
+    try {
+      await api.post(`/books/borrow-requests/${requestId}/reject`, {
+        reason: 'Rejected by librarian'
+      })
+      await loadBorrowRequests()
+      addNotification('Borrow request rejected.')
+    } catch (error) {
+      console.error('Error rejecting request:', error)
+      await loadBorrowRequests()
+      addNotification(error?.response?.data?.message || 'Failed to reject request.')
     }
   }
 
@@ -184,8 +243,7 @@ export function LibrarianDashboard() {
     try {
       await api.post('/books/return', { loan_id: loanId })
       setReturnLoanId('')
-      await loadLoans()
-      await loadBooks()
+      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks()])
       addNotification('Book return recorded.')
     } catch (error) {
       console.error('Error returning book:', error)
@@ -253,7 +311,7 @@ export function LibrarianDashboard() {
             <div className="card">
               <div className="card-hdr"><div className="card-title">Quick Actions</div></div>
               <div style={{ display: 'grid', gap: '10px' }}>
-                <button className="btn btn-blue" type="button" onClick={() => setActivePage('issue-return')}>Issue Book</button>
+                <button className="btn btn-blue" type="button" onClick={() => setActivePage('issue-return')}>Review Requests</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('overdue')}>View Overdue</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('students')}>Student Records</button>
               </div>
@@ -267,20 +325,42 @@ export function LibrarianDashboard() {
       return (
         <>
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Issue Book to Student</div></div>
-            <form className="admin-form" onSubmit={handleIssueBook}>
-              <div className="frow">
-                <div className="fgroup" style={{ flex: 1 }}>
-                  <label>Book ID</label>
-                  <input value={issueForm.book_id} onChange={(event) => setIssueForm({ ...issueForm, book_id: event.target.value })} placeholder="Book ID" />
-                </div>
-                <div className="fgroup" style={{ flex: 1 }}>
-                  <label>Student ID</label>
-                  <input value={issueForm.student_id} onChange={(event) => setIssueForm({ ...issueForm, student_id: event.target.value })} placeholder="Student ID" />
-                </div>
-              </div>
-              <button className="btn btn-blue" type="submit">Issue Book</button>
-            </form>
+            <div className="card-hdr"><div className="card-title">Pending Borrow Requests ({pendingBorrowRequests.length})</div></div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr><th>Request</th><th>Student</th><th>Book</th><th>Requested</th><th>Due Date</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                  {pendingBorrowRequests.length === 0 ? (
+                    <tr><td colSpan="6" style={{ color: 'var(--muted)', textAlign: 'center', padding: '18px' }}>No pending borrow requests.</td></tr>
+                  ) : (
+                    pendingBorrowRequests.map((request) => (
+                      <tr key={request.request_id}>
+                        <td>{request.request_id}</td>
+                        <td>{request.student_name || request.student_number || request.student_id}</td>
+                        <td>{request.book_title || request.book_id}</td>
+                        <td>{request.requested_at ? new Date(request.requested_at).toLocaleString() : ''}</td>
+                        <td>
+                          <input
+                            className="table-date-input"
+                            type="date"
+                            value={requestDueDates[request.request_id] || ''}
+                            onChange={(event) => setRequestDueDates({ ...requestDueDates, [request.request_id]: event.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <div className="row-actions">
+                            <button className="btn btn-green btn-sm" type="button" onClick={() => handleApproveRequest(request.request_id)}>Approve</button>
+                            <button className="btn btn-outline btn-sm" type="button" onClick={() => handleRejectRequest(request.request_id)}>Reject</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div className="card">
             <div className="card-hdr"><div className="card-title">Return Book</div></div>
@@ -323,7 +403,6 @@ export function LibrarianDashboard() {
     }
 
     if (activePage === 'overdue') {
-      const overdueLoans = safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date())
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Overdue Books ({overdueLoans.length})</div></div>
@@ -448,7 +527,7 @@ export function LibrarianDashboard() {
           <div className="logo-sub">Librarian</div>
         </div>
         <nav className="nav">
-          {navSections.map((section) => (
+          {navigationSections.map((section) => (
             <div key={section.section}>
               <div className="nav-section">{section.section}</div>
               {section.items.map((item) => (

@@ -19,6 +19,7 @@ import {
   approveRegistration,
   rejectRegistration
 } from './adminService.js'
+import { clearStoredAuth } from '../../shared/authStorage.js'
 import './AdminDashboard.css'
 
 const navSections = [
@@ -89,17 +90,13 @@ export function AdminDashboard() {
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user_role')
-    localStorage.removeItem('user_id')
+    clearStoredAuth()
     navigate('/login', { replace: true })
   }
 
   const handlePasswordSuccessConfirm = () => {
     setShowPasswordSuccessModal(false)
-    localStorage.removeItem('token')
-    localStorage.removeItem('user_role')
-    localStorage.removeItem('user_id')
+    clearStoredAuth()
     navigate('/login', { replace: true })
   }
 

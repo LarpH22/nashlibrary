@@ -18,6 +18,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { BookSearch } from '../books/BookSearch.jsx'
 import { fetchMostBorrowedBooks, returnBook } from '../books/bookService.js'
+import { clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRole, isJwtExpired } from '../../shared/authStorage.js'
 import './StudentDashboard.css'
 
 const navSections = [
@@ -64,6 +65,11 @@ const displayValue = (value) => (value === null || value === undefined ? '' : St
 
 const isRegistrationStudentId = (value) => /^\d{3}-\d{4}$/.test(String(value || ''))
 
+const loanStatus = (loan) => String(loan?.status || '').toLowerCase()
+const isPendingRequest = (loan) => loanStatus(loan) === 'pending'
+const isRejectedRequest = (loan) => loanStatus(loan) === 'rejected'
+const isApprovedLoan = (loan) => !loan.is_request && ['active', 'borrowed', 'overdue'].includes(loanStatus(loan)) && !loan.returned
+
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) {
@@ -108,38 +114,12 @@ export function StudentDashboard() {
   }, [])
 
   const getAuthToken = useCallback(() => {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token')
-    if (token) {
-      return token
-    }
-
-    const cookies = document.cookie
-      .split(';')
-      .map((cookie) => cookie.trim())
-      .reduce((acc, cookie) => {
-        const [name, value] = cookie.split('=')
-        if (name && value) {
-          acc[name] = decodeURIComponent(value)
-        }
-        return acc
-      }, {})
-    return cookies['access_token'] || cookies['token'] || ''
+    return getStoredAuthToken()
   }, [])
 
   const decodeTokenRole = useCallback((token) => {
-    if (!token || token.split('.').length !== 3) {
-      return null
-    }
-    try {
-      const payload = token.split('.')[1]
-      const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
-      const json = decodeURIComponent(decoded.split('').map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`).join(''))
-      const parsed = JSON.parse(json)
-      return parsed?.role || parsed?.user_role || null
-    } catch (error) {
-      console.warn('[StudentDashboard] decodeTokenRole failed', error)
-      return null
-    }
+    const parsed = decodeJwtPayload(token)
+    return parsed?.role || parsed?.user_role || null
   }, [])
 
   const removeNotification = useCallback((id) => {
@@ -147,10 +127,7 @@ export function StudentDashboard() {
   }, [])
 
   const clearSession = useCallback(() => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user_role')
-    localStorage.removeItem('user_id')
+    clearStoredAuth()
   }, [])
 
   const redirectToLogin = useCallback(() => {
@@ -210,7 +187,7 @@ export function StudentDashboard() {
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load profile')
       }
-      const role = data?.role || data?.user_role || localStorage.getItem('user_role')
+      const role = data?.role || data?.user_role || getStoredUserRole()
       if (role && role !== 'student') {
         setAuthStatus('unauthorized')
         setAuthMessage('Unauthorized access. Login with a student account to continue.')
@@ -238,12 +215,11 @@ export function StudentDashboard() {
 
   useEffect(() => {
     const token = getAuthToken()
-    const storedRole = localStorage.getItem('user_role')
+    const storedRole = getStoredUserRole()
     const tokenRole = decodeTokenRole(token)
     const role = storedRole || tokenRole
 
-    if (!token) {
-      console.warn('[StudentDashboard] missing token', { storedRole })
+    if (!token || isJwtExpired(token)) {
       redirectToLogin()
       return
     }
@@ -259,28 +235,38 @@ export function StudentDashboard() {
     setAuthStatus('authorized')
     setLoading(true)
     setFetchError('')
-    Promise.allSettled([loadLoans(), loadProfile(), loadPopularBooks()]).finally(() => setLoading(false))
+
+    async function loadDashboardData() {
+      await Promise.allSettled([loadProfile(), loadPopularBooks()])
+      const currentToken = getAuthToken()
+      if (currentToken && !isJwtExpired(currentToken)) {
+        await loadLoans()
+      }
+    }
+
+    loadDashboardData().finally(() => setLoading(false))
   }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, redirectToLogin])
 
   const stats = useMemo(
     () => {
-      const active = loans.filter(l => !l.returned).length
-      const overdue = loans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length
+      const active = loans.filter(l => isApprovedLoan(l)).length
+      const totalLoanCount = loans.filter(l => !l.is_request).length
+      const overdue = loans.filter(l => isApprovedLoan(l) && l.due_date && new Date(l.due_date) < new Date()).length
       const returned = loans.filter(l => l.returned).length
-      const overdueRate = loans.length > 0 ? Math.round((overdue / loans.length) * 100) : 0
+      const overdueRate = totalLoanCount > 0 ? Math.round((overdue / totalLoanCount) * 100) : 0
       return [
         { label: 'Borrowed', value: active, type: 'green' },
         { label: 'Overdue', value: overdue, type: 'red' },
         { label: 'Overdue Rate', value: `${overdueRate}%`, type: 'gold' },
         { label: 'Returned', value: returned, type: 'blue' },
-        { label: 'Total Loans', value: loans.length, type: 'purple' }
+        { label: 'Total Loans', value: totalLoanCount, type: 'purple' }
       ]
     },
     [loans]
   )
 
   const activeBorrowedBookIds = useMemo(
-    () => loans.filter((loan) => !loan.returned).map((loan) => loan.book_id),
+    () => loans.filter((loan) => isApprovedLoan(loan) || isPendingRequest(loan)).map((loan) => loan.book_id),
     [loans]
   )
 
@@ -389,7 +375,7 @@ export function StudentDashboard() {
     if (activePage === 'overview') {
       return (
         <>
-          <div className="grid4">
+          <div className="stats-grid">
             {stats.map((stat) => {
               const StatIcon = getStatIcon(stat.label)
               return (
@@ -426,27 +412,32 @@ export function StudentDashboard() {
               </div>
             </div>
           </div>
-          {loans.filter(l => !l.returned).length > 0 && (
+          {loans.filter(l => isApprovedLoan(l) || isPendingRequest(l)).length > 0 && (
             <div className="card">
-              <div className="card-hdr"><div className="card-title">Current Loans</div></div>
+              <div className="card-hdr"><div className="card-title">Current Requests and Loans</div></div>
               <div className="admin-table-container">
                 <table>
                   <thead>
-                    <tr><th>Book</th><th>Issued</th><th>Due Date</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>Book</th><th>Requested/Issued</th><th>Due Date</th><th>Status</th><th>Fine</th><th>Action</th></tr>
                   </thead>
                   <tbody>
-                    {loans.filter(l => !l.returned).slice(0, 5).map((loan) => {
-                      const isOverdue = new Date(loan.due_date) < new Date()
+                    {loans.filter(l => isApprovedLoan(l) || isPendingRequest(l)).slice(0, 5).map((loan) => {
+                      const isOverdue = isApprovedLoan(loan) && loan.due_date && new Date(loan.due_date) < new Date()
                       return (
                         <tr key={loan.loan_id}>
                           <td>{loan.book_title || loan.book_id}</td>
-                          <td>{new Date(loan.issue_date).toLocaleDateString()}</td>
-                          <td>{new Date(loan.due_date).toLocaleDateString()}</td>
-                          <td style={{ color: isOverdue ? 'var(--red)' : 'var(--green)' }}>
-                            {isOverdue ? 'Overdue' : 'On Time'}
+                          <td>{loan.issue_date ? new Date(loan.issue_date).toLocaleDateString() : ''}</td>
+                          <td>{loan.due_date ? new Date(loan.due_date).toLocaleDateString() : 'Waiting approval'}</td>
+                          <td style={{ color: isPendingRequest(loan) ? 'var(--gold)' : isOverdue ? 'var(--red)' : 'var(--green)' }}>
+                            {isPendingRequest(loan) ? 'Pending' : isOverdue ? 'Overdue' : 'Approved'}
                           </td>
+                          <td>{loan.fine_amount > 0 ? `$${Number(loan.fine_amount).toFixed(2)}` : '-'}</td>
                           <td>
-                            <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
+                            {isApprovedLoan(loan) ? (
+                              <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
+                            ) : (
+                              <span style={{ color: 'var(--muted)' }}>Awaiting librarian</span>
+                            )}
                           </td>
                         </tr>
                       )
@@ -461,30 +452,34 @@ export function StudentDashboard() {
     }
 
     if (activePage === 'books') {
-      const borrowedLoans = loans.filter(l => !l.returned)
+      const borrowedLoans = loans.filter(l => isApprovedLoan(l) || isPendingRequest(l) || isRejectedRequest(l))
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">My Borrowed Books ({borrowedLoans.length})</div></div>
+          <div className="card-hdr"><div className="card-title">My Borrow Requests and Books ({borrowedLoans.length})</div></div>
           <div className="admin-table-container">
             <table>
               <thead>
-                <tr><th>Book Title</th><th>Issued Date</th><th>Due Date</th><th>Days Left</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Book Title</th><th>Requested/Issued</th><th>Due Date</th><th>Days/Fine</th><th>Status</th><th>Action</th></tr>
               </thead>
               <tbody>
                 {borrowedLoans.map((loan) => {
-                  const daysLeft = Math.ceil((new Date(loan.due_date) - new Date()) / (1000 * 60 * 60 * 24))
-                  const isOverdue = daysLeft < 0
+                  const daysLeft = loan.due_date ? Math.ceil((new Date(loan.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null
+                  const isOverdue = isApprovedLoan(loan) && daysLeft < 0
                   return (
                     <tr key={loan.loan_id}>
                       <td>{loan.book_title || loan.book_id}</td>
-                      <td>{new Date(loan.issue_date).toLocaleDateString()}</td>
-                      <td>{new Date(loan.due_date).toLocaleDateString()}</td>
-                      <td style={{ color: isOverdue ? 'var(--red)' : daysLeft < 3 ? 'var(--gold)' : 'var(--green)', fontWeight: 'bold' }}>
-                        {isOverdue ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days`}
+                      <td>{loan.issue_date ? new Date(loan.issue_date).toLocaleDateString() : ''}</td>
+                      <td>{loan.due_date ? new Date(loan.due_date).toLocaleDateString() : '-'}</td>
+                      <td style={{ color: isPendingRequest(loan) ? 'var(--gold)' : isRejectedRequest(loan) ? 'var(--red)' : isOverdue ? 'var(--red)' : daysLeft < 3 ? 'var(--gold)' : 'var(--green)', fontWeight: 'bold' }}>
+                        {isPendingRequest(loan) ? 'Waiting approval' : isRejectedRequest(loan) ? (loan.rejection_reason || 'Rejected') : isOverdue ? `${Math.abs(daysLeft)} days overdue - $${Number(loan.fine_amount || 0).toFixed(2)}` : `${daysLeft} days`}
                       </td>
-                      <td>{isOverdue ? 'Overdue' : daysLeft < 3 ? 'Due Soon' : 'Active'}</td>
+                      <td>{isPendingRequest(loan) ? 'Pending' : isRejectedRequest(loan) ? 'Rejected' : isOverdue ? 'Overdue' : daysLeft < 3 ? 'Due Soon' : 'Approved'}</td>
                       <td>
-                        <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
+                        {isApprovedLoan(loan) ? (
+                          <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
+                        ) : (
+                          <span style={{ color: 'var(--muted)' }}>No action</span>
+                        )}
                       </td>
                     </tr>
                   )
@@ -503,7 +498,7 @@ export function StudentDashboard() {
           borrowedBookIds={activeBorrowedBookIds}
           onBorrowed={async (book) => {
             await loadLoans()
-            addNotification(`Borrowed "${book.title}" successfully.`)
+            addNotification(`Borrow request for "${book.title}" was submitted.`)
           }}
         />
       )
@@ -846,7 +841,15 @@ export function StudentDashboard() {
               <button className="btn btn-outline" type="button" onClick={() => {
                 setLoading(true)
                 setFetchError('')
-                Promise.allSettled([loadLoans(), loadProfile()]).finally(() => setLoading(false))
+                loadProfile()
+                  .then(() => {
+                    const currentToken = getAuthToken()
+                    if (currentToken && !isJwtExpired(currentToken)) {
+                      return loadLoans()
+                    }
+                    return undefined
+                  })
+                  .finally(() => setLoading(false))
               }}>Retry</button>
             </div>
           ) : (

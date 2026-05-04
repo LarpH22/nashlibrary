@@ -11,6 +11,241 @@ logger = logging.getLogger(__name__)
 
 
 class LoanRepositoryImpl(LoanRepository):
+    def _ensure_borrow_request_schema(self, conn):
+        ensure_inventory_schema(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS borrow_requests (
+                    request_id INT PRIMARY KEY AUTO_INCREMENT,
+                    student_id INT NOT NULL,
+                    book_id INT NOT NULL,
+                    copy_id INT NULL,
+                    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    decided_at TIMESTAMP NULL,
+                    approved_by INT NULL,
+                    due_date DATE NULL,
+                    borrow_id INT NULL,
+                    rejection_reason VARCHAR(255) NULL,
+                    INDEX idx_student_status (student_id, status),
+                    INDEX idx_book_status (book_id, status),
+                    INDEX idx_copy_status (copy_id, status)
+                )
+                """
+            )
+
+    def create_borrow_request(self, book_id: int, student_id: int):
+        with get_connection() as conn:
+            try:
+                self._ensure_borrow_request_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT copy_id
+                        FROM book_copies
+                        WHERE book_id=%s AND status='available'
+                        ORDER BY copy_id
+                        LIMIT 1
+                        """,
+                        (book_id,),
+                    )
+                    if not cur.fetchone():
+                        raise ValueError('Book is not available for request')
+
+                    cur.execute(
+                        """
+                        SELECT request_id
+                        FROM borrow_requests
+                        WHERE student_id=%s
+                          AND book_id=%s
+                          AND status='pending'
+                        LIMIT 1
+                        """,
+                        (student_id, book_id),
+                    )
+                    if cur.fetchone():
+                        raise ValueError('You already have a pending request for this book')
+
+                    cur.execute(
+                        """
+                        SELECT borrow_id
+                        FROM borrow_records
+                        WHERE student_id=%s
+                          AND book_id=%s
+                          AND return_date IS NULL
+                          AND status IN ('active', 'borrowed', 'overdue')
+                        LIMIT 1
+                        """,
+                        (student_id, book_id),
+                    )
+                    if cur.fetchone():
+                        raise ValueError('You already have an active loan for this book')
+
+                    cur.execute(
+                        """
+                        INSERT INTO borrow_requests (student_id, book_id, status, requested_at)
+                        VALUES (%s, %s, 'pending', NOW())
+                        """,
+                        (student_id, book_id),
+                    )
+                    request_id = cur.lastrowid
+                conn.commit()
+                return request_id
+            except Exception:
+                conn.rollback()
+                raise
+
+    def list_borrow_requests(self, status: str | None = None):
+        with get_connection() as conn:
+            self._ensure_borrow_request_schema(conn)
+            conn.commit()
+            with conn.cursor() as cur:
+                where = ''
+                params = []
+                if status:
+                    where = 'WHERE brq.status=%s'
+                    params.append(status)
+                cur.execute(
+                    f"""
+                    SELECT
+                        brq.request_id,
+                        brq.student_id,
+                        s.full_name AS student_name,
+                        s.email AS student_email,
+                        s.student_number,
+                        brq.book_id,
+                        b.title AS book_title,
+                        brq.copy_id,
+                        bc.copy_code,
+                        brq.status,
+                        brq.requested_at,
+                        brq.decided_at,
+                        brq.due_date,
+                        brq.borrow_id,
+                        brq.rejection_reason
+                    FROM borrow_requests brq
+                    LEFT JOIN students s ON brq.student_id = s.student_id
+                    LEFT JOIN books b ON brq.book_id = b.book_id
+                    LEFT JOIN book_copies bc ON brq.copy_id = bc.copy_id
+                    {where}
+                    ORDER BY brq.requested_at DESC
+                    """,
+                    tuple(params),
+                )
+                requests = cur.fetchall()
+                for request in requests:
+                    self._convert_dates(request, ['requested_at', 'decided_at', 'due_date'])
+                return requests
+
+    def approve_borrow_request(self, request_id: int, due_date, approved_by: int | None = None):
+        if not due_date:
+            raise ValueError('Due date is required')
+
+        if isinstance(due_date, str):
+            try:
+                due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+            except ValueError as exc:
+                raise ValueError('Due date must use YYYY-MM-DD format') from exc
+        elif isinstance(due_date, datetime):
+            due_date = due_date.date()
+
+        today = datetime.utcnow().date()
+        if due_date < today:
+            raise ValueError('Due date cannot be in the past')
+
+        with get_connection() as conn:
+            try:
+                self._ensure_borrow_request_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT *
+                        FROM borrow_requests
+                        WHERE request_id=%s AND status='pending'
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (request_id,),
+                    )
+                    request = cur.fetchone()
+                    if not request:
+                        conn.rollback()
+                        return None
+
+                    cur.execute(
+                        """
+                        SELECT copy_id
+                        FROM book_copies
+                        WHERE book_id=%s AND status='available'
+                        ORDER BY copy_id
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (request['book_id'],),
+                    )
+                    copy = cur.fetchone()
+                    if not copy:
+                        raise ValueError('No available copy remains for this request')
+
+                    cur.execute(
+                        """
+                        INSERT INTO borrow_records
+                            (student_id, book_id, copy_id, borrow_date, due_date, status)
+                        VALUES (%s, %s, %s, %s, %s, 'active')
+                        """,
+                        (request['student_id'], request['book_id'], copy['copy_id'], today, due_date),
+                    )
+                    borrow_id = cur.lastrowid
+
+                    cur.execute(
+                        "UPDATE book_copies SET status='borrowed' WHERE copy_id=%s AND status='available'",
+                        (copy['copy_id'],),
+                    )
+                    if cur.rowcount == 0:
+                        raise ValueError('Book copy is not available')
+
+                    cur.execute(
+                        """
+                        UPDATE borrow_requests
+                        SET status='approved',
+                            copy_id=%s,
+                            borrow_id=%s,
+                            due_date=%s,
+                            approved_by=%s,
+                            decided_at=NOW()
+                        WHERE request_id=%s
+                        """,
+                        (copy['copy_id'], borrow_id, due_date, approved_by, request_id),
+                    )
+                conn.commit()
+                return borrow_id
+            except Exception:
+                conn.rollback()
+                raise
+
+    def reject_borrow_request(self, request_id: int, reason: str | None = None):
+        with get_connection() as conn:
+            try:
+                self._ensure_borrow_request_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE borrow_requests
+                        SET status='rejected',
+                            rejection_reason=%s,
+                            decided_at=NOW()
+                        WHERE request_id=%s AND status='pending'
+                        """,
+                        (reason, request_id),
+                    )
+                    updated = cur.rowcount
+                conn.commit()
+                return updated > 0
+            except Exception:
+                conn.rollback()
+                raise
+
     def create_loan(self, book_id: int, user_id: int, borrowed_at, due_date):
         with get_connection() as conn:
             try:
@@ -153,6 +388,8 @@ class LoanRepositoryImpl(LoanRepository):
     def find_loans_by_student_id(self, student_id: int):
         try:
             with get_connection() as conn:
+                self._ensure_borrow_request_schema(conn)
+                conn.commit()
                 with conn.cursor() as cur:
                     cur.execute(
                         """
@@ -183,7 +420,7 @@ class LoanRepositoryImpl(LoanRepository):
                         """,
                         (student_id,)
                     )
-                    loans = cur.fetchall()
+                    loans = list(cur.fetchall() or [])
 
                     # Convert all date/datetime objects to ISO format strings for JSON serialization
                     if loans:
@@ -194,17 +431,48 @@ class LoanRepositoryImpl(LoanRepository):
                             loan['days_overdue'] = self._compute_days_overdue(due_date, return_date or datetime.utcnow())
 
                             for field_name in ['issue_date', 'due_date', 'return_date']:
-                                if field_name in loan and loan[field_name] is not None:
-                                    value = loan[field_name]
-                                    if hasattr(value, 'isoformat'):
-                                        loan[field_name] = value.isoformat()
-                                    elif isinstance(value, str):
-                                        pass
+                                self._convert_dates(loan, [field_name])
 
-                    return loans
+                    cur.execute(
+                        """
+                        SELECT
+                            brq.request_id,
+                            brq.student_id,
+                            brq.book_id,
+                            b.title AS book_title,
+                            brq.status,
+                            brq.requested_at,
+                            brq.decided_at,
+                            brq.due_date,
+                            brq.rejection_reason
+                        FROM borrow_requests brq
+                        LEFT JOIN books b ON brq.book_id = b.book_id
+                        WHERE brq.student_id=%s
+                          AND brq.status IN ('pending', 'rejected')
+                        ORDER BY brq.requested_at DESC
+                        """,
+                        (student_id,),
+                    )
+                    requests = list(cur.fetchall() or [])
+                    for request in requests:
+                        request['loan_id'] = f"request-{request['request_id']}"
+                        request['issue_date'] = request.get('requested_at')
+                        request['return_date'] = None
+                        request['returned'] = False
+                        request['fine_amount'] = 0.0
+                        request['days_overdue'] = 0
+                        request['is_request'] = True
+                        self._convert_dates(request, ['requested_at', 'decided_at', 'due_date', 'issue_date'])
+
+                    return requests + loans
         except Exception as exc:
             logger.exception('Failed to query loans for student_id=%r', student_id)
             raise
+
+    def _convert_dates(self, row, fields):
+        for field in fields:
+            if field in row and row[field] is not None and hasattr(row[field], 'isoformat'):
+                row[field] = row[field].isoformat()
     def calculate_fine(self, loan_id: int):
         with get_connection() as conn:
             with conn.cursor() as cur:

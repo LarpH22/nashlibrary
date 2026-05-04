@@ -221,11 +221,14 @@ class AdminController:
                         br.borrow_date AS borrowed_at,
                         br.due_date,
                         br.return_date AS returned_at,
-                        br.status
+                        br.status,
+                        CASE WHEN br.status='returned' THEN TRUE ELSE FALSE END AS returned,
+                        COALESCE(f.amount, 0) AS fine_amount
                     FROM borrow_records br
                     LEFT JOIN books b ON br.book_id = b.book_id
                     LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
                     LEFT JOIN students s ON br.student_id = s.student_id
+                    LEFT JOIN fines f ON br.borrow_id = f.borrow_id
                     ORDER BY br.borrow_date DESC
                     '''
                 )
@@ -352,8 +355,16 @@ class AdminController:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE registration_requests SET status=%s WHERE request_id=%s',
-                    ('rejected', request_id)
+                    'SELECT registration_document FROM registration_requests WHERE request_id=%s LIMIT 1',
+                    (request_id,)
+                )
+                request_row = cur.fetchone()
+                if not request_row:
+                    return jsonify({'message': 'Registration request not found'}), 404
+
+                cur.execute(
+                    'DELETE FROM registration_requests WHERE request_id=%s',
+                    (request_id,)
                 )
                 conn.commit()
                 updated = cur.rowcount
@@ -361,4 +372,10 @@ class AdminController:
         if not updated:
             return jsonify({'message': 'Registration request not found'}), 404
 
-        return jsonify({'message': 'Registration request rejected'}), 200
+        document_name = request_row.get('registration_document') if request_row else None
+        if document_name:
+            file_path = os.path.join(Config.UPLOAD_FOLDER, document_name)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        return jsonify({'message': 'Registration request rejected and removed'}), 200

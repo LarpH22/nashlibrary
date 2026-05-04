@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import jsonify, request
 
 from ...application.use_cases.book.add_book import AddBookUseCase
@@ -39,26 +39,75 @@ class BookController:
     def borrow_book(self, current_user=None):
         if not current_user:
             return jsonify({'message': 'Authentication required'}), 401
-        if current_user.get('role') not in ['student', 'admin', 'librarian']:
-            return jsonify({'message': 'Library account access required'}), 403
+        if current_user.get('role') != 'student':
+            return jsonify({'message': 'Students can only request books. Librarians approve requests.'}), 403
 
         data = request.get_json() or {}
         book_id = data.get('book_id')
-        if current_user.get('role') == 'student':
-            user_id = current_user.get('student_id')
-        else:
-            user_id = data.get('student_id') or data.get('user_id')
+        user_id = current_user.get('student_id')
         if not book_id:
             return jsonify({'message': 'book_id is required'}), 400
         if not user_id:
             return jsonify({'message': 'Student ID not available for authenticated user'}), 400
-        borrowed_at = datetime.utcnow()
-        due_date = borrowed_at + timedelta(days=14)
+
         try:
-            loan_id = self.borrow_book_use_case.execute(book_id, user_id, borrowed_at, due_date)
-            return jsonify({'message': 'Book borrowed', 'loan_id': loan_id}), 201
+            request_id = self.loan_repository.create_borrow_request(int(book_id), int(user_id))
+            return jsonify({'message': 'Borrow request submitted', 'request_id': request_id, 'status': 'pending'}), 201
         except ValueError as exc:
             return jsonify({'message': str(exc)}), 400
+        except (TypeError, ValueError):
+            return jsonify({'message': 'book_id must be a valid integer'}), 400
+
+    def list_borrow_requests(self, current_user=None):
+        if not current_user:
+            return jsonify({'message': 'Authentication required'}), 401
+        if current_user.get('role') not in ['admin', 'librarian']:
+            return jsonify({'message': 'Librarian or admin access required'}), 403
+
+        status = request.args.get('status', '').strip().lower() or None
+        if status and status not in ['pending', 'approved', 'rejected']:
+            return jsonify({'message': 'Invalid request status'}), 400
+
+        requests = self.loan_repository.list_borrow_requests(status)
+        return jsonify(requests), 200
+
+    def approve_borrow_request(self, request_id: int, current_user=None):
+        if not current_user:
+            return jsonify({'message': 'Authentication required'}), 401
+        if current_user.get('role') not in ['admin', 'librarian']:
+            return jsonify({'message': 'Librarian or admin access required'}), 403
+
+        data = request.get_json() or {}
+        due_date = data.get('due_date')
+        if not due_date:
+            return jsonify({'message': 'due_date is required before approval'}), 400
+
+        try:
+            borrow_id = self.loan_repository.approve_borrow_request(
+                int(request_id),
+                due_date,
+                current_user.get('librarian_id') or current_user.get('admin_id') or current_user.get('user_id'),
+            )
+        except ValueError as exc:
+            return jsonify({'message': str(exc)}), 400
+
+        if not borrow_id:
+            return jsonify({'message': 'Pending borrow request not found'}), 404
+
+        return jsonify({'message': 'Borrow request approved', 'loan_id': borrow_id}), 200
+
+    def reject_borrow_request(self, request_id: int, current_user=None):
+        if not current_user:
+            return jsonify({'message': 'Authentication required'}), 401
+        if current_user.get('role') not in ['admin', 'librarian']:
+            return jsonify({'message': 'Librarian or admin access required'}), 403
+
+        data = request.get_json() or {}
+        rejected = self.loan_repository.reject_borrow_request(int(request_id), data.get('reason'))
+        if not rejected:
+            return jsonify({'message': 'Pending borrow request not found'}), 404
+
+        return jsonify({'message': 'Borrow request rejected'}), 200
 
     def return_book(self, current_user=None):
         if not current_user:
