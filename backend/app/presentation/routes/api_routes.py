@@ -78,7 +78,11 @@ def return_loan(loan_id):
     if auth_error:
         return auth_error
 
-    returned_loan = book_controller.return_book_use_case.execute(loan_id, datetime.utcnow())
+    try:
+        returned_loan = book_controller.return_book_use_case.execute(loan_id, datetime.utcnow())
+    except ValueError as exc:
+        return jsonify({'message': str(exc)}), 400
+
     return jsonify({'message': 'Book returned', 'loan': returned_loan}), 200
 
 

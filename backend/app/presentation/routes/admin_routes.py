@@ -41,7 +41,7 @@ def delete_author(author_id):
 def list_students():
     return controller.list_students()
 
-@admin_bp.route('/students/<int:student_id>', methods=['GET'], strict_slashes=False)
+@admin_bp.route('/students/<student_id>', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def search_student(student_id):
     return controller.search_student(student_id)
