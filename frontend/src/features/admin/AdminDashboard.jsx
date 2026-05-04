@@ -196,10 +196,11 @@ export function AdminDashboard() {
     try {
       await borrowBook(Number(borrowForm.book_id), Number(borrowForm.user_id))
       setBorrowForm({ book_id: '', user_id: '' })
-      await loadLoans()
+      await Promise.all([loadBooks(), loadLoans()])
       setMessage('Book issued successfully.')
-    } catch {
-      setMessage('Failed to issue book.')
+    } catch (err) {
+      await Promise.allSettled([loadBooks(), loadLoans()])
+      setMessage(err?.response?.data?.message || 'Failed to issue book.')
     }
   }
 
@@ -208,10 +209,11 @@ export function AdminDashboard() {
     try {
       await returnBook(Number(returnLoanId))
       setReturnLoanId('')
-      await loadLoans()
+      await Promise.all([loadBooks(), loadLoans()])
       setMessage('Book return recorded.')
-    } catch {
-      setMessage('Failed to return book.')
+    } catch (err) {
+      await Promise.allSettled([loadBooks(), loadLoans()])
+      setMessage(err?.response?.data?.message || 'Failed to return book.')
     }
   }
 
@@ -324,6 +326,8 @@ export function AdminDashboard() {
                   <th>Name</th>
                   <th>Email</th>
                   <th>Student ID</th>
+                  <th>Department / Program</th>
+                  <th>Year Level</th>
                   <th>Verified</th>
                   <th>Document</th>
                   <th>Submitted</th>
@@ -336,6 +340,8 @@ export function AdminDashboard() {
                     <td>{request.full_name}</td>
                     <td>{request.email}</td>
                     <td>{request.student_number}</td>
+                    <td>{request.department || ''}</td>
+                    <td>{request.year_level || ''}</td>
                     <td>{request.email_verified ? '✅' : '❌'}</td>
                     <td>
                       {request.document_url ? (

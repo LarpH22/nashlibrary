@@ -6,7 +6,10 @@ export async function fetchBooks() {
 }
 
 export async function searchBooks(filters) {
-  const response = await api.get('/api/books/search', { params: filters })
+  const params = Object.fromEntries(
+    Object.entries(filters || {}).filter(([, value]) => String(value || '').trim() !== '')
+  )
+  const response = await api.get('/api/books/search', { params })
   return response.data
 }
 

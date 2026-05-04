@@ -35,6 +35,8 @@ class AuthService:
                         student_number: str | None = None, status: str = 'pending',
                         email_verified: bool = False,
                         registration_document: str | None = None,
+                        department: str | None = None,
+                        year_level: int | None = None,
                         verification_token: str | None = None,
                         password_hash: str | None = None):
         """Register a new student"""
@@ -50,6 +52,8 @@ class AuthService:
             status=status,
             email_verified=email_verified,
             registration_document=registration_document,
+            department=department,
+            year_level=year_level,
             verification_token=verification_token,
         )
 

@@ -30,6 +30,8 @@ export async function registerUser(data) {
   formData.append('full_name', data.full_name)
   formData.append('password', data.password)
   formData.append('student_id', data.student_id || '')
+  formData.append('department', data.department || '')
+  formData.append('year_level', data.year_level || '')
   formData.append('role', 'student')
   formData.append('registration_document', data.registration_document)
 

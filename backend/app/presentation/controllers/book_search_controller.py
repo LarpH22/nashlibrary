@@ -18,6 +18,7 @@ class BookSearchController:
         category = request.args.get('category', '').strip()
         isbn = request.args.get('isbn', '').strip()
         availability = request.args.get('availability', '').strip().lower()
+        history = request.args.get('history', '').strip().lower()
 
         search_title = title or keyword
 
@@ -26,7 +27,8 @@ class BookSearchController:
             author=author,
             category=category,
             isbn=isbn,
-            availability=availability
+            availability=availability,
+            history=history,
         )
 
         return jsonify({'books': books}), 200

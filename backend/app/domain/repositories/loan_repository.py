@@ -7,7 +7,7 @@ class LoanRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def close_loan(self, loan_id: int, returned_at):
+    def close_loan(self, loan_id: int, returned_at, student_id: int | None = None):
         raise NotImplementedError
 
     @abstractmethod

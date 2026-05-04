@@ -17,17 +17,7 @@ class LibraryService:
         book = self.book_repository.find_by_id(book_id)
         if not book or book.get('available_copies', 0) <= 0:
             raise ValueError('Book is not available')
-        self.book_repository.update_book_status(book_id, 'borrowed', available_copies=book.get('available_copies', 0) - 1)
         return self.loan_repository.create_loan(book_id, user_id, borrowed_at, due_date)
 
-    def return_book(self, loan_id: int, returned_at):
-        loan = self.loan_repository.close_loan(loan_id, returned_at)
-        if loan is None:
-            raise ValueError('Loan not found')
-
-        if loan.get('book_id'):
-            book_id = loan['book_id']
-            book = self.book_repository.find_by_id(book_id)
-            available = book.get('available_copies', 0) + 1 if book else 1
-            self.book_repository.update_book_status(book_id, 'available', available_copies=available)
-        return loan
+    def return_book(self, loan_id: int, returned_at, student_id: int | None = None):
+        return self.loan_repository.close_loan(loan_id, returned_at, student_id)

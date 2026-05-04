@@ -36,12 +36,22 @@ class BookController:
         book_id = self.add_book_use_case.execute(title, author, isbn, available_copies, total_copies)
         return jsonify({'message': 'Book created', 'book_id': book_id}), 201
 
-    def borrow_book(self):
+    def borrow_book(self, current_user=None):
+        if not current_user:
+            return jsonify({'message': 'Authentication required'}), 401
+        if current_user.get('role') not in ['student', 'admin', 'librarian']:
+            return jsonify({'message': 'Library account access required'}), 403
+
         data = request.get_json() or {}
         book_id = data.get('book_id')
-        user_id = data.get('user_id')
-        if not book_id or not user_id:
-            return jsonify({'message': 'book_id and user_id are required'}), 400
+        if current_user.get('role') == 'student':
+            user_id = current_user.get('student_id')
+        else:
+            user_id = data.get('student_id') or data.get('user_id')
+        if not book_id:
+            return jsonify({'message': 'book_id is required'}), 400
+        if not user_id:
+            return jsonify({'message': 'Student ID not available for authenticated user'}), 400
         borrowed_at = datetime.utcnow()
         due_date = borrowed_at + timedelta(days=14)
         try:
@@ -50,7 +60,12 @@ class BookController:
         except ValueError as exc:
             return jsonify({'message': str(exc)}), 400
 
-    def return_book(self):
+    def return_book(self, current_user=None):
+        if not current_user:
+            return jsonify({'message': 'Authentication required'}), 401
+        if current_user.get('role') not in ['student', 'admin', 'librarian']:
+            return jsonify({'message': 'Library account access required'}), 403
+
         data = request.get_json() or {}
         loan_id = data.get('loan_id')
         if loan_id is None:
@@ -65,11 +80,12 @@ class BookController:
             return jsonify({'message': 'loan_id must be greater than zero'}), 400
 
         try:
-            returned_loan = self.return_book_use_case.execute(loan_id, datetime.utcnow())
+            student_id = current_user.get('student_id') if current_user.get('role') == 'student' else None
+            returned_loan = self.return_book_use_case.execute(loan_id, datetime.utcnow(), student_id)
         except ValueError as exc:
             return jsonify({'message': str(exc)}), 400
 
         if not returned_loan:
-            return jsonify({'message': 'Loan not found or already returned.'}), 404
+            return jsonify({'message': 'Active loan not found'}), 404
 
         return jsonify({'message': 'Book returned', 'loan': returned_loan}), 200

@@ -168,7 +168,8 @@ export function LibrarianDashboard() {
       addNotification('Book issued successfully.')
     } catch (error) {
       console.error('Error issuing book:', error)
-      addNotification('Failed to issue book.')
+      await Promise.allSettled([loadLoans(), loadBooks()])
+      addNotification(error?.response?.data?.message || 'Failed to issue book.')
     }
   }
 
@@ -188,26 +189,26 @@ export function LibrarianDashboard() {
       addNotification('Book return recorded.')
     } catch (error) {
       console.error('Error returning book:', error)
-      const errorMsg = error.response?.data?.message || 'Failed to return book.'
-      addNotification(errorMsg)
+      await Promise.allSettled([loadLoans(), loadBooks()])
+      addNotification(error?.response?.data?.message || 'Failed to return book.')
     }
   }
 
   async function handleChangePassword(event) {
     event.preventDefault()
     setPasswordError('')
-    
+
     // Validate fields
     if (!passwordForm.old_password || !passwordForm.new_password) {
       setPasswordError('Both password fields are required.')
       return
     }
-    
+
     if (passwordForm.new_password.length < 6) {
       setPasswordError('New password must be at least 6 characters long.')
       return
     }
-    
+
     try {
       const response = await api.post('/api/admin/password', passwordForm)
       console.log('Password change response:', response.status, response.data)

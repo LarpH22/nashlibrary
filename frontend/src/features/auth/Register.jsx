@@ -9,6 +9,8 @@ export function Register() {
     email: '',
     password: '',
     student_id: '',
+    department: '',
+    year_level: '',
     registration_document: null
   })
   const [validation, setValidation] = useState({
@@ -16,6 +18,8 @@ export function Register() {
     email: { isValid: null, message: 'Email is required (only Gmail or .edu.ph domains allowed)' },
     password: { isValid: null, message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' },
     student_id: { isValid: null, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' },
+    department: { isValid: null, message: 'Department / Program is required' },
+    year_level: { isValid: null, message: 'Year level is required' },
     registration_document: { isValid: null, message: 'Please upload a PDF, JPG, JPEG, or PNG file (max 5MB)' }
   })
   const [message, setMessage] = useState('')
@@ -125,6 +129,27 @@ export function Register() {
     return { isValid: true, message: 'Valid student ID format' }
   }
 
+  const validateDepartment = (value) => {
+    if (!value.trim()) {
+      return { isValid: false, message: 'Department / Program is required' }
+    }
+    if (value.trim().length > 100) {
+      return { isValid: false, message: 'Department / Program must be less than 100 characters' }
+    }
+    return { isValid: true, message: 'Valid department / program' }
+  }
+
+  const validateYearLevel = (value) => {
+    if (!String(value).trim()) {
+      return { isValid: false, message: 'Year level is required' }
+    }
+    const numeric = Number(value)
+    if (!Number.isInteger(numeric) || numeric < 1 || numeric > 10) {
+      return { isValid: false, message: 'Year level must be a number from 1 to 10' }
+    }
+    return { isValid: true, message: 'Valid year level' }
+  }
+
   const validateFile = (file) => {
     if (!file) {
       return { isValid: false, message: 'Registration document is required' }
@@ -179,6 +204,12 @@ export function Register() {
       case 'student_id':
         validationResult = validateStudentId(value)
         break
+      case 'department':
+        validationResult = validateDepartment(value)
+        break
+      case 'year_level':
+        validationResult = validateYearLevel(value)
+        break
       default:
         validationResult = { isValid: null, message: '' }
     }
@@ -196,6 +227,8 @@ export function Register() {
       email: validateEmail(form.email),
       password: validatePassword(form.password),
       student_id: validateStudentId(form.student_id),
+      department: validateDepartment(form.department),
+      year_level: validateYearLevel(form.year_level),
       registration_document: validateFile(form.registration_document)
     }
 
@@ -239,6 +272,8 @@ export function Register() {
         email: '',
         password: '',
         student_id: '',
+        department: '',
+        year_level: '',
         registration_document: null
       })
       // Reset validation
@@ -247,6 +282,8 @@ export function Register() {
         email: { isValid: null, message: 'Email is required (only Gmail or .edu.ph domains allowed)' },
         password: { isValid: null, message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' },
         student_id: { isValid: null, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' },
+        department: { isValid: null, message: 'Department / Program is required' },
+        year_level: { isValid: null, message: 'Year level is required' },
         registration_document: { isValid: null, message: 'Please upload a PDF, JPG, JPEG, or PNG file (max 5MB)' }
       })
       // Don't navigate or set tokens - user needs to verify email first
@@ -320,6 +357,38 @@ export function Register() {
             />
             <span className={getMessageClass('student_id')}>
               {validation.student_id.message}
+            </span>
+          </label>
+          <label>
+            Department / Program
+            <input
+              type="text"
+              name="department"
+              value={form.department}
+              onChange={handleChange}
+              className={getInputClass('department')}
+              placeholder="e.g., Computer Science"
+              required
+            />
+            <span className={getMessageClass('department')}>
+              {validation.department.message}
+            </span>
+          </label>
+          <label>
+            Year Level
+            <input
+              type="number"
+              name="year_level"
+              value={form.year_level}
+              onChange={handleChange}
+              className={getInputClass('year_level')}
+              min="1"
+              max="10"
+              placeholder="e.g., 1"
+              required
+            />
+            <span className={getMessageClass('year_level')}>
+              {validation.year_level.message}
             </span>
           </label>
           <label>

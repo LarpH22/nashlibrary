@@ -1,26 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  AlertTriangle,
+  BarChart3,
+  Bell,
+  BookOpen,
+  BookMarked,
+  CheckCircle2,
+  Flame,
+  History,
+  KeyRound,
+  Library,
+  LogOut,
+  Search,
+  User,
+  X
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { BookSearch } from '../books/BookSearch.jsx'
-import { fetchMostBorrowedBooks } from '../books/bookService.js'
+import { fetchMostBorrowedBooks, returnBook } from '../books/bookService.js'
 import './StudentDashboard.css'
 
 const navSections = [
   {
     section: 'MAIN',
     items: [
-      { id: 'overview', icon: '📊', title: 'Overview' },
-      { id: 'books', icon: '📖', title: 'My Borrowed Books' },
-      { id: 'popular', icon: '🔥', title: 'Top Books' },
-      { id: 'catalog', icon: '🔍', title: 'Search Catalog' },
-      { id: 'reading', icon: '📘', title: 'Reading History' },
-      { id: 'history', icon: '📚', title: 'Borrowing History' }
+      { id: 'overview', icon: BarChart3, title: 'Overview' },
+      { id: 'books', icon: BookOpen, title: 'My Borrowed Books' },
+      { id: 'popular', icon: Flame, title: 'Top Books' },
+      { id: 'catalog', icon: Search, title: 'Search Catalog' },
+      { id: 'reading', icon: BookMarked, title: 'Reading History' },
+      { id: 'history', icon: History, title: 'Borrowing History' }
     ]
   },
   {
     section: 'ACCOUNT',
     items: [
-      { id: 'profile', icon: '👤', title: 'My Profile' },
-      { id: 'password', icon: '🔑', title: 'Change Password' }
+      { id: 'profile', icon: User, title: 'My Profile' },
+      { id: 'password', icon: KeyRound, title: 'Change Password' }
     ]
   }
 ]
@@ -36,6 +52,33 @@ const pageTitles = {
   password: 'Change Password'
 }
 
+const formatDate = (value) => {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
+}
+
+const displayValue = (value) => (value === null || value === undefined ? '' : String(value))
+
+const isRegistrationStudentId = (value) => /^\d{3}-\d{4}$/.test(String(value || ''))
+
+const getInitials = (name = '') => {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) {
+    return 'S'
+  }
+  return parts.slice(0, 2).map((part) => part[0].toUpperCase()).join('')
+}
+
+const getStatIcon = (label) => {
+  if (label === 'Borrowed') return BookOpen
+  if (label === 'Overdue') return AlertTriangle
+  if (label === 'Returned') return CheckCircle2
+  return History
+}
+
 export function StudentDashboard() {
   const navigate = useNavigate()
   const [activePage, setActivePage] = useState('overview')
@@ -43,7 +86,6 @@ export function StudentDashboard() {
   const [profile, setProfile] = useState(null)
   const [popularBooks, setPopularBooks] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [profileForm, setProfileForm] = useState({ full_name: '', email: '', phone: '' })
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
@@ -52,6 +94,13 @@ export function StudentDashboard() {
   const [fetchError, setFetchError] = useState('')
   const [authStatus, setAuthStatus] = useState('pending')
   const [authMessage, setAuthMessage] = useState('')
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [editProfileForm, setEditProfileForm] = useState({
+    full_name: '',
+    email: ''
+  })
+  const [editProfileErrors, setEditProfileErrors] = useState({})
+  const [savingProfile, setSavingProfile] = useState(false)
 
   const addNotification = useCallback((text) => {
     const id = Date.now()
@@ -169,11 +218,6 @@ export function StudentDashboard() {
         return
       }
       setProfile(data)
-      setProfileForm({
-        full_name: data.full_name || data.name || '',
-        email: data.email || '',
-        phone: data.phone || ''
-      })
     } catch (err) {
       const message = err?.message || 'Unable to load profile.'
       console.error('[StudentDashboard] loadProfile error', err)
@@ -235,22 +279,79 @@ export function StudentDashboard() {
     [loans]
   )
 
-  async function handleUpdateProfile(event) {
+  const activeBorrowedBookIds = useMemo(
+    () => loans.filter((loan) => !loan.returned).map((loan) => loan.book_id),
+    [loans]
+  )
+
+  const studentNumber = profile?.student_number || (isRegistrationStudentId(profile?.student_id) ? profile.student_id : '')
+  const studentName = profile?.full_name || profile?.name || ''
+  const studentEmail = profile?.email || ''
+  const studentInitials = getInitials(studentName)
+
+  const openEditProfile = () => {
+    setEditProfileForm({
+      full_name: studentName,
+      email: studentEmail
+    })
+    setEditProfileErrors({})
+    setShowEditProfile(true)
+  }
+
+  const validateEditProfile = () => {
+    const errors = {}
+    const fullName = editProfileForm.full_name.trim()
+    const email = editProfileForm.email.trim()
+
+    if (!fullName) {
+      errors.full_name = 'Full name is required.'
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      errors.email = 'Enter a valid email address.'
+    }
+
+    setEditProfileErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  async function handleSaveProfile(event) {
     event.preventDefault()
+    if (!validateEditProfile()) {
+      return
+    }
+
+    setSavingProfile(true)
     try {
-      const response = await fetch('/api/students/profile', {
+      const token = getAuthToken()
+      const response = await fetch('/api/student/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profileForm)
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          full_name: editProfileForm.full_name.trim(),
+          email: editProfileForm.email.trim()
+        })
       })
-      if (response.ok) {
-        await loadProfile()
-        addNotification('Profile updated successfully.')
-      } else {
-        addNotification('Failed to update profile.')
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setEditProfileErrors({ form: data?.message || 'Unable to update profile.' })
+        return
       }
-    } catch {
-      addNotification('Error updating profile.')
+
+      if (data?.profile) {
+        setProfile(data.profile)
+      } else {
+        await loadProfile()
+      }
+      setShowEditProfile(false)
+      addNotification('Profile updated successfully.')
+    } catch (err) {
+      console.error('[StudentDashboard] save profile error', err)
+      setEditProfileErrors({ form: 'Unable to update profile. Please try again.' })
+    } finally {
+      setSavingProfile(false)
     }
   }
 
@@ -273,34 +374,55 @@ export function StudentDashboard() {
     }
   }
 
+  async function handleReturnLoan(loan) {
+    try {
+      await returnBook(Number(loan.loan_id))
+      await loadLoans()
+      addNotification(`Returned "${loan.book_title || 'book'}" successfully.`)
+    } catch (err) {
+      await loadLoans()
+      addNotification(err?.response?.data?.message || 'Unable to return this book.')
+    }
+  }
+
   function renderPage() {
     if (activePage === 'overview') {
       return (
         <>
           <div className="grid4">
-            {stats.map((stat) => (
-              <div key={stat.label} className={`stat ${stat.type}`}>
-                <div className="stat-label">{stat.label}</div>
-                <div className="stat-num">{stat.value}</div>
-                <div className="stat-sub">Total</div>
-                <div className="stat-icon">
-                  {stat.label === 'Borrowed' ? '📖' : stat.label === 'Overdue' ? '⏰' : stat.label === 'Returned' ? '✓' : '📚'}
+            {stats.map((stat) => {
+              const StatIcon = getStatIcon(stat.label)
+              return (
+                <div key={stat.label} className={`stat ${stat.type}`}>
+                  <div className="stat-label">{stat.label}</div>
+                  <div className="stat-num">{stat.value}</div>
+                  <div className="stat-sub">Total</div>
+                  <div className="stat-icon">
+                    <StatIcon size={34} strokeWidth={1.8} aria-hidden="true" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
           <div className="grid2">
             <div className="card">
               <div className="card-hdr"><div className="card-title">Welcome Back!</div></div>
+              <div className="student-id-hero">
+                <div className="student-id-label">Student ID</div>
+                <div className="student-id-value">{displayValue(studentNumber)}</div>
+              </div>
               <p>View your borrowed books, track due dates, and manage your account from this dashboard.</p>
-              <p style={{ marginTop: '12px', fontSize: '12px', color: 'var(--muted)' }}>Student ID: {profile?.user_id || '—'}</p>
+              <p style={{ marginTop: '12px', fontSize: '12px', color: 'var(--muted)' }}>
+                {studentName || 'Student'}{studentNumber ? ` - ${studentNumber}` : ''}
+              </p>
             </div>
             <div className="card">
               <div className="card-hdr"><div className="card-title">Quick Actions</div></div>
               <div style={{ display: 'grid', gap: '10px' }}>
                 <button className="btn btn-green" type="button" onClick={() => setActivePage('books')}>View My Books</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('reading')}>Reading History</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('profile')}>Edit Profile</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('history')}>Borrowing History</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('profile')}>View Profile</button>
               </div>
             </div>
           </div>
@@ -310,7 +432,7 @@ export function StudentDashboard() {
               <div className="admin-table-container">
                 <table>
                   <thead>
-                    <tr><th>Book</th><th>Issued</th><th>Due Date</th><th>Status</th></tr>
+                    <tr><th>Book</th><th>Issued</th><th>Due Date</th><th>Status</th><th>Action</th></tr>
                   </thead>
                   <tbody>
                     {loans.filter(l => !l.returned).slice(0, 5).map((loan) => {
@@ -321,7 +443,10 @@ export function StudentDashboard() {
                           <td>{new Date(loan.issue_date).toLocaleDateString()}</td>
                           <td>{new Date(loan.due_date).toLocaleDateString()}</td>
                           <td style={{ color: isOverdue ? 'var(--red)' : 'var(--green)' }}>
-                            {isOverdue ? '⚠ Overdue' : '✓ On Time'}
+                            {isOverdue ? 'Overdue' : 'On Time'}
+                          </td>
+                          <td>
+                            <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
                           </td>
                         </tr>
                       )
@@ -343,7 +468,7 @@ export function StudentDashboard() {
           <div className="admin-table-container">
             <table>
               <thead>
-                <tr><th>Book Title</th><th>Issued Date</th><th>Due Date</th><th>Days Left</th><th>Status</th></tr>
+                <tr><th>Book Title</th><th>Issued Date</th><th>Due Date</th><th>Days Left</th><th>Status</th><th>Action</th></tr>
               </thead>
               <tbody>
                 {borrowedLoans.map((loan) => {
@@ -357,7 +482,10 @@ export function StudentDashboard() {
                       <td style={{ color: isOverdue ? 'var(--red)' : daysLeft < 3 ? 'var(--gold)' : 'var(--green)', fontWeight: 'bold' }}>
                         {isOverdue ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days`}
                       </td>
-                      <td>{isOverdue ? '⚠ Overdue' : daysLeft < 3 ? '⏰ Due Soon' : '✓ Active'}</td>
+                      <td>{isOverdue ? 'Overdue' : daysLeft < 3 ? 'Due Soon' : 'Active'}</td>
+                      <td>
+                        <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -369,7 +497,16 @@ export function StudentDashboard() {
     }
 
     if (activePage === 'catalog') {
-      return <BookSearch initialKeyword={searchQuery} />
+      return (
+        <BookSearch
+          initialKeyword={searchQuery}
+          borrowedBookIds={activeBorrowedBookIds}
+          onBorrowed={async (book) => {
+            await loadLoans()
+            addNotification(`Borrowed "${book.title}" successfully.`)
+          }}
+        />
+      )
     }
 
     if (activePage === 'reading') {
@@ -472,7 +609,7 @@ export function StudentDashboard() {
                     <tr key={loan.loan_id}>
                       <td>{loan.book_title || loan.book_id}</td>
                       <td>{new Date(loan.issue_date).toLocaleDateString()}</td>
-                      <td>{loan.return_date ? new Date(loan.return_date).toLocaleDateString() : '—'}</td>
+                      <td>{loan.return_date ? new Date(loan.return_date).toLocaleDateString() : ''}</td>
                       <td>{duration} days</td>
                     </tr>
                   )
@@ -486,36 +623,31 @@ export function StudentDashboard() {
 
     if (activePage === 'profile') {
       return (
-        <div className="card">
-          <div className="card-hdr"><div className="card-title">My Profile</div></div>
-          <form className="admin-form" style={{ flexDirection: 'column' }} onSubmit={handleUpdateProfile}>
-            <div className="frow">
-              <div className="fgroup">
-                <label>Full Name</label>
-                <input value={profileForm.full_name} onChange={(event) => setProfileForm({ ...profileForm, full_name: event.target.value })} placeholder="Full Name" />
-              </div>
-              <div className="fgroup">
-                <label>Email</label>
-                <input type="email" value={profileForm.email} onChange={(event) => setProfileForm({ ...profileForm, email: event.target.value })} placeholder="Email" />
-              </div>
+        <div className="profile-layout">
+          <div className="card profile-summary-card">
+            <div className="profile-avatar">{studentInitials}</div>
+            <div className="profile-name">{studentName || 'Student'}</div>
+            <div className="profile-email">{displayValue(studentEmail)}</div>
+            <div className="profile-id-panel">
+              <div className="student-id-label">Student ID</div>
+              <div className="student-id-value">{displayValue(studentNumber)}</div>
             </div>
-            <div className="fgroup">
-              <label>Phone (optional)</label>
-              <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} placeholder="Phone" />
+          </div>
+
+          <div className="card">
+            <div className="card-hdr">
+              <div className="card-title">Student Profile</div>
+              <button className="btn btn-green btn-sm" type="button" onClick={openEditProfile}>Edit Profile</button>
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn btn-green" type="submit">Save Changes</button>
-              <button className="btn btn-outline" type="button" onClick={() => loadProfile()}>Cancel</button>
+            <div className="profile-detail-grid">
+              <div><span>Student ID</span><strong>{displayValue(studentNumber)}</strong></div>
+              <div><span>Full Name</span><strong>{displayValue(studentName)}</strong></div>
+              <div><span>Email Address</span><strong>{displayValue(studentEmail)}</strong></div>
+              <div><span>Department / Program</span><strong>{displayValue(profile?.department)}</strong></div>
+              <div><span>Year Level</span><strong>{displayValue(profile?.year_level)}</strong></div>
+              <div><span>Last Login</span><strong>{formatDate(profile?.last_login)}</strong></div>
             </div>
-          </form>
-          {profile && (
-            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
-              <h3 style={{ color: 'var(--text)', marginBottom: '12px' }}>Account Information</h3>
-              <p><strong>Student ID:</strong> {profile.user_id || '—'}</p>
-              <p><strong>Status:</strong> {profile.status || 'Active'}</p>
-              <p><strong>Joined:</strong> {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : '—'}</p>
-            </div>
-          )}
+          </div>
         </div>
       )
     }
@@ -551,7 +683,7 @@ export function StudentDashboard() {
     <div className="student-dashboard-app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-icon">📚</div>
+          <div className="logo-icon"><Library size={26} strokeWidth={1.8} aria-hidden="true" /></div>
           <div className="logo-title">LibraX</div>
           <div className="logo-sub">Student</div>
         </div>
@@ -559,29 +691,96 @@ export function StudentDashboard() {
           {navSections.map((section) => (
             <div key={section.section}>
               <div className="nav-section">{section.section}</div>
-              {section.items.map((item) => (
-                <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
-                  <span className="nav-icon">{item.icon}</span>
-                  <span>{item.title}</span>
-                  {item.badge && <span className="nav-badge">{item.badge}</span>}
-                </div>
-              ))}
+              {section.items.map((item) => {
+                const NavIcon = item.icon
+                return (
+                  <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
+                    <span className="nav-icon"><NavIcon size={17} strokeWidth={1.9} aria-hidden="true" /></span>
+                    <span>{item.title}</span>
+                    {item.badge && <span className="nav-badge">{item.badge}</span>}
+                  </div>
+                )
+              })}
             </div>
           ))}
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-user">
-            <div className="avatar">ST</div>
+            <div className="avatar">{studentInitials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {profile?.full_name || profile?.name || 'Student'}
+                {studentName || 'Student'}
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{profile?.email || 'student@librax.edu'}</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{displayValue(studentEmail || studentNumber)}</div>
             </div>
-            <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
+            <button className="icon-button logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)}>
+              <LogOut size={16} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>
+      {showEditProfile && (
+        <div className="modal-overlay" role="presentation" onClick={() => !savingProfile && setShowEditProfile(false)}>
+          <div className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div id="edit-profile-title" className="modal-title">Edit Profile</div>
+                <div className="modal-subtitle">Student ID, department / program, and year level come from your approved registration.</div>
+              </div>
+              <button className="modal-close" type="button" disabled={savingProfile} onClick={() => setShowEditProfile(false)} aria-label="Close edit profile">
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+
+            <form className="profile-modal-form" onSubmit={handleSaveProfile}>
+              {editProfileErrors.form && <div className="form-error">{editProfileErrors.form}</div>}
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Student ID</label>
+                  <input value={displayValue(studentNumber)} readOnly />
+                </div>
+                <div className="fgroup">
+                  <label>Department / Program</label>
+                  <input value={displayValue(profile?.department)} readOnly />
+                </div>
+              </div>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Year Level</label>
+                  <input value={displayValue(profile?.year_level)} readOnly />
+                </div>
+                <div className="fgroup">
+                  <label>Last Login</label>
+                  <input value={formatDate(profile?.last_login)} readOnly />
+                </div>
+              </div>
+              <div className="fgroup">
+                <label>Full Name</label>
+                <input
+                  value={editProfileForm.full_name}
+                  onChange={(event) => setEditProfileForm({ ...editProfileForm, full_name: event.target.value })}
+                  autoComplete="name"
+                />
+                {editProfileErrors.full_name && <div className="field-error">{editProfileErrors.full_name}</div>}
+              </div>
+              <div className="fgroup">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  value={editProfileForm.email}
+                  onChange={(event) => setEditProfileForm({ ...editProfileForm, email: event.target.value })}
+                  autoComplete="email"
+                />
+                {editProfileErrors.email && <div className="field-error">{editProfileErrors.email}</div>}
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-outline" type="button" disabled={savingProfile} onClick={() => setShowEditProfile(false)}>Cancel</button>
+                <button className="btn btn-green" type="submit" disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {showLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', color: 'var(--text)' }}>
@@ -598,13 +797,14 @@ export function StudentDashboard() {
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
           <div className="search-wrap">
+            <Search className="search-icon" size={15} strokeWidth={2} aria-hidden="true" />
             <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
           </div>
           <div style={{ position: 'relative' }}>
-            <span style={{ fontSize: '18px', cursor: 'pointer', position: 'relative' }} onClick={() => setShowNotifications(!showNotifications)}>
-              🔔
+            <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
+              <Bell size={18} aria-hidden="true" />
               {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
-            </span>
+            </button>
             {showNotifications && (
               <div className="notif-panel">
                 <div className="notif-header">Notifications</div>
@@ -615,7 +815,9 @@ export function StudentDashboard() {
                     notifications.map(notif => (
                       <div key={notif.id} className="notif-item">
                         <div className="notif-text">{notif.text}</div>
-                        <button onClick={() => removeNotification(notif.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                        <button className="icon-button" type="button" onClick={() => removeNotification(notif.id)} aria-label="Dismiss notification">
+                          <X size={14} aria-hidden="true" />
+                        </button>
                       </div>
                     ))
                   )}
@@ -623,7 +825,7 @@ export function StudentDashboard() {
               </div>
             )}
           </div>
-          <div className="avatar">ST</div>
+          <div className="avatar">{studentInitials}</div>
         </div>
         <div className="content">
           {authStatus === 'unauthorized' ? (

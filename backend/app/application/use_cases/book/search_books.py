@@ -5,11 +5,20 @@ class SearchBooksUseCase:
     def __init__(self, book_repository: BookRepository):
         self.book_repository = book_repository
 
-    def execute(self, title: str = '', author: str = '', category: str = '', isbn: str = '', availability: str = ''):
+    def execute(
+        self,
+        title: str = '',
+        author: str = '',
+        category: str = '',
+        isbn: str = '',
+        availability: str = '',
+        history: str = '',
+    ):
         return self.book_repository.search_books(
             title=title,
             author=author,
             category=category,
             isbn=isbn,
-            availability=availability
+            availability=availability,
+            history=history,
         )

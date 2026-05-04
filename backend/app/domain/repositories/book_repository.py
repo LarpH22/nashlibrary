@@ -15,7 +15,15 @@ class BookRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def search_books(self, title: str = '', author: str = '', category: str = '', isbn: str = '', availability: str = ''):
+    def search_books(
+        self,
+        title: str = '',
+        author: str = '',
+        category: str = '',
+        isbn: str = '',
+        availability: str = '',
+        history: str = '',
+    ):
         raise NotImplementedError
 
     @abstractmethod
