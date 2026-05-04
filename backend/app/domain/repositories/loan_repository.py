@@ -21,3 +21,7 @@ class LoanRepository(ABC):
     @abstractmethod
     def calculate_fine(self, loan_id: int):
         raise NotImplementedError
+
+    @abstractmethod
+    def find_loans_due_soon(self, days_before_due=3):
+        raise NotImplementedError

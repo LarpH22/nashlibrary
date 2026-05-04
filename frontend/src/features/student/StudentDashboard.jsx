@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookSearch } from '../books/BookSearch.jsx'
+import { fetchMostBorrowedBooks } from '../books/bookService.js'
 import './StudentDashboard.css'
 
 const navSections = [
@@ -9,7 +10,9 @@ const navSections = [
     items: [
       { id: 'overview', icon: '📊', title: 'Overview' },
       { id: 'books', icon: '📖', title: 'My Borrowed Books' },
+      { id: 'popular', icon: '🔥', title: 'Top Books' },
       { id: 'catalog', icon: '🔍', title: 'Search Catalog' },
+      { id: 'reading', icon: '📘', title: 'Reading History' },
       { id: 'history', icon: '📚', title: 'Borrowing History' }
     ]
   },
@@ -25,7 +28,9 @@ const navSections = [
 const pageTitles = {
   overview: 'Overview',
   books: 'My Borrowed Books',
+  popular: 'Top Books',
   catalog: 'Search Catalog',
+  reading: 'Reading History',
   history: 'Borrowing History',
   profile: 'My Profile',
   password: 'Change Password'
@@ -36,6 +41,7 @@ export function StudentDashboard() {
   const [activePage, setActivePage] = useState('overview')
   const [loans, setLoans] = useState([])
   const [profile, setProfile] = useState(null)
+  const [popularBooks, setPopularBooks] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [profileForm, setProfileForm] = useState({ full_name: '', email: '', phone: '' })
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
@@ -176,6 +182,16 @@ export function StudentDashboard() {
     }
   }, [addNotification, getAuthToken, redirectToLogin])
 
+  const loadPopularBooks = useCallback(async () => {
+    try {
+      const response = await fetchMostBorrowedBooks(5)
+      setPopularBooks(Array.isArray(response?.books) ? response.books : [])
+    } catch (err) {
+      console.error('[StudentDashboard] loadPopularBooks error', err)
+      addNotification('Unable to load the most borrowed books.')
+    }
+  }, [addNotification])
+
   useEffect(() => {
     const token = getAuthToken()
     const storedRole = localStorage.getItem('user_role')
@@ -199,17 +215,19 @@ export function StudentDashboard() {
     setAuthStatus('authorized')
     setLoading(true)
     setFetchError('')
-    Promise.allSettled([loadLoans(), loadProfile()]).finally(() => setLoading(false))
-  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, redirectToLogin])
+    Promise.allSettled([loadLoans(), loadProfile(), loadPopularBooks()]).finally(() => setLoading(false))
+  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, redirectToLogin])
 
   const stats = useMemo(
     () => {
       const active = loans.filter(l => !l.returned).length
       const overdue = loans.filter(l => !l.returned && new Date(l.due_date) < new Date()).length
       const returned = loans.filter(l => l.returned).length
+      const overdueRate = loans.length > 0 ? Math.round((overdue / loans.length) * 100) : 0
       return [
         { label: 'Borrowed', value: active, type: 'green' },
         { label: 'Overdue', value: overdue, type: 'red' },
+        { label: 'Overdue Rate', value: `${overdueRate}%`, type: 'gold' },
         { label: 'Returned', value: returned, type: 'blue' },
         { label: 'Total Loans', value: loans.length, type: 'purple' }
       ]
@@ -281,7 +299,7 @@ export function StudentDashboard() {
               <div className="card-hdr"><div className="card-title">Quick Actions</div></div>
               <div style={{ display: 'grid', gap: '10px' }}>
                 <button className="btn btn-green" type="button" onClick={() => setActivePage('books')}>View My Books</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('history')}>Borrowing History</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('reading')}>Reading History</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('profile')}>Edit Profile</button>
               </div>
             </div>
@@ -352,6 +370,89 @@ export function StudentDashboard() {
 
     if (activePage === 'catalog') {
       return <BookSearch initialKeyword={searchQuery} />
+    }
+
+    if (activePage === 'reading') {
+      const readingHistory = loans
+      return (
+        <div className="card">
+          <div className="card-hdr"><div className="card-title">Reading History</div></div>
+          <p>Review your student eLibrary history for all borrowed books, including active reads and completed returns.</p>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Book Title</th>
+                  <th>Issued</th>
+                  <th>Returned</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readingHistory.length === 0 ? (
+                  <tr><td colSpan="5" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No reading history found yet.</td></tr>
+                ) : (
+                  readingHistory.map((loan) => {
+                    const issuedDate = new Date(loan.issue_date)
+                    const returnedDate = loan.return_date ? new Date(loan.return_date) : null
+                    const durationDays = Math.ceil(((returnedDate || new Date()) - issuedDate) / (1000 * 60 * 60 * 24))
+                    const isOverdue = !loan.returned && new Date(loan.due_date) < new Date()
+                    return (
+                      <tr key={loan.loan_id}>
+                        <td>{loan.book_title || loan.book_id}</td>
+                        <td>{issuedDate.toLocaleDateString()}</td>
+                        <td>{returnedDate ? returnedDate.toLocaleDateString() : 'In progress'}</td>
+                        <td>{durationDays} day{durationDays === 1 ? '' : 's'}</td>
+                        <td style={{ color: loan.returned ? 'var(--blue)' : isOverdue ? 'var(--red)' : 'var(--green)' }}>
+                          {loan.returned ? 'Returned' : isOverdue ? 'Overdue' : 'In progress'}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
+    if (activePage === 'popular') {
+      return (
+        <div className="card">
+          <div className="card-hdr"><div className="card-title">Top Borrowed Books</div></div>
+          <p>These are the most borrowed books in the system, with current availability status.</p>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Borrowed</th>
+                  <th>Availability</th>
+                </tr>
+              </thead>
+              <tbody>
+                {popularBooks.length === 0 ? (
+                  <tr><td colSpan="4" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No data available.</td></tr>
+                ) : (
+                  popularBooks.map((book) => (
+                    <tr key={book.book_id || book.id}>
+                      <td>{book.title}</td>
+                      <td>{book.author}</td>
+                      <td>{book.borrow_count ?? 0}</td>
+                      <td style={{ color: book.status === 'borrowed' || book.available_copies === 0 ? 'var(--red)' : 'var(--green)' }}>
+                        {book.status === 'borrowed' || book.available_copies === 0 ? 'Borrowed' : 'Available'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
     }
 
     if (activePage === 'history') {

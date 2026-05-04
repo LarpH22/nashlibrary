@@ -55,6 +55,31 @@ class BookRepositoryImpl(BookRepository):
                 cur.execute(query, tuple(params))
                 return cur.fetchall()
 
+    def most_borrowed_books(self, limit: int = 5):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        b.book_id,
+                        b.title,
+                        b.author,
+                        b.isbn,
+                        b.category,
+                        b.status,
+                        b.available_copies,
+                        b.total_copies,
+                        COUNT(br.borrow_id) AS borrow_count
+                    FROM books b
+                    LEFT JOIN borrow_records br ON b.book_id = br.book_id
+                    GROUP BY b.book_id, b.title, b.author, b.isbn, b.category, b.status, b.available_copies, b.total_copies
+                    ORDER BY borrow_count DESC, b.title ASC
+                    LIMIT %s
+                    """,
+                    (limit,)
+                )
+                return cur.fetchall()
+
     def find_by_id(self, book_id: int):
         with get_connection() as conn:
             with conn.cursor() as cur:

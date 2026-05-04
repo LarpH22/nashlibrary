@@ -7,16 +7,15 @@ from .book_routes import book_bp
 from .book_search_routes import book_search_bp
 from .fine_routes import fine_bp
 from .admin_routes import admin_bp
+from .reminder_routes import reminder_bp
 
 
 def register_blueprints(app):
     """Register all route blueprints with the Flask app."""
-    print("Registering blueprints")
     # Root routes (health check, etc.)
     app.register_blueprint(root_bp)
     # Auth routes: /api/auth/login, /api/auth/register, /api/auth/profile
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    print("Auth blueprint registered at /api/auth")
     # Student routes: /api/students/profile
     app.register_blueprint(student_bp, url_prefix='/api/students')
     # Loan routes: /api/loans/student
@@ -31,3 +30,5 @@ def register_blueprints(app):
     app.register_blueprint(book_search_bp, url_prefix='/api/books')
     # Fine routes: /fines/*
     app.register_blueprint(fine_bp, url_prefix='/fines')
+    # Reminder routes: /reminders/*
+    app.register_blueprint(reminder_bp, url_prefix='/api/reminders')

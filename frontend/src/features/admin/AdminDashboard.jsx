@@ -68,6 +68,7 @@ export function AdminDashboard() {
   const [studentId, setStudentId] = useState('')
   const [student, setStudent] = useState(null)
   const [message, setMessage] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -220,12 +221,28 @@ export function AdminDashboard() {
 
   async function handleChangePassword(event) {
     event.preventDefault()
+    setPasswordError('')
+
+    if (!passwordForm.old_password || !passwordForm.new_password) {
+      setPasswordError('Both password fields are required.')
+      return
+    }
+
+    if (passwordForm.new_password.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.')
+      return
+    }
+
     try {
       await changePassword(passwordForm.old_password, passwordForm.new_password)
       setPasswordForm({ old_password: '', new_password: '' })
       setMessage('Password changed successfully.')
-    } catch {
+      setPasswordError('')
+    } catch (error) {
+      console.error('Password change error:', error)
+      const errorMsg = error.response?.data?.message || error.message || 'Password change failed.'
       setMessage('Password change failed.')
+      setPasswordError(errorMsg)
     }
   }
 
@@ -576,10 +593,11 @@ export function AdminDashboard() {
           <div className="card-hdr"><div className="card-title">Change Password</div></div>
           <form className="admin-form" onSubmit={handleChangePassword}>
             <div className="frow">
-              <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => setPasswordForm({ ...passwordForm, old_password: event.target.value })} placeholder="Current password" /></div>
-              <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })} placeholder="New password" /></div>
+              <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => { setPasswordForm({ ...passwordForm, old_password: event.target.value }); setPasswordError('') }} placeholder="Current password" /></div>
+              <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError('') }} placeholder="New password" /></div>
             </div>
             <button className="btn btn-gold" type="submit">Save password</button>
+            {passwordError && <div className="password-error">{passwordError}</div>}
           </form>
         </div>
       )

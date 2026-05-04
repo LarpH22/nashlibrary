@@ -19,3 +19,8 @@ export async function returnBook(loanId) {
   const response = await api.post('/books/return', { loan_id: loanId })
   return response.data
 }
+
+export async function fetchMostBorrowedBooks(limit = 5) {
+  const response = await api.get('/api/books/most-borrowed', { params: { limit } })
+  return response.data
+}

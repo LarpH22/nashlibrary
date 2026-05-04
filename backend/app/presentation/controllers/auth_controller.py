@@ -250,6 +250,49 @@ class AuthController:
         except Exception as e:
             return jsonify({'message': 'Failed to reset password', 'error': str(e)}), 500
 
+    def change_password(self):
+        """Change password for the authenticated student"""
+        try:
+            data = request.get_json() or {}
+            old_password = data.get('old_password')
+            new_password = data.get('new_password')
+
+            if not old_password or not new_password:
+                return jsonify({'message': 'Old and new passwords are required'}), 400
+
+            if len(new_password) < 6:
+                return jsonify({'message': 'Password must be at least 6 characters'}), 400
+
+            jwt_claims = get_jwt()
+            email = jwt_claims.get('email')
+            role = jwt_claims.get('role')
+
+            if role != 'student':
+                return jsonify({'message': 'Student access required'}), 403
+
+            account = self.student_repo.find_student_by_email(email)
+            if not account:
+                return jsonify({'message': 'Account not found'}), 404
+
+            if not self.auth_service.verify_password(old_password, account.get('password_hash', '')):
+                return jsonify({'message': 'Old password is incorrect'}), 401
+
+            new_hash = self.auth_service.hash_password(new_password)
+            updated = self.student_repo.update_student_password_and_clear_token(
+                account.get('student_id'),
+                new_hash
+            )
+
+            if not updated:
+                return jsonify({'message': 'Failed to update password'}), 500
+
+            return jsonify({'message': 'Password updated successfully'}), 200
+
+        except ValueError as e:
+            return jsonify({'message': str(e)}), 400
+        except Exception as e:
+            return jsonify({'message': 'Failed to change password', 'error': str(e)}), 500
+
     def profile(self):
         """Get the profile of the authenticated user using JWT identity."""
         raise NotImplementedError('Use JWT identity from get_jwt_identity() in routes')

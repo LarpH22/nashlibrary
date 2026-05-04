@@ -29,6 +29,10 @@ class StudentAuthRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update_student_password(self, student_id: int, password_hash: str):
+        raise NotImplementedError
+
+    @abstractmethod
     def create_registration_request(self, email: str, full_name: str, password_hash: str,
                                    student_number: str, registration_document: str,
                                    verification_token: str):

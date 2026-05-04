@@ -79,3 +79,13 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
   .frow{grid-template-columns:1fr}
   .search-input{width:100%}
 }
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,17,23,0.8);display:flex;align-items:center;justify-content:center;z-index:2000}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.modal-header{margin-bottom:16px;text-align:center}
+.modal-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text);font-weight:600}
+.modal-body{text-align:center;margin-bottom:20px}
+.modal-message{font-size:14px;color:var(--text)}
+.modal-footer{display:flex;justify-content:center}
+.btn-close{background:var(--green);color:#0f1117;padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer;border:none;font-weight:500}
+.btn-close:hover{background:#26b877}
+.password-error{color:var(--red);font-size:13px;margin-top:12px;text-align:center;font-weight:500}
