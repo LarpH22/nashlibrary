@@ -3939,3 +3939,4 @@ TypeError: can only concatenate tuple (not "list") to tuple
 2026-05-05 04:31:47,990 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:31:47] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
 2026-05-05 04:31:48,093 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:31:48] "GET /api/loans/student HTTP/1.1" 200 -
 2026-05-05 04:33:15,788 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:33:15] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 04:33:17,681 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:33:17] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
