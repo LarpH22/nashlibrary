@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginUser, forgotPassword } from './authService.js'
+import { clearStoredAuth, saveLoginSession } from '../../shared/authStorage.js'
 
 export function Login({ onLoginSuccess }) {
   const navigate = useNavigate()
@@ -20,14 +21,12 @@ export function Login({ onLoginSuccess }) {
     event.preventDefault()
     setIsLoading(true)
     try {
+      clearStoredAuth()
       const data = await loginUser({
         email: form.email,
         password: form.password
       })
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('token', data.access_token)
-      localStorage.setItem('user_role', data.role)
-      localStorage.setItem('user_email', data.email)
+      saveLoginSession(data)
       if (onLoginSuccess) {
         onLoginSuccess()
       }

@@ -192,13 +192,31 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
     def find_registration_request_by_email(self, email: str):
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT * FROM registration_requests WHERE email=%s LIMIT 1", (email,))
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM registration_requests
+                    WHERE email=%s
+                      AND (status IS NULL OR status='pending')
+                    LIMIT 1
+                    """,
+                    (email,),
+                )
                 return cur.fetchone()
 
     def find_registration_request_by_student_number(self, student_number: str):
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT * FROM registration_requests WHERE student_number=%s LIMIT 1", (student_number,))
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM registration_requests
+                    WHERE student_number=%s
+                      AND (status IS NULL OR status='pending')
+                    LIMIT 1
+                    """,
+                    (student_number,),
+                )
                 return cur.fetchone()
 
     def find_registration_request_by_token(self, token: str):

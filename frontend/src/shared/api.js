@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearStoredAuth, getStoredAuthToken, isJwtExpired } from './authStorage.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:5000')
 
@@ -10,8 +11,13 @@ const api = axios.create({
 // Request interceptor - add auth token and correct content type for FormData
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
+    const token = getStoredAuthToken()
     if (token) {
+      if (isJwtExpired(token)) {
+        clearStoredAuth()
+        return Promise.reject(new axios.Cancel('Session expired'))
+      }
+
       config.headers.Authorization = `Bearer ${token}`
     }
 
@@ -38,10 +44,12 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = error.config?.url || ''
+    const isAuthRequest = requestUrl.includes('/api/auth/login') || requestUrl.includes('/api/auth/register')
+
+    if (error.response?.status === 401 && !isAuthRequest) {
       console.warn('[API] Unauthorized - clearing token')
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user_role')
+      clearStoredAuth()
     }
     console.error(`[API] Error ${error.response?.status}:`, error.response?.data || error.message)
     return Promise.reject(error)

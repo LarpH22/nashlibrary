@@ -44,6 +44,7 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--blue)}
 .stat.green::before{background:var(--green)}
 .stat.red::before{background:var(--red)}
+.stat.gold::before{background:var(--gold)}
 .stat.purple::before{background:var(--purple)}
 .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
 .stat-num{font-size:32px;color:var(--text);font-weight:600;margin:8px 0}
@@ -73,6 +74,9 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .admin-table-container th{padding:12px;text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-size:11px}
 .admin-table-container td{padding:12px;border-bottom:1px solid var(--border);color:var(--text)}
 .admin-table-container tbody tr:hover{background:var(--bg3)}
+.table-date-input{height:34px;min-width:132px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-family:'DM Sans',sans-serif}
+.table-date-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 8px rgba(91,138,224,0.2)}
+.row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 @media (max-width:768px){
   .grid2{grid-template-columns:1fr}
   .grid4{grid-template-columns:1fr}
