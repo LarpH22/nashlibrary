@@ -1,4 +1,5 @@
 from flask import jsonify, request
+import math
 
 from ...application.use_cases.book.most_borrowed_books import MostBorrowedBooksUseCase
 from ...application.use_cases.book.search_books import SearchBooksUseCase
@@ -19,19 +20,36 @@ class BookSearchController:
         isbn = request.args.get('isbn', '').strip()
         availability = request.args.get('availability', '').strip().lower()
         history = request.args.get('history', '').strip().lower()
+        page = max(1, request.args.get('page', 1, type=int) or 1)
+        limit = request.args.get('limit', 10, type=int) or 10
+        limit = max(1, min(limit, 100))
 
         search_title = title or keyword
 
-        books = self.search_books_use_case.execute(
+        result = self.search_books_use_case.execute(
             title=search_title,
             author=author,
             category=category,
             isbn=isbn,
             availability=availability,
             history=history,
+            page=page,
+            limit=limit,
         )
 
-        return jsonify({'books': books}), 200
+        if isinstance(result, dict):
+            return jsonify(result), 200
+
+        total = len(result)
+        return jsonify({
+            'books': result,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total': total,
+                'total_pages': max(1, math.ceil(total / limit)),
+            },
+        }), 200
 
     def most_borrowed_books(self):
         limit = request.args.get('limit', 5, type=int)

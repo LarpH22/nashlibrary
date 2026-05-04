@@ -23,6 +23,8 @@ class BookRepository(ABC):
         isbn: str = '',
         availability: str = '',
         history: str = '',
+        page: int | None = None,
+        limit: int | None = None,
     ):
         raise NotImplementedError
 

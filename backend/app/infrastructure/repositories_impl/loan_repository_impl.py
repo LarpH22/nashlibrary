@@ -11,6 +11,63 @@ logger = logging.getLogger(__name__)
 
 
 class LoanRepositoryImpl(LoanRepository):
+    def create_loan_for_copy(self, copy_id: int, user_id: int, borrowed_at, due_date):
+        with get_connection() as conn:
+            try:
+                ensure_inventory_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT copy_id, book_id, status
+                        FROM book_copies
+                        WHERE copy_id=%s
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (copy_id,),
+                    )
+                    copy = cur.fetchone()
+                    if not copy:
+                        raise ValueError('Book copy not found')
+                    if copy.get('status') != 'available':
+                        raise ValueError('Book copy is not available')
+
+                    cur.execute(
+                        """
+                        SELECT borrow_id
+                        FROM borrow_records
+                        WHERE copy_id=%s
+                          AND return_date IS NULL
+                          AND status IN ('active', 'borrowed', 'overdue')
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (copy_id,),
+                    )
+                    if cur.fetchone():
+                        raise ValueError('This book copy is already borrowed')
+
+                    cur.execute(
+                        """
+                        INSERT INTO borrow_records
+                            (student_id, book_id, copy_id, borrow_date, due_date, status)
+                        VALUES (%s, %s, %s, %s, %s, 'active')
+                        """,
+                        (user_id, copy['book_id'], copy_id, borrowed_at, due_date),
+                    )
+                    loan_id = cur.lastrowid
+                    cur.execute(
+                        "UPDATE book_copies SET status='borrowed' WHERE copy_id=%s AND status='available'",
+                        (copy_id,),
+                    )
+                    if cur.rowcount == 0:
+                        raise ValueError('Book copy is not available')
+                conn.commit()
+                return loan_id
+            except Exception:
+                conn.rollback()
+                raise
+
     def create_loan(self, book_id: int, user_id: int, borrowed_at, due_date):
         with get_connection() as conn:
             try:
@@ -67,6 +124,30 @@ class LoanRepositoryImpl(LoanRepository):
             except Exception:
                 conn.rollback()
                 raise
+
+    def close_loan_by_copy_code(self, scan_code: str, returned_at, student_id: int | None = None):
+        with get_connection() as conn:
+            ensure_inventory_schema(conn)
+            conn.commit()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT br.borrow_id
+                    FROM book_copies bc
+                    JOIN borrow_records br ON br.copy_id = bc.copy_id
+                    WHERE (bc.copy_code=%s OR bc.barcode_value=%s OR bc.qr_token=%s)
+                      AND br.return_date IS NULL
+                      AND br.status IN ('active', 'borrowed', 'overdue')
+                      {student_filter}
+                    ORDER BY br.borrow_id DESC
+                    LIMIT 1
+                    """.format(student_filter="AND br.student_id=%s" if student_id is not None else ""),
+                    (scan_code, scan_code, scan_code, student_id) if student_id is not None else (scan_code, scan_code, scan_code),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return self.close_loan(row['borrow_id'], returned_at, student_id)
 
     def close_loan(self, loan_id: int, returned_at, student_id: int | None = None):
         with get_connection() as conn:
@@ -273,3 +354,46 @@ class LoanRepositoryImpl(LoanRepository):
         except Exception as exc:
             logger.exception('Failed to query loans due soon')
             raise
+
+    def find_overdue_loans(self):
+        try:
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            br.borrow_id,
+                            br.student_id,
+                            br.book_id,
+                            b.title AS book_title,
+                            br.due_date,
+                            DATEDIFF(CURDATE(), br.due_date) AS days_overdue,
+                            s.email AS student_email,
+                            s.full_name AS student_name
+                        FROM borrow_records br
+                        LEFT JOIN books b ON br.book_id = b.book_id
+                        LEFT JOIN students s ON br.student_id = s.student_id
+                        WHERE br.return_date IS NULL
+                          AND br.status IN ('active', 'borrowed', 'overdue')
+                          AND DATE(br.due_date) < CURDATE()
+                          AND s.email IS NOT NULL
+                        ORDER BY br.due_date ASC
+                        """
+                    )
+                    return cur.fetchall()
+        except Exception:
+            logger.exception('Failed to query overdue loans')
+            raise
+
+    def record_reminder(self, borrow_id: int, reminder_type: str, sent_to: str, status: str = 'sent', error_message: str | None = None):
+        with get_connection() as conn:
+            ensure_inventory_schema(conn)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO loan_reminders (borrow_id, reminder_type, sent_to, status, error_message)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (borrow_id, reminder_type, sent_to, status, error_message),
+                )
+                conn.commit()

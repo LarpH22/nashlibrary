@@ -27,6 +27,36 @@ const emptyFilters = {
   history: ''
 }
 
+const pageSize = 10
+
+const buildPageItems = (currentPage, totalPages) => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1)
+  }
+
+  const pages = new Set([1, totalPages, currentPage, currentPage - 1, currentPage + 1])
+  if (currentPage <= 3) {
+    pages.add(2)
+    pages.add(3)
+    pages.add(4)
+  }
+  if (currentPage >= totalPages - 2) {
+    pages.add(totalPages - 1)
+    pages.add(totalPages - 2)
+    pages.add(totalPages - 3)
+  }
+
+  const sorted = [...pages].filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b)
+  return sorted.reduce((items, page) => {
+    const previous = items[items.length - 1]
+    if (typeof previous === 'number' && page - previous > 1) {
+      items.push(`ellipsis-${previous}-${page}`)
+    }
+    items.push(page)
+    return items
+  }, [])
+}
+
 export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrowed }) {
   const [title, setTitle] = useState(initialKeyword)
   const [author, setAuthor] = useState('')
@@ -38,6 +68,12 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
   const [loading, setLoading] = useState(false)
   const [borrowingId, setBorrowingId] = useState(null)
   const [error, setError] = useState('')
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: pageSize,
+    total: 0,
+    total_pages: 1
+  })
   const activeBorrowedIds = useMemo(() => new Set(borrowedBookIds.map((id) => Number(id))), [borrowedBookIds])
 
   const categories = useMemo(() => {
@@ -48,15 +84,22 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
 
   const currentFilters = () => ({ title, author, category, isbn, availability, history })
 
-  const loadBooks = async (filters = currentFilters()) => {
+  const loadBooks = async (filters = currentFilters(), page = 1) => {
     setLoading(true)
     setError('')
     try {
-      const response = await searchBooks(filters)
+      const response = await searchBooks({ ...filters, page, limit: pageSize })
       setBooks(response.books || [])
+      setPagination(response.pagination || {
+        page,
+        limit: pageSize,
+        total: response.books?.length || 0,
+        total_pages: 1
+      })
     } catch (err) {
       setError('Unable to load book results. Please try again.')
       setBooks([])
+      setPagination({ page: 1, limit: pageSize, total: 0, total_pages: 1 })
     } finally {
       setLoading(false)
     }
@@ -72,7 +115,7 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    await loadBooks()
+    await loadBooks(currentFilters(), 1)
   }
 
   const clearFilters = async () => {
@@ -82,7 +125,16 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
     setIsbn('')
     setAvailability('')
     setHistory('')
-    await loadBooks(emptyFilters)
+    await loadBooks(emptyFilters, 1)
+  }
+
+  const goToPage = async (page) => {
+    const totalPages = pagination.total_pages || 1
+    const nextPage = Math.min(Math.max(page, 1), totalPages)
+    if (nextPage === pagination.page || loading) {
+      return
+    }
+    await loadBooks(currentFilters(), nextPage)
   }
 
   const handleBorrow = async (book) => {
@@ -90,18 +142,23 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
     setBorrowingId(book.book_id)
     try {
       await borrowBook({ book_id: book.book_id })
-      await loadBooks()
+      await loadBooks(currentFilters(), pagination.page)
       if (onBorrowed) {
         await onBorrowed(book)
       }
     } catch (err) {
       const message = err?.response?.data?.message || 'Unable to borrow this book. Please try again.'
-      await loadBooks()
+      await loadBooks(currentFilters(), pagination.page)
       setError(message)
     } finally {
       setBorrowingId(null)
     }
   }
+
+  const totalPages = pagination.total_pages || 1
+  const pageItems = buildPageItems(pagination.page || 1, totalPages)
+  const firstResult = pagination.total === 0 ? 0 : ((pagination.page - 1) * pagination.limit) + 1
+  const lastResult = Math.min(pagination.page * pagination.limit, pagination.total)
 
   return (
     <div className="card">
@@ -153,7 +210,9 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
       </form>
       <div style={{ marginTop: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{books.length} results</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            {pagination.total > 0 ? `${firstResult}-${lastResult} of ${pagination.total} results` : '0 results'}
+          </div>
           {loading && <div style={{ color: 'var(--green)', fontSize: '13px' }}>Loading books...</div>}
         </div>
         {error && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{error}</div>}
@@ -211,6 +270,44 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <nav className="catalog-pagination" aria-label="Book catalog pagination">
+            <button
+              className="catalog-page-button catalog-page-arrow"
+              type="button"
+              disabled={loading || pagination.page <= 1}
+              onClick={() => goToPage(pagination.page - 1)}
+            >
+              Previous
+            </button>
+            <div className="catalog-page-numbers">
+              {pageItems.map((item) => (
+                typeof item === 'number' ? (
+                  <button
+                    key={item}
+                    className={`catalog-page-button ${item === pagination.page ? 'active' : ''}`}
+                    type="button"
+                    disabled={loading}
+                    aria-current={item === pagination.page ? 'page' : undefined}
+                    onClick={() => goToPage(item)}
+                  >
+                    {item}
+                  </button>
+                ) : (
+                  <span key={item} className="catalog-page-ellipsis">...</span>
+                )
+              ))}
+            </div>
+            <button
+              className="catalog-page-button catalog-page-arrow"
+              type="button"
+              disabled={loading || pagination.page >= totalPages}
+              onClick={() => goToPage(pagination.page + 1)}
+            >
+              Next
+            </button>
+          </nav>
+        )}
       </div>
     </div>
   )

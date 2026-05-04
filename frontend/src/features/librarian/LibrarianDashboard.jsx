@@ -10,6 +10,7 @@ const navSections = [
       { id: 'overview', icon: '📊', title: 'Overview' },
       { id: 'issue-return', icon: '📖', title: 'Issue / Return Books' },
       { id: 'availability', icon: '🔍', title: 'Book Availability' },
+      { id: 'ebooks', icon: 'PDF', title: 'E-books' },
       { id: 'overdue', icon: '⏰', title: 'Overdue Books', badge: '5' }
     ]
   },
@@ -32,6 +33,7 @@ const pageTitles = {
   overview: 'Overview',
   'issue-return': 'Issue / Return Books',
   availability: 'Book Availability',
+  ebooks: 'E-books',
   overdue: 'Overdue Books',
   students: 'Student Records',
   search: 'Search Books',
@@ -42,10 +44,19 @@ export function LibrarianDashboard() {
   const navigate = useNavigate()
   const [activePage, setActivePage] = useState('overview')
   const [books, setBooks] = useState([])
+  const [availabilityBooks, setAvailabilityBooks] = useState([])
+  const [availabilityFilters, setAvailabilityFilters] = useState({ title: '', author: '', category: '', isbn: '', availability: '' })
+  const [availabilityPagination, setAvailabilityPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [loans, setLoans] = useState([])
+  const [copies, setCopies] = useState([])
+  const [ebooks, setEbooks] = useState([])
   const [students, setStudents] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [issueForm, setIssueForm] = useState({ book_id: '', student_id: '' })
+  const [scanForm, setScanForm] = useState({ code: '', student_id: '' })
+  const [scanResult, setScanResult] = useState(null)
+  const [ebookForm, setEbookForm] = useState({ book_id: '', title: '', file: null })
   const [returnLoanId, setReturnLoanId] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [notifications, setNotifications] = useState([])
@@ -64,7 +75,10 @@ export function LibrarianDashboard() {
   }
 
   const safeBooks = useMemo(() => (Array.isArray(books) ? books : []), [books])
+  const safeAvailabilityBooks = useMemo(() => (Array.isArray(availabilityBooks) ? availabilityBooks : []), [availabilityBooks])
   const safeLoans = useMemo(() => (Array.isArray(loans) ? loans : []), [loans])
+  const safeCopies = useMemo(() => (Array.isArray(copies) ? copies : []), [copies])
+  const safeEbooks = useMemo(() => (Array.isArray(ebooks) ? ebooks : []), [ebooks])
   const safeStudents = useMemo(() => (Array.isArray(students) ? students : []), [students])
 
   const studentRecords = useMemo(() => {
@@ -128,6 +142,59 @@ export function LibrarianDashboard() {
     }
   }, [])
 
+  const loadAvailabilityBooks = useCallback(async () => {
+    setAvailabilityLoading(true)
+    try {
+      const response = await api.get('/api/books/search', {
+        params: {
+          page: availabilityPagination.page,
+          limit: availabilityPagination.limit,
+          title: availabilityFilters.title.trim(),
+          author: availabilityFilters.author.trim(),
+          category: availabilityFilters.category.trim(),
+          isbn: availabilityFilters.isbn.trim(),
+          availability: availabilityFilters.availability
+        }
+      })
+      setAvailabilityBooks(Array.isArray(response.data?.books) ? response.data.books : [])
+      const pagination = response.data?.pagination || {}
+      setAvailabilityPagination(prev => ({
+        page: Number(pagination.page || prev.page || 1),
+        limit: Number(pagination.limit || prev.limit || 10),
+        total: Number(pagination.total || 0),
+        total_pages: Math.max(1, Number(pagination.total_pages || 1))
+      }))
+    } catch (error) {
+      console.error('Unable to load availability page:', error)
+      setAvailabilityBooks([])
+      addNotification('Unable to load book availability.')
+    } finally {
+      setAvailabilityLoading(false)
+    }
+  }, [availabilityFilters, availabilityPagination.page, availabilityPagination.limit])
+
+  const loadCopies = useCallback(async () => {
+    try {
+      const response = await api.get('/books/copies')
+      setCopies(Array.isArray(response.data?.copies) ? response.data.copies : [])
+    } catch (error) {
+      console.error('Unable to load book copies:', error)
+      setCopies([])
+      addNotification('Unable to load barcode copies.')
+    }
+  }, [])
+
+  const loadEbooks = useCallback(async () => {
+    try {
+      const response = await api.get('/books/ebooks')
+      setEbooks(Array.isArray(response.data?.ebooks) ? response.data.ebooks : [])
+    } catch (error) {
+      console.error('Unable to load e-books:', error)
+      setEbooks([])
+      addNotification('Unable to load e-books.')
+    }
+  }, [])
+
   const loadStudents = useCallback(async () => {
     try {
       const response = await api.get('/api/admin/students')
@@ -142,8 +209,14 @@ export function LibrarianDashboard() {
   useEffect(() => {
     loadBooks()
     loadLoans()
+    loadCopies()
+    loadEbooks()
     loadStudents()
-  }, [loadBooks, loadLoans, loadStudents])
+  }, [loadBooks, loadLoans, loadCopies, loadEbooks, loadStudents])
+
+  useEffect(() => {
+    loadAvailabilityBooks()
+  }, [loadAvailabilityBooks])
 
   const stats = useMemo(
     () => [
@@ -165,10 +238,11 @@ export function LibrarianDashboard() {
       setIssueForm({ book_id: '', student_id: '' })
       await loadLoans()
       await loadBooks()
+      await loadAvailabilityBooks()
       addNotification('Book issued successfully.')
     } catch (error) {
       console.error('Error issuing book:', error)
-      await Promise.allSettled([loadLoans(), loadBooks()])
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
       addNotification(error?.response?.data?.message || 'Failed to issue book.')
     }
   }
@@ -186,11 +260,130 @@ export function LibrarianDashboard() {
       setReturnLoanId('')
       await loadLoans()
       await loadBooks()
+      await loadAvailabilityBooks()
       addNotification('Book return recorded.')
     } catch (error) {
       console.error('Error returning book:', error)
-      await Promise.allSettled([loadLoans(), loadBooks()])
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
       addNotification(error?.response?.data?.message || 'Failed to return book.')
+    }
+  }
+
+  async function handleLookupScan(event) {
+    event.preventDefault()
+    if (!scanForm.code.trim()) {
+      addNotification('Scan or enter a barcode/QR value first.')
+      return
+    }
+    try {
+      const response = await api.get('/books/scan', { params: { code: scanForm.code.trim() } })
+      setScanResult(response.data?.copy || null)
+      addNotification('Book copy found.')
+    } catch (error) {
+      setScanResult(null)
+      addNotification(error?.response?.data?.message || 'Scanned copy was not found.')
+    }
+  }
+
+  async function handleIssueByScan() {
+    if (!scanForm.code.trim() || !scanForm.student_id) {
+      addNotification('Barcode/QR value and Student ID are required.')
+      return
+    }
+    try {
+      await api.post('/books/borrow-by-scan', {
+        code: scanForm.code.trim(),
+        student_id: Number(scanForm.student_id)
+      })
+      setScanForm({ code: '', student_id: '' })
+      setScanResult(null)
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadCopies()])
+      addNotification('Book issued from scan.')
+    } catch (error) {
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadCopies()])
+      addNotification(error?.response?.data?.message || 'Failed to issue scanned copy.')
+    }
+  }
+
+  async function handleReturnByScan() {
+    if (!scanForm.code.trim()) {
+      addNotification('Scan or enter a barcode/QR value first.')
+      return
+    }
+    try {
+      await api.post('/books/return-by-scan', { code: scanForm.code.trim() })
+      setScanForm({ code: '', student_id: '' })
+      setScanResult(null)
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadCopies()])
+      addNotification('Book returned from scan.')
+    } catch (error) {
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadCopies()])
+      addNotification(error?.response?.data?.message || 'Failed to return scanned copy.')
+    }
+  }
+
+  async function handleUploadEbook(event) {
+    event.preventDefault()
+    if (!ebookForm.book_id || !ebookForm.file) {
+      addNotification('Choose a book and a PDF/EPUB file.')
+      return
+    }
+    const formData = new FormData()
+    formData.append('book_id', ebookForm.book_id)
+    formData.append('title', ebookForm.title)
+    formData.append('ebook', ebookForm.file)
+    try {
+      await api.post('/books/ebooks', formData)
+      setEbookForm({ book_id: '', title: '', file: null })
+      event.target.reset()
+      await loadEbooks()
+      addNotification('E-book uploaded.')
+    } catch (error) {
+      addNotification(error?.response?.data?.message || 'Failed to upload e-book.')
+    }
+  }
+
+  async function handleSendReminders(type) {
+    try {
+      const url = type === 'overdue' ? '/api/reminders/send-overdue-reminders' : '/api/reminders/send-due-reminders'
+      const response = await api.post(url)
+      const data = response.data?.data || {}
+      addNotification(`Reminders sent: ${data.sent || 0}, failed: ${data.failed || 0}.`)
+    } catch (error) {
+      addNotification(error?.response?.data?.message || 'Failed to send reminders.')
+    }
+  }
+
+  async function handleDownloadEbook(ebook) {
+    try {
+      const response = await api.get(`/books/ebooks/${ebook.ebook_id}/download`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = ebook.original_filename || `${ebook.title}.${ebook.file_type || 'pdf'}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      addNotification(error?.response?.data?.message || 'Failed to download e-book.')
+    }
+  }
+
+  async function handleDeleteEbook(ebook) {
+    const confirmed = window.confirm(`Delete "${ebook.title}" from the Digital Collection? This will remove the database record and stored file.`)
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await api.delete(`/books/ebooks/${ebook.ebook_id}`)
+      await loadEbooks()
+      addNotification('E-book deleted.')
+    } catch (error) {
+      const blockers = error?.response?.data?.blockers
+      const blockerText = Array.isArray(blockers) && blockers.length > 0 ? ` ${blockers.join('; ')}.` : ''
+      addNotification(`${error?.response?.data?.message || 'Failed to delete e-book.'}${blockerText}`)
     }
   }
 
@@ -227,6 +420,37 @@ export function LibrarianDashboard() {
       const errorMsg = error.response?.data?.message || error.message || 'Password change failed. Please try again.'
       setPasswordError(errorMsg)
     }
+  }
+
+  function updateAvailabilityFilter(field, value) {
+    setAvailabilityFilters(prev => ({ ...prev, [field]: value }))
+    setAvailabilityPagination(prev => ({ ...prev, page: 1 }))
+  }
+
+  function setAvailabilityPage(page) {
+    setAvailabilityPagination(prev => ({
+      ...prev,
+      page: Math.min(Math.max(1, page), Math.max(1, prev.total_pages || 1))
+    }))
+  }
+
+  function availabilityPageNumbers() {
+    const totalPages = Math.max(1, availabilityPagination.total_pages || 1)
+    const currentPage = Math.min(Math.max(1, availabilityPagination.page || 1), totalPages)
+    const start = Math.max(1, currentPage - 2)
+    const end = Math.min(totalPages, start + 4)
+    const normalizedStart = Math.max(1, end - 4)
+    const pages = []
+    for (let page = normalizedStart; page <= end; page += 1) {
+      pages.push(page)
+    }
+    return pages
+  }
+
+  function availabilityStatusLabel(book) {
+    const statuses = String(book.copy_statuses || '').trim()
+    if (statuses) return statuses
+    return book.status || ((book.available_copies || 0) > 0 ? 'available' : 'unavailable')
   }
 
   function renderPage() {
@@ -292,33 +516,202 @@ export function LibrarianDashboard() {
               <button className="btn btn-blue" type="submit">Return Book</button>
             </form>
           </div>
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Barcode / QR Scanner</div></div>
+            <form className="admin-form scan-form" onSubmit={handleLookupScan}>
+              <div className="frow scan-grid">
+                <div className="fgroup">
+                  <label>Barcode or QR value</label>
+                  <input value={scanForm.code} onChange={(event) => setScanForm({ ...scanForm, code: event.target.value })} placeholder="Scan or paste code" autoComplete="off" />
+                </div>
+                <div className="fgroup">
+                  <label>Student ID</label>
+                  <input value={scanForm.student_id} onChange={(event) => setScanForm({ ...scanForm, student_id: event.target.value })} placeholder="Required for issue" />
+                </div>
+              </div>
+              <div className="scan-actions">
+                <button className="btn btn-outline" type="submit">Lookup</button>
+                <button className="btn btn-blue" type="button" onClick={handleIssueByScan}>Issue</button>
+                <button className="btn btn-gold" type="button" onClick={handleReturnByScan}>Return</button>
+              </div>
+            </form>
+            {scanResult && (
+              <div className="scan-result">
+                <strong>{scanResult.book_title}</strong>
+                <span>{scanResult.copy_code} / {scanResult.status}</span>
+              </div>
+            )}
+          </div>
         </>
       )
     }
 
     if (activePage === 'availability') {
+      const currentPage = availabilityPagination.page || 1
+      const totalPages = Math.max(1, availabilityPagination.total_pages || 1)
+      const totalRecords = availabilityPagination.total || 0
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">Book Availability</div></div>
+          <div className="card-hdr">
+            <div className="card-title">Book Availability</div>
+            <div className="availability-count">{totalRecords} records</div>
+          </div>
+          <div className="availability-filters">
+            <div className="fgroup">
+              <label>Title</label>
+              <input value={availabilityFilters.title} onChange={(event) => updateAvailabilityFilter('title', event.target.value)} placeholder="Search title" />
+            </div>
+            <div className="fgroup">
+              <label>Author</label>
+              <input value={availabilityFilters.author} onChange={(event) => updateAvailabilityFilter('author', event.target.value)} placeholder="Search author" />
+            </div>
+            <div className="fgroup">
+              <label>Category</label>
+              <input value={availabilityFilters.category} onChange={(event) => updateAvailabilityFilter('category', event.target.value)} placeholder="Search category" />
+            </div>
+            <div className="fgroup">
+              <label>ISBN</label>
+              <input value={availabilityFilters.isbn} onChange={(event) => updateAvailabilityFilter('isbn', event.target.value)} placeholder="Search ISBN" />
+            </div>
+            <div className="fgroup">
+              <label>Status</label>
+              <select value={availabilityFilters.availability} onChange={(event) => updateAvailabilityFilter('availability', event.target.value)}>
+                <option value="">All</option>
+                <option value="available">Available</option>
+                <option value="borrowed">Borrowed</option>
+                <option value="lost">Lost</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+            </div>
+            <div className="fgroup">
+              <label>Per page</label>
+              <select value={availabilityPagination.limit} onChange={(event) => setAvailabilityPagination(prev => ({ ...prev, page: 1, limit: Number(event.target.value) }))}>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
           <div className="admin-table-container">
             <table>
               <thead>
-                <tr><th>Title</th><th>ISBN</th><th>Available</th><th>Total</th><th>Status</th></tr>
+                <tr><th>Title</th><th>ISBN</th><th>Available</th><th>Total</th><th>Status</th><th>QR</th><th>Copies</th></tr>
               </thead>
               <tbody>
-                {safeBooks.map((book) => (
+                {availabilityLoading ? (
+                  <tr><td colSpan="7">Loading availability...</td></tr>
+                ) : safeAvailabilityBooks.length === 0 ? (
+                  <tr><td colSpan="7">No books match the current filters.</td></tr>
+                ) : safeAvailabilityBooks.map((book) => (
                   <tr key={book.book_id}>
                     <td>{book.title}</td>
                     <td>{book.isbn || '—'}</td>
                     <td>{book.available_copies || 0}</td>
                     <td>{book.total_copies || 0}</td>
-                    <td>{(book.available_copies || 0) > 0 ? '✓ Available' : '✗ Out of Stock'}</td>
+                    <td>{availabilityStatusLabel(book)}</td>
+                    <td>
+                      <a href={`/books/${book.book_id}`} target="_blank" rel="noreferrer">
+                        <img className="table-qr" src={book.qr_url || `/books/${book.book_id}/qr.png`} alt={`QR code for ${book.title}`} />
+                      </a>
+                    </td>
+                    <td>{book.copy_count || 0}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <div className="pagination-bar">
+            <button className="btn btn-outline btn-sm" type="button" disabled={currentPage <= 1 || availabilityLoading} onClick={() => setAvailabilityPage(currentPage - 1)}>Previous</button>
+            <div className="page-buttons">
+              {availabilityPageNumbers().map((page) => (
+                <button
+                  key={page}
+                  className={`page-button ${page === currentPage ? 'active' : ''}`}
+                  type="button"
+                  disabled={availabilityLoading}
+                  onClick={() => setAvailabilityPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-outline btn-sm" type="button" disabled={currentPage >= totalPages || availabilityLoading} onClick={() => setAvailabilityPage(currentPage + 1)}>Next</button>
+            <span className="pagination-summary">Page {currentPage} of {totalPages}</span>
+          </div>
         </div>
+      )
+    }
+
+    if (activePage === 'ebooks') {
+      return (
+        <>
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Upload E-book</div></div>
+            <form className="admin-form ebook-upload-form" onSubmit={handleUploadEbook}>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Book</label>
+                  <select value={ebookForm.book_id} onChange={(event) => setEbookForm({ ...ebookForm, book_id: event.target.value })}>
+                    <option value="">Select book</option>
+                    {safeBooks.map((book) => <option key={book.book_id} value={book.book_id}>{book.title}</option>)}
+                  </select>
+                </div>
+                <div className="fgroup">
+                  <label>E-book title</label>
+                  <input value={ebookForm.title} onChange={(event) => setEbookForm({ ...ebookForm, title: event.target.value })} placeholder="Optional display title" />
+                </div>
+              </div>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>PDF / EPUB</label>
+                  <input type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" onChange={(event) => setEbookForm({ ...ebookForm, file: event.target.files?.[0] || null })} />
+                </div>
+              </div>
+              <button className="btn btn-blue" type="submit">Upload E-book</button>
+            </form>
+          </div>
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Digital Collection</div></div>
+            <div className="admin-table-container">
+              <table>
+                <thead><tr><th>Title</th><th>Book</th><th>Type</th><th>Size</th><th>QR</th><th>Access</th></tr></thead>
+                <tbody>
+                  {safeEbooks.map((ebook) => (
+                    <tr key={ebook.ebook_id}>
+                      <td>{ebook.title}</td>
+                      <td>{ebook.book_title}</td>
+                      <td>{String(ebook.file_type).toUpperCase()}</td>
+                      <td>{Math.ceil((ebook.file_size || 0) / 1024)} KB</td>
+                      <td>
+                        <img className="table-qr" src={ebook.qr_url || `/books/ebooks/${ebook.ebook_id}/qr.png`} alt={`QR code for ${ebook.title}`} />
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <a className="btn btn-outline btn-sm" href={`/ebooks/${ebook.ebook_id}`} target="_blank" rel="noreferrer">Open</a>
+                          <button className="btn btn-blue btn-sm" type="button" onClick={() => handleDownloadEbook(ebook)}>Download</button>
+                          <button className="btn btn-red btn-sm" type="button" onClick={() => handleDeleteEbook(ebook)}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Copy QR Codes</div></div>
+            <div className="copy-grid">
+              {safeCopies.slice(0, 24).map((copy) => (
+                <div className="copy-tile" key={copy.copy_id}>
+                  <img src={`/books/copies/${copy.copy_id}/qr.svg`} alt={`QR code for ${copy.copy_code}`} />
+                  <strong>{copy.copy_code}</strong>
+                  <span>{copy.book_title}</span>
+                  <small>{copy.barcode_value}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )
     }
 
@@ -326,7 +719,13 @@ export function LibrarianDashboard() {
       const overdueLoans = safeLoans.filter(l => !l.returned && new Date(l.due_date) < new Date())
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">Overdue Books ({overdueLoans.length})</div></div>
+          <div className="card-hdr">
+            <div className="card-title">Overdue Books ({overdueLoans.length})</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-outline btn-sm" type="button" onClick={() => handleSendReminders('due')}>Due Soon</button>
+              <button className="btn btn-gold btn-sm" type="button" onClick={() => handleSendReminders('overdue')}>Overdue Email</button>
+            </div>
+          </div>
           <div className="admin-table-container">
             <table>
               <thead>

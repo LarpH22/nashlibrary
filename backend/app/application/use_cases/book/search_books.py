@@ -13,6 +13,8 @@ class SearchBooksUseCase:
         isbn: str = '',
         availability: str = '',
         history: str = '',
+        page: int | None = None,
+        limit: int | None = None,
     ):
         return self.book_repository.search_books(
             title=title,
@@ -21,4 +23,6 @@ class SearchBooksUseCase:
             isbn=isbn,
             availability=availability,
             history=history,
+            page=page,
+            limit=limit,
         )
