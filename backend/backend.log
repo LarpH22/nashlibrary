@@ -3054,3 +3054,4 @@ pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
 2026-05-04 18:35:24,628 INFO werkzeug 127.0.0.1 - - [04/May/2026 18:35:24] "GET /books/ HTTP/1.1" 200 -
 2026-05-04 18:35:24,631 INFO werkzeug 127.0.0.1 - - [04/May/2026 18:35:24] "GET /api/admin/authors HTTP/1.1" 200 -
 2026-05-04 18:35:24,652 INFO werkzeug 127.0.0.1 - - [04/May/2026 18:35:24] "GET /api/admin/registration-requests HTTP/1.1" 200 -
+2026-05-04 19:33:00,211 INFO werkzeug 127.0.0.1 - - [04/May/2026 19:33:00] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
