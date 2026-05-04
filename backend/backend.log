@@ -3940,3 +3940,342 @@ TypeError: can only concatenate tuple (not "list") to tuple
 2026-05-05 04:31:48,093 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:31:48] "GET /api/loans/student HTTP/1.1" 200 -
 2026-05-05 04:33:15,788 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:33:15] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
 2026-05-05 04:33:17,681 INFO werkzeug 127.0.0.1 - - [05/May/2026 04:33:17] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:22:01,191 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.68.113:5000
+2026-05-05 05:22:01,192 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 05:23:37,900 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:37] "GET / HTTP/1.1" 200 -
+2026-05-05 05:23:38,032 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:38] "GET /assets/index-DsKOAKT6.css HTTP/1.1" 200 -
+2026-05-05 05:23:38,060 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:38] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 05:23:38,261 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:38] "GET /assets/index-bGGZJTsd.js HTTP/1.1" 200 -
+2026-05-05 05:23:38,436 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:38] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 05:23:41,442 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:41] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:23:45,067 ERROR backend.app Unhandled exception: OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 644, in connect
+    sock = socket.create_connection(
+        (self.host, self.port), self.connect_timeout, **kwargs
+    )
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 711, in connect
+    raise exc
+pymysql.err.OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+2026-05-05 05:23:45,067 ERROR backend.app Unhandled exception: OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 644, in connect
+    sock = socket.create_connection(
+        (self.host, self.port), self.connect_timeout, **kwargs
+    )
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 711, in connect
+    raise exc
+pymysql.err.OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+2026-05-05 05:23:45,091 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:23:45] "[35m[1mPOST /api/auth/login HTTP/1.1[0m" 500 -
+2026-05-05 05:27:05,775 ERROR backend.app Unhandled exception: OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 644, in connect
+    sock = socket.create_connection(
+        (self.host, self.port), self.connect_timeout, **kwargs
+    )
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 711, in connect
+    raise exc
+pymysql.err.OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+2026-05-05 05:27:05,775 ERROR backend.app Unhandled exception: OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 644, in connect
+    sock = socket.create_connection(
+        (self.host, self.port), self.connect_timeout, **kwargs
+    )
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 711, in connect
+    raise exc
+pymysql.err.OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+2026-05-05 05:27:05,793 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:27:05] "[35m[1mPOST /api/auth/login HTTP/1.1[0m" 500 -
+2026-05-05 05:37:44,720 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:37:44] "GET /login HTTP/1.1" 200 -
+2026-05-05 05:37:44,760 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:37:44] "[36mGET /assets/index-bGGZJTsd.js HTTP/1.1[0m" 304 -
+2026-05-05 05:37:44,762 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:37:44] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:37:44,792 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:37:44] "[36mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 304 -
+2026-05-05 05:37:44,856 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:37:44] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 05:37:49,158 ERROR backend.app Unhandled exception: OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 644, in connect
+    sock = socket.create_connection(
+        (self.host, self.port), self.connect_timeout, **kwargs
+    )
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 711, in connect
+    raise exc
+pymysql.err.OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+2026-05-05 05:37:49,158 ERROR backend.app Unhandled exception: OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 644, in connect
+    sock = socket.create_connection(
+        (self.host, self.port), self.connect_timeout, **kwargs
+    )
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\OneDrive\2YPROGRAMMING\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Nash Andrei\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\connections.py", line 711, in connect
+    raise exc
+pymysql.err.OperationalError: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+2026-05-05 05:37:49,174 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:37:49] "[35m[1mPOST /api/auth/login HTTP/1.1[0m" 500 -
+2026-05-05 05:38:33,009 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:38:33] "[36mGET /assets/index-DsKOAKT6.css HTTP/1.1[0m" 304 -
+2026-05-05 05:38:33,095 INFO werkzeug 127.0.0.1 - - [05/May/2026 05:38:33] "[36mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 304 -

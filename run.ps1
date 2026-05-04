@@ -25,4 +25,8 @@ Write-Host "Press Ctrl+C to stop..." -ForegroundColor Yellow
 Write-Host ""
 
 # Start backend
-python -m backend.app
+$Env:DB_HOST = '127.0.0.1'
+$Env:DB_PORT = '3306'
+$Env:DB_USER = 'root'
+$Env:DB_NAME = 'library_system_v2'
+python backend/run_server.py
