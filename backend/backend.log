@@ -3055,3 +3055,238 @@ pymysql.err.OperationalError: (1054, "Unknown column 'author' in 'field list'")
 2026-05-04 18:35:24,631 INFO werkzeug 127.0.0.1 - - [04/May/2026 18:35:24] "GET /api/admin/authors HTTP/1.1" 200 -
 2026-05-04 18:35:24,652 INFO werkzeug 127.0.0.1 - - [04/May/2026 18:35:24] "GET /api/admin/registration-requests HTTP/1.1" 200 -
 2026-05-04 19:33:00,211 INFO werkzeug 127.0.0.1 - - [04/May/2026 19:33:00] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:13:07,511 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-05 02:13:07,512 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 02:13:16,158 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-05 02:13:16,159 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 02:13:17,626 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:17] "GET / HTTP/1.1" 200 -
+2026-05-05 02:13:17,678 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:17] "GET /assets/index-BcvlKWUr.js HTTP/1.1" 200 -
+2026-05-05 02:13:17,682 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:17] "GET /assets/index-DQUwA2fY.css HTTP/1.1" 200 -
+2026-05-05 02:13:17,865 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:17] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 02:13:19,566 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:19] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:13:27,790 ERROR backend.app Unhandled exception: OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 664, in connect
+    self._request_authentication()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 968, in _request_authentication
+    auth_packet = self._process_auth(plugin_name, auth_packet)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1062, in _process_auth
+    pkt = self._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2026-05-05 02:13:27,790 ERROR backend.app Unhandled exception: OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\auth_routes.py", line 34, in login
+    return controller.login()
+           ~~~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\auth_controller.py", line 192, in login
+    user, auth_role = self.login_user_use_case.execute(email, password, role)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\user\login_user.py", line 20, in execute
+    return self.auth_service.authenticate(email, password, role)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\auth_service.py", line 133, in authenticate
+    user = self.authenticate_student(email, password)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\domain\services\auth_service.py", line 86, in authenticate_student
+    user = self.student_repo.find_student_by_email(email)
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\auth_repository_impl.py", line 40, in find_student_by_email
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 664, in connect
+    self._request_authentication()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 968, in _request_authentication
+    auth_packet = self._process_auth(plugin_name, auth_packet)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1062, in _process_auth
+    pkt = self._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2026-05-05 02:13:27,809 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:27] "[35m[1mPOST /api/auth/login HTTP/1.1[0m" 500 -
+2026-05-05 02:13:35,677 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:35] "[36mGET /assets/index-DQUwA2fY.css HTTP/1.1[0m" 304 -
+2026-05-05 02:13:35,696 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:13:35] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 02:21:00,375 ERROR backend.app Unhandled exception: OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 25, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<4 lines>...
+        history=history,
+    )
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 17, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<4 lines>...
+        history=history,
+        ^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 57, in search_books
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 664, in connect
+    self._request_authentication()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 968, in _request_authentication
+    auth_packet = self._process_auth(plugin_name, auth_packet)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1062, in _process_auth
+    pkt = self._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2026-05-05 02:21:00,375 ERROR backend.app Unhandled exception: OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\routes\book_search_routes.py", line 10, in search_books
+    return controller.search_books()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\presentation\controllers\book_search_controller.py", line 25, in search_books
+    books = self.search_books_use_case.execute(
+        title=search_title,
+    ...<4 lines>...
+        history=history,
+    )
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\application\use_cases\book\search_books.py", line 17, in execute
+    return self.book_repository.search_books(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        title=title,
+        ^^^^^^^^^^^^
+    ...<4 lines>...
+        history=history,
+        ^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\repositories_impl\book_repository_impl.py", line 57, in search_books
+    with get_connection() as conn:
+         ~~~~~~~~~~~~~~^^
+  File "c:\Users\admin\Documents\nashlibrary\backend\app\infrastructure\database\db_connection.py", line 7, in get_connection
+    return pymysql.connect(
+           ~~~~~~~~~~~~~~~^
+        host=Config.DB_HOST,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        charset='utf8mb4'
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 358, in __init__
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 664, in connect
+    self._request_authentication()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 968, in _request_authentication
+    auth_packet = self._process_auth(plugin_name, auth_packet)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 1062, in _process_auth
+    pkt = self._read_packet()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\connections.py", line 772, in _read_packet
+    packet.raise_for_error()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\protocol.py", line 221, in raise_for_error
+    err.raise_mysql_exception(self._data)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\pymysql\err.py", line 143, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2026-05-05 02:21:00,383 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:21:00] "[35m[1mGET /api/books/search HTTP/1.1[0m" 500 -
