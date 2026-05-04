@@ -150,17 +150,11 @@ def create_app(config_object=None):
     @app.route('/', defaults={'path': ''}, methods=['GET'])
     @app.route('/<path:path>', methods=['GET'])
     def serve_frontend(path=''):
-        """Catch-all for frontend routes"""
+        """Catch-all for frontend routes - only handles GET"""
         if path.startswith('api/'):
             return jsonify({'message': 'Endpoint not found', 'status': 404}), 404
 
         return serve_spa(path)
-
-    print(f"\n=== Routes Registered ===")
-    print(f"Total routes: {len(list(app.url_map.iter_rules()))}")
-    for rule in app.url_map.iter_rules():
-        print(f"  {rule.rule} -> {rule.endpoint}")
-    print(f"========================\n")
 
     return app
 

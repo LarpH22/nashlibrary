@@ -44,6 +44,12 @@ def reset_password():
     return controller.reset_password()
 
 
+@auth_bp.route('/change-password', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def change_password():
+    return controller.change_password()
+
+
 @auth_bp.route('/profile', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def profile():

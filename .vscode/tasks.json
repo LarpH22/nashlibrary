@@ -4,8 +4,14 @@
 		{
 			"label": "Frontend Build",
 			"type": "shell",
-			"command": "cd frontend && npm run build",
-			"args": [],
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"options": {
+				"cwd": "frontend"
+			},
 			"isBackground": false,
 			"problemMatcher": []
 		},
@@ -24,7 +30,7 @@
 			"args": [
 				"-NoProfile",
 				"-Command",
-				"Set-Location 'c:/Users/admin/Documents/nashlibrary/frontend'; npm run build"
+				"Set-Location 'c:/Users/Nash Andrei/OneDrive/2YPROGRAMMING/nashlibrary/frontend'; npm run build"
 			],
 			"isBackground": false,
 			"problemMatcher": []

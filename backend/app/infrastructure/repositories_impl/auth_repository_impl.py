@@ -155,6 +155,16 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
                 conn.commit()
                 return cur.rowcount > 0
 
+    def update_student_password(self, student_id: int, password_hash: str):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE students SET password_hash=%s, updated_at=NOW() WHERE student_id=%s",
+                    (password_hash, student_id)
+                )
+                conn.commit()
+                return cur.rowcount > 0
+
     def create_registration_request(self, email: str, full_name: str, password_hash: str,
                                    student_number: str, registration_document: str,
                                    verification_token: str,

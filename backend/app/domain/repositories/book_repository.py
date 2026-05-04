@@ -27,5 +27,9 @@ class BookRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def most_borrowed_books(self, limit: int = 5):
+        raise NotImplementedError
+
+    @abstractmethod
     def update_book_status(self, book_id: int, status: str, available_copies: int | None = None):
         raise NotImplementedError
