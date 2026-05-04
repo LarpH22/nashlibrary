@@ -166,22 +166,47 @@ class BookRepositoryImpl(BookRepository):
 
     def most_borrowed_books(self, limit: int = 5):
         with get_connection() as conn:
+            ensure_inventory_schema(conn)
+            conn.commit()
             with conn.cursor() as cur:
                 cur.execute(
                     """
                     SELECT
                         b.book_id,
-                        b.title,
-                        b.author,
                         b.isbn,
-                        b.category,
-                        b.status,
-                        b.available_copies,
+                        b.title,
+                        COALESCE(GROUP_CONCAT(DISTINCT a.name ORDER BY ba.author_order SEPARATOR ', '), '') AS author,
+                        COALESCE(GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', '), '') AS category,
                         b.total_copies,
-                        COUNT(br.borrow_id) AS borrow_count
+                        COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) AS available_copies,
+                        COUNT(DISTINCT CASE WHEN all_bc.status = 'borrowed' THEN all_bc.copy_id END) AS borrowed_copies,
+                        COUNT(DISTINCT all_bc.copy_id) AS copy_count,
+                        COALESCE(GROUP_CONCAT(DISTINCT all_bc.status ORDER BY all_bc.status SEPARATOR ', '), '') AS copy_statuses,
+                        COUNT(DISTINCT br.borrow_id) AS borrow_count,
+                        COUNT(DISTINCT CASE
+                            WHEN br.return_date IS NULL AND br.status IN ('active', 'borrowed', 'overdue')
+                            THEN br.borrow_id
+                        END) AS active_borrow_count,
+                        COUNT(DISTINCT CASE
+                            WHEN br.return_date IS NOT NULL OR br.status = 'returned'
+                            THEN br.borrow_id
+                        END) AS returned_borrow_count,
+                        CASE
+                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) > 0 THEN 'available'
+                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'borrowed' THEN all_bc.copy_id END) > 0 THEN 'borrowed'
+                            WHEN COUNT(DISTINCT all_bc.copy_id) = 0 THEN 'unavailable'
+                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'maintenance' THEN all_bc.copy_id END) > 0 THEN 'maintenance'
+                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'lost' THEN all_bc.copy_id END) > 0 THEN 'lost'
+                            ELSE 'borrowed'
+                        END AS status
                     FROM books b
+                    LEFT JOIN book_authors ba ON b.book_id = ba.book_id
+                    LEFT JOIN authors a ON ba.author_id = a.author_id
+                    LEFT JOIN books_categories bc ON b.book_id = bc.book_id
+                    LEFT JOIN categories c ON bc.category_id = c.category_id
+                    LEFT JOIN book_copies all_bc ON b.book_id = all_bc.book_id
                     LEFT JOIN borrow_records br ON b.book_id = br.book_id
-                    GROUP BY b.book_id, b.title, b.author, b.isbn, b.category, b.status, b.available_copies, b.total_copies
+                    GROUP BY b.book_id, b.isbn, b.title, b.total_copies
                     ORDER BY borrow_count DESC, b.title ASC
                     LIMIT %s
                     """,

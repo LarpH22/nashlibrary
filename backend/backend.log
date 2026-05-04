@@ -3516,3 +3516,42 @@ Traceback (most recent call last):
     raise errorclass(errno, errval)
 pymysql.err.OperationalError: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
 2026-05-05 02:43:17,514 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:43:17] "[35m[1mPOST /api/auth/login HTTP/1.1[0m" 500 -
+2026-05-05 02:56:15,590 INFO werkzeug [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-05 02:56:15,593 INFO werkzeug [33mPress CTRL+C to quit[0m
+2026-05-05 02:56:23,675 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:23] "GET /health HTTP/1.1" 200 -
+2026-05-05 02:56:35,971 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:35] "GET / HTTP/1.1" 200 -
+2026-05-05 02:56:36,012 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:36] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 02:56:36,037 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:36] "GET /api/books/search?title=&author=&category=&isbn=&availability= HTTP/1.1" 200 -
+2026-05-05 02:56:51,884 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:51] "GET /health HTTP/1.1" 200 -
+2026-05-05 02:56:52,141 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:52] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-05 02:56:57,471 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:57] "GET /login HTTP/1.1" 200 -
+2026-05-05 02:56:57,521 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:57] "GET /assets/index-DQUwA2fY.css HTTP/1.1" 200 -
+2026-05-05 02:56:57,545 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:57] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
+2026-05-05 02:56:57,647 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:57] "GET /assets/index-CBktkkIi.js HTTP/1.1" 200 -
+2026-05-05 02:56:57,713 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:56:57] "GET /vite.svg HTTP/1.1" 200 -
+2026-05-05 02:57:01,019 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:01] "[31m[1mPOST /api/auth/login HTTP/1.1[0m" 401 -
+2026-05-05 02:57:18,608 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:18] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 02:57:18,686 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:18] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 02:57:18,695 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:18] "GET /api/students/profile HTTP/1.1" 200 -
+2026-05-05 02:57:18,701 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:18] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:57:18,759 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:18] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
+2026-05-05 02:57:30,178 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:57:30] "GET /api/books/search HTTP/1.1" 200 -
+2026-05-05 02:58:11,086 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:11] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:58:32,355 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 02:58:32,387 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "GET /api/admin/categories HTTP/1.1" 200 -
+2026-05-05 02:58:32,390 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "GET /api/admin/authors HTTP/1.1" 200 -
+2026-05-05 02:58:32,420 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "GET /api/admin/registration-requests HTTP/1.1" 200 -
+2026-05-05 02:58:32,446 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:58:32,461 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 02:58:32,553 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:32] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 02:58:54,976 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:54] "[33mGET /api/admin/students/241-1111 HTTP/1.1[0m" 404 -
+2026-05-05 02:58:56,882 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:58:56] "[33mGET /api/admin/students/241-1111 HTTP/1.1[0m" 404 -
+2026-05-05 02:59:03,977 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:03] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:59:23,880 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:23] "POST /api/auth/login HTTP/1.1" 200 -
+2026-05-05 02:59:23,903 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:23] "GET /api/admin/students HTTP/1.1" 200 -
+2026-05-05 02:59:23,956 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:23] "GET /api/admin/loans HTTP/1.1" 200 -
+2026-05-05 02:59:23,961 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:23] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:59:24,030 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:24] "GET /books/ HTTP/1.1" 200 -
+2026-05-05 02:59:29,282 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:29] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
+2026-05-05 02:59:33,588 INFO werkzeug 127.0.0.1 - - [05/May/2026 02:59:33] "[36mGET /vite.svg HTTP/1.1[0m" 304 -
