@@ -9,6 +9,7 @@ import { VerifyEmail } from '../features/auth/VerifyEmail.jsx'
 import ResetPassword from '../features/auth/ResetPassword.jsx'
 import { Dashboard } from '../features/dashboard/Dashboard.jsx'
 import { clearStoredAuth, getStoredAuthToken } from '../shared/authStorage.js'
+import { ResourceDetailPage } from '../features/catalog/ResourceDetailPage.jsx'
 
 function DashboardExitGuard() {
   const location = useLocation()
@@ -41,6 +42,8 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard/*" element={<Dashboard />} />
+          <Route path="/books/:bookId" element={<ResourceDetailPage type="book" />} />
+          <Route path="/ebooks/:ebookId" element={<ResourceDetailPage type="ebook" />} />
         </Routes>
       </BrowserRouter>
     </ContextGuard>

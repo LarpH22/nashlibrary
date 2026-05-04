@@ -45,6 +45,15 @@ class Config:
     FRONTEND_DIST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dist')
 
     # File upload configuration
-    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 25 * 1024 * 1024))
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    EBOOK_UPLOAD_FOLDER = os.environ.get(
+        'EBOOK_UPLOAD_FOLDER',
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'ebooks')
+    )
+    QR_CODE_FOLDER = os.environ.get(
+        'QR_CODE_FOLDER',
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'qr_codes')
+    )
     ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}
+    ALLOWED_EBOOK_EXTENSIONS = {'pdf', 'epub'}

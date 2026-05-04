@@ -11,8 +11,12 @@
 
 -- Drop existing tables (in correct order to avoid foreign key constraints)
 DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS ebook_access_logs;
+DROP TABLE IF EXISTS ebooks;
+DROP TABLE IF EXISTS loan_reminders;
 DROP TABLE IF EXISTS fines;
 DROP TABLE IF EXISTS borrow_records;
+DROP TABLE IF EXISTS book_copies;
 DROP TABLE IF EXISTS books_categories;
 DROP TABLE IF EXISTS book_authors;
 DROP TABLE IF EXISTS books;
@@ -165,6 +169,59 @@ CREATE TABLE books (
 );
 
 -- =====================================================
+-- 8A. BOOK COPIES TABLE (Copy-level inventory with scan codes)
+-- =====================================================
+CREATE TABLE book_copies (
+    copy_id INT PRIMARY KEY AUTO_INCREMENT,
+    book_id INT NOT NULL,
+    copy_code VARCHAR(60) NOT NULL UNIQUE,
+    barcode_value VARCHAR(80) UNIQUE,
+    qr_token VARCHAR(120) UNIQUE,
+    status ENUM('available', 'borrowed', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
+    location VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    INDEX idx_book_id (book_id),
+    INDEX idx_status (status),
+    INDEX idx_barcode_value (barcode_value),
+    INDEX idx_qr_token (qr_token)
+);
+
+-- =====================================================
+-- 8B. E-BOOKS TABLE
+-- =====================================================
+CREATE TABLE ebooks (
+    ebook_id INT PRIMARY KEY AUTO_INCREMENT,
+    book_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    stored_filename VARCHAR(255) NOT NULL UNIQUE,
+    file_path VARCHAR(500) NOT NULL,
+    file_type ENUM('pdf', 'epub') NOT NULL,
+    file_size BIGINT NOT NULL DEFAULT 0,
+    access_level ENUM('students', 'librarians', 'admins') NOT NULL DEFAULT 'students',
+    uploaded_by_role ENUM('admin', 'librarian') NOT NULL,
+    uploaded_by_id INT,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    INDEX idx_book_id (book_id),
+    INDEX idx_access_level (access_level)
+);
+
+CREATE TABLE ebook_access_logs (
+    access_id INT PRIMARY KEY AUTO_INCREMENT,
+    ebook_id INT NOT NULL,
+    actor_role ENUM('student', 'librarian', 'admin') NOT NULL,
+    actor_id INT,
+    action ENUM('view', 'download') NOT NULL DEFAULT 'view',
+    accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ebook_id) REFERENCES ebooks(ebook_id) ON DELETE CASCADE,
+    INDEX idx_ebook_id (ebook_id),
+    INDEX idx_actor (actor_role, actor_id)
+);
+
+-- =====================================================
 -- 9. BOOK_AUTHORS TABLE (Many-to-Many relationship)
 -- =====================================================
 CREATE TABLE book_authors (
@@ -200,21 +257,37 @@ CREATE TABLE borrow_records (
     borrow_id INT PRIMARY KEY AUTO_INCREMENT,
     student_id INT NOT NULL,
     book_id INT NOT NULL,
-    librarian_id INT NOT NULL,
+    copy_id INT,
+    librarian_id INT,
     borrow_date DATE NOT NULL,
     due_date DATE NOT NULL,
     return_date DATE,
-    status ENUM('borrowed', 'returned', 'lost') DEFAULT 'borrowed',
+    status ENUM('active', 'borrowed', 'returned', 'overdue', 'lost') DEFAULT 'active',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
     FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (copy_id) REFERENCES book_copies(copy_id),
     FOREIGN KEY (librarian_id) REFERENCES librarians(librarian_id),
     INDEX idx_student (student_id),
     INDEX idx_book (book_id),
     INDEX idx_status (status),
+    INDEX idx_copy_id (copy_id),
     INDEX idx_due_date (due_date),
     INDEX idx_return_date (return_date)
+);
+
+CREATE TABLE loan_reminders (
+    reminder_id INT PRIMARY KEY AUTO_INCREMENT,
+    borrow_id INT NOT NULL,
+    reminder_type ENUM('due_soon', 'overdue') NOT NULL,
+    sent_to VARCHAR(255) NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('sent', 'failed') NOT NULL DEFAULT 'sent',
+    error_message TEXT,
+    FOREIGN KEY (borrow_id) REFERENCES borrow_records(borrow_id) ON DELETE CASCADE,
+    INDEX idx_borrow_type (borrow_id, reminder_type),
+    INDEX idx_sent_at (sent_at)
 );
 
 -- =====================================================

@@ -10,6 +10,8 @@ def ensure_inventory_schema(conn):
                 copy_id INT PRIMARY KEY AUTO_INCREMENT,
                 book_id INT NOT NULL,
                 copy_code VARCHAR(60) NOT NULL UNIQUE,
+                barcode_value VARCHAR(80) UNIQUE,
+                qr_token VARCHAR(120) UNIQUE,
                 status ENUM('available', 'borrowed', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
                 location VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -21,6 +23,10 @@ def ensure_inventory_schema(conn):
             """
         )
 
+        _ensure_book_copy_metadata_columns(cur)
+        _ensure_ebook_tables(cur)
+        _ensure_qr_code_columns(cur)
+
         if not _column_exists(cur, "borrow_records", "copy_id"):
             cur.execute("ALTER TABLE borrow_records ADD COLUMN copy_id INT NULL AFTER book_id")
 
@@ -28,8 +34,83 @@ def ensure_inventory_schema(conn):
             cur.execute("ALTER TABLE borrow_records ADD INDEX idx_copy_id (copy_id)")
 
         _ensure_book_copy_rows(cur)
+        _backfill_copy_scan_metadata(cur)
         _assign_existing_active_loans(cur)
         _reconcile_copy_statuses(cur)
+
+
+def _ensure_book_copy_metadata_columns(cur):
+    if not _column_exists(cur, "book_copies", "barcode_value"):
+        cur.execute("ALTER TABLE book_copies ADD COLUMN barcode_value VARCHAR(80) UNIQUE AFTER copy_code")
+    if not _column_exists(cur, "book_copies", "qr_token"):
+        cur.execute("ALTER TABLE book_copies ADD COLUMN qr_token VARCHAR(120) UNIQUE AFTER barcode_value")
+
+    if not _index_exists(cur, "book_copies", "idx_barcode_value"):
+        cur.execute("ALTER TABLE book_copies ADD INDEX idx_barcode_value (barcode_value)")
+    if not _index_exists(cur, "book_copies", "idx_qr_token"):
+        cur.execute("ALTER TABLE book_copies ADD INDEX idx_qr_token (qr_token)")
+
+
+def _ensure_ebook_tables(cur):
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ebooks (
+            ebook_id INT PRIMARY KEY AUTO_INCREMENT,
+            book_id INT NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            original_filename VARCHAR(255) NOT NULL,
+            stored_filename VARCHAR(255) NOT NULL UNIQUE,
+            file_path VARCHAR(500) NOT NULL,
+            file_type ENUM('pdf', 'epub') NOT NULL,
+            file_size BIGINT NOT NULL DEFAULT 0,
+            access_level ENUM('students', 'librarians', 'admins') NOT NULL DEFAULT 'students',
+            uploaded_by_role ENUM('admin', 'librarian') NOT NULL,
+            uploaded_by_id INT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+            INDEX idx_book_id (book_id),
+            INDEX idx_access_level (access_level)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ebook_access_logs (
+            access_id INT PRIMARY KEY AUTO_INCREMENT,
+            ebook_id INT NOT NULL,
+            actor_role ENUM('student', 'librarian', 'admin') NOT NULL,
+            actor_id INT,
+            action ENUM('view', 'download') NOT NULL DEFAULT 'view',
+            accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (ebook_id) REFERENCES ebooks(ebook_id) ON DELETE CASCADE,
+            INDEX idx_ebook_id (ebook_id),
+            INDEX idx_actor (actor_role, actor_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS loan_reminders (
+            reminder_id INT PRIMARY KEY AUTO_INCREMENT,
+            borrow_id INT NOT NULL,
+            reminder_type ENUM('due_soon', 'overdue') NOT NULL,
+            sent_to VARCHAR(255) NOT NULL,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status ENUM('sent', 'failed') NOT NULL DEFAULT 'sent',
+            error_message TEXT,
+            FOREIGN KEY (borrow_id) REFERENCES borrow_records(borrow_id) ON DELETE CASCADE,
+            INDEX idx_borrow_type (borrow_id, reminder_type),
+            INDEX idx_sent_at (sent_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """
+    )
+
+
+def _ensure_qr_code_columns(cur):
+    if not _column_exists(cur, "books", "qr_code_path"):
+        cur.execute("ALTER TABLE books ADD COLUMN qr_code_path VARCHAR(500) NULL")
+    if not _column_exists(cur, "ebooks", "qr_code_path"):
+        cur.execute("ALTER TABLE ebooks ADD COLUMN qr_code_path VARCHAR(500) NULL")
 
 
 def _column_exists(cur, table_name, column_name):
@@ -75,11 +156,33 @@ def _ensure_book_copy_rows(cur):
         for sequence in range(copy_count + 1, total_copies + 1):
             cur.execute(
                 """
-                INSERT IGNORE INTO book_copies (book_id, copy_code, status)
+                            INSERT IGNORE INTO book_copies (book_id, copy_code, status)
                 VALUES (%s, %s, 'available')
                 """,
                 (book["book_id"], _copy_code(book, sequence)),
             )
+
+
+def _backfill_copy_scan_metadata(cur):
+    cur.execute(
+        """
+        SELECT copy_id, copy_code, barcode_value, qr_token
+        FROM book_copies
+        WHERE barcode_value IS NULL OR barcode_value = '' OR qr_token IS NULL OR qr_token = ''
+        ORDER BY copy_id
+        """
+    )
+    for copy in cur.fetchall():
+        barcode_value = copy.get("barcode_value") or copy.get("copy_code") or f"COPY-{copy['copy_id']}"
+        qr_token = copy.get("qr_token") or f"QR-{copy['copy_id']}-{barcode_value}"
+        cur.execute(
+            """
+            UPDATE book_copies
+            SET barcode_value=%s, qr_token=%s
+            WHERE copy_id=%s
+            """,
+            (barcode_value, qr_token[:120], copy["copy_id"]),
+        )
 
 
 def _assign_existing_active_loans(cur):
@@ -136,10 +239,15 @@ def _create_migrated_copy(cur, book_id):
     sequence = int(cur.fetchone()["count"] or 0) + 1
     cur.execute(
         """
-        INSERT INTO book_copies (book_id, copy_code, status)
-        VALUES (%s, %s, 'borrowed')
+        INSERT INTO book_copies (book_id, copy_code, barcode_value, qr_token, status)
+        VALUES (%s, %s, %s, %s, 'borrowed')
         """,
-        (book_id, _copy_code({**book, "book_id": book_id}, sequence)),
+        (
+            book_id,
+            _copy_code({**book, "book_id": book_id}, sequence),
+            _copy_code({**book, "book_id": book_id}, sequence),
+            f"QR-MIGRATED-{book_id}-{sequence:03d}",
+        ),
     )
     return cur.lastrowid
 

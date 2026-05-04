@@ -86,3 +86,41 @@ class LoanReminderController:
         except Exception as e:
             logger.exception('Error fetching loans due soon')
             return jsonify({'message': f'Error fetching loans: {str(e)}'}), 500
+
+    def send_overdue_reminders(self):
+        """
+        POST /reminders/send-overdue-reminders
+        Sends email reminders for overdue loans.
+        """
+        auth_error = self._require_admin_or_librarian()
+        if auth_error:
+            return auth_error
+
+        try:
+            result = self.reminder_service.send_overdue_reminders()
+            return jsonify({
+                'message': 'Overdue reminders sent successfully',
+                'data': result
+            }), 200
+        except Exception as e:
+            logger.exception('Error sending overdue reminders')
+            return jsonify({'message': f'Error sending overdue reminders: {str(e)}'}), 500
+
+    def get_overdue_loans(self):
+        """
+        GET /reminders/overdue-loans
+        Get list of overdue loans.
+        """
+        auth_error = self._require_admin_or_librarian()
+        if auth_error:
+            return auth_error
+
+        try:
+            loans = self.loan_repository.find_overdue_loans()
+            for loan in loans:
+                if loan.get('due_date') and hasattr(loan['due_date'], 'isoformat'):
+                    loan['due_date'] = loan['due_date'].isoformat()
+            return jsonify({'data': loans, 'count': len(loans)}), 200
+        except Exception as e:
+            logger.exception('Error fetching overdue loans')
+            return jsonify({'message': f'Error fetching overdue loans: {str(e)}'}), 500

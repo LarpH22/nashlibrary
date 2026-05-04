@@ -44,6 +44,32 @@ class LoanReminderService:
             logger.exception('Failed to send loan reminders')
             raise
 
+    def send_overdue_reminders(self) -> dict:
+        """Send reminders for loans that are already overdue."""
+        try:
+            loans = self.loan_repository.find_overdue_loans()
+            success_count = 0
+            failed_count = 0
+
+            for loan in loans:
+                student_email = loan.get('student_email')
+                try:
+                    self._send_overdue_email(loan)
+                    self.loan_repository.record_reminder(loan.get('borrow_id'), 'overdue', student_email, 'sent')
+                    success_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to send overdue reminder for loan {loan.get('borrow_id')}: {str(e)}")
+                    if student_email:
+                        self.loan_repository.record_reminder(loan.get('borrow_id'), 'overdue', student_email, 'failed', str(e))
+                    failed_count += 1
+
+            result = {'sent': success_count, 'failed': failed_count, 'total': success_count + failed_count}
+            logger.info(f"Overdue loan reminders sent: {result}")
+            return result
+        except Exception:
+            logger.exception('Failed to send overdue loan reminders')
+            raise
+
     def _send_reminder_email(self, loan: dict, days_before_due: int):
         """Send a single reminder email"""
         student_email = loan.get('student_email')
@@ -106,3 +132,45 @@ Library System
             body=body_text,
             html_body=html_body
         )
+        self.loan_repository.record_reminder(loan.get('borrow_id'), 'due_soon', student_email, 'sent')
+
+    def _send_overdue_email(self, loan: dict):
+        student_email = loan.get('student_email')
+        student_name = loan.get('student_name') or 'Student'
+        book_title = loan.get('book_title', 'Unknown Book')
+        due_date = loan.get('due_date')
+        days_overdue = loan.get('days_overdue') or 0
+
+        if not student_email:
+            raise ValueError(f"No email found for student {loan.get('student_id')}")
+
+        due_date_str = due_date.strftime('%B %d, %Y') if hasattr(due_date, 'strftime') else str(due_date)
+        subject = f"Overdue Library Book: {book_title}"
+        body_text = f"""Hi {student_name},
+
+Your borrowed book "{book_title}" was due on {due_date_str} and is now {days_overdue} days overdue.
+
+Please return it as soon as possible or contact the library if you need help with your account.
+
+Best regards,
+Library System
+"""
+        html_body = f"""
+<html>
+<body style="font-family: Arial, sans-serif;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #b42318;">Overdue Library Book</h2>
+        <p>Hi {student_name},</p>
+        <p>Your borrowed book is overdue:</p>
+        <div style="background-color: #fff4f2; padding: 15px; border-left: 4px solid #b42318; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Book:</strong> {book_title}</p>
+            <p style="margin: 5px 0;"><strong>Due Date:</strong> {due_date_str}</p>
+            <p style="margin: 5px 0;"><strong>Days Overdue:</strong> {days_overdue}</p>
+        </div>
+        <p>Please return it as soon as possible to reduce additional penalties.</p>
+        <p>Best regards,<br/>Library System</p>
+    </div>
+</body>
+</html>
+        """
+        self.email_service.send_email(subject=subject, recipients=[student_email], body=body_text, html_body=html_body)

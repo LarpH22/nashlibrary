@@ -11,6 +11,63 @@ logger = logging.getLogger(__name__)
 
 
 class LoanRepositoryImpl(LoanRepository):
+    def create_loan_for_copy(self, copy_id: int, user_id: int, borrowed_at, due_date):
+        with get_connection() as conn:
+            try:
+                ensure_inventory_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT copy_id, book_id, status
+                        FROM book_copies
+                        WHERE copy_id=%s
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (copy_id,),
+                    )
+                    copy = cur.fetchone()
+                    if not copy:
+                        raise ValueError('Book copy not found')
+                    if copy.get('status') != 'available':
+                        raise ValueError('Book copy is not available')
+
+                    cur.execute(
+                        """
+                        SELECT borrow_id
+                        FROM borrow_records
+                        WHERE copy_id=%s
+                          AND return_date IS NULL
+                          AND status IN ('active', 'borrowed', 'overdue')
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (copy_id,),
+                    )
+                    if cur.fetchone():
+                        raise ValueError('This book copy is already borrowed')
+
+                    cur.execute(
+                        """
+                        INSERT INTO borrow_records
+                            (student_id, book_id, copy_id, borrow_date, due_date, status)
+                        VALUES (%s, %s, %s, %s, %s, 'active')
+                        """,
+                        (user_id, copy['book_id'], copy_id, borrowed_at, due_date),
+                    )
+                    loan_id = cur.lastrowid
+                    cur.execute(
+                        "UPDATE book_copies SET status='borrowed' WHERE copy_id=%s AND status='available'",
+                        (copy_id,),
+                    )
+                    if cur.rowcount == 0:
+                        raise ValueError('Book copy is not available')
+                conn.commit()
+                return loan_id
+            except Exception:
+                conn.rollback()
+                raise
+
     def _ensure_borrow_request_schema(self, conn):
         ensure_inventory_schema(conn)
         with conn.cursor() as cur:
@@ -302,6 +359,30 @@ class LoanRepositoryImpl(LoanRepository):
             except Exception:
                 conn.rollback()
                 raise
+
+    def close_loan_by_copy_code(self, scan_code: str, returned_at, student_id: int | None = None):
+        with get_connection() as conn:
+            ensure_inventory_schema(conn)
+            conn.commit()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT br.borrow_id
+                    FROM book_copies bc
+                    JOIN borrow_records br ON br.copy_id = bc.copy_id
+                    WHERE (bc.copy_code=%s OR bc.barcode_value=%s OR bc.qr_token=%s)
+                      AND br.return_date IS NULL
+                      AND br.status IN ('active', 'borrowed', 'overdue')
+                      {student_filter}
+                    ORDER BY br.borrow_id DESC
+                    LIMIT 1
+                    """.format(student_filter="AND br.student_id=%s" if student_id is not None else ""),
+                    (scan_code, scan_code, scan_code, student_id) if student_id is not None else (scan_code, scan_code, scan_code),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return self.close_loan(row['borrow_id'], returned_at, student_id)
 
     def close_loan(self, loan_id: int, returned_at, student_id: int | None = None):
         with get_connection() as conn:

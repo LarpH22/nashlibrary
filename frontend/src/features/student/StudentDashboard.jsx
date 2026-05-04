@@ -29,6 +29,7 @@ const navSections = [
       { id: 'books', icon: BookOpen, title: 'My Borrowed Books' },
       { id: 'popular', icon: Flame, title: 'Top Books' },
       { id: 'catalog', icon: Search, title: 'Search Catalog' },
+      { id: 'ebooks', icon: BookMarked, title: 'E-books' },
       { id: 'reading', icon: BookMarked, title: 'Reading History' },
       { id: 'history', icon: History, title: 'Borrowing History' }
     ]
@@ -47,6 +48,7 @@ const pageTitles = {
   books: 'My Borrowed Books',
   popular: 'Top Books',
   catalog: 'Search Catalog',
+  ebooks: 'E-books',
   reading: 'Reading History',
   history: 'Borrowing History',
   profile: 'My Profile',
@@ -91,6 +93,7 @@ export function StudentDashboard() {
   const [loans, setLoans] = useState([])
   const [profile, setProfile] = useState(null)
   const [popularBooks, setPopularBooks] = useState([])
+  const [ebooks, setEbooks] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [notifications, setNotifications] = useState([])
@@ -213,6 +216,26 @@ export function StudentDashboard() {
     }
   }, [addNotification])
 
+  const loadEbooks = useCallback(async () => {
+    try {
+      const token = getAuthToken()
+      const response = await fetch('/books/ebooks', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to load e-books')
+      }
+      setEbooks(Array.isArray(data?.ebooks) ? data.ebooks : [])
+    } catch (err) {
+      console.error('[StudentDashboard] loadEbooks error', err)
+      addNotification('Unable to load e-books.')
+    }
+  }, [addNotification, getAuthToken])
+
   useEffect(() => {
     const token = getAuthToken()
     const storedRole = getStoredUserRole()
@@ -237,7 +260,7 @@ export function StudentDashboard() {
     setFetchError('')
 
     async function loadDashboardData() {
-      await Promise.allSettled([loadProfile(), loadPopularBooks()])
+      await Promise.allSettled([loadProfile(), loadPopularBooks(), loadEbooks()])
       const currentToken = getAuthToken()
       if (currentToken && !isJwtExpired(currentToken)) {
         await loadLoans()
@@ -245,7 +268,7 @@ export function StudentDashboard() {
     }
 
     loadDashboardData().finally(() => setLoading(false))
-  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, redirectToLogin])
+  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, loadEbooks, redirectToLogin])
 
   const stats = useMemo(
     () => {
@@ -368,6 +391,30 @@ export function StudentDashboard() {
     } catch (err) {
       await loadLoans()
       addNotification(err?.response?.data?.message || 'Unable to return this book.')
+    }
+  }
+
+  async function handleDownloadEbook(ebook) {
+    try {
+      const token = getAuthToken()
+      const response = await fetch(`/books/ebooks/${ebook.ebook_id}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data?.message || 'Unable to download e-book')
+      }
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = ebook.original_filename || `${ebook.title}.${ebook.file_type || 'pdf'}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      addNotification(err?.message || 'Unable to download e-book.')
     }
   }
 
@@ -501,6 +548,36 @@ export function StudentDashboard() {
             addNotification(`Borrow request for "${book.title}" was submitted.`)
           }}
         />
+      )
+    }
+
+    if (activePage === 'ebooks') {
+      return (
+        <div className="card">
+          <div className="card-hdr"><div className="card-title">E-book Library</div></div>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>Title</th><th>Book</th><th>Type</th><th>Size</th><th>Access</th></tr>
+              </thead>
+              <tbody>
+                {ebooks.length === 0 ? (
+                  <tr><td colSpan="5" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No e-books available yet.</td></tr>
+                ) : (
+                  ebooks.map((ebook) => (
+                    <tr key={ebook.ebook_id}>
+                      <td>{ebook.title}</td>
+                      <td>{ebook.book_title}</td>
+                      <td>{String(ebook.file_type).toUpperCase()}</td>
+                      <td>{Math.ceil((ebook.file_size || 0) / 1024)} KB</td>
+                      <td><button className="btn btn-green btn-sm" type="button" onClick={() => handleDownloadEbook(ebook)}>Download</button></td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )
     }
 
