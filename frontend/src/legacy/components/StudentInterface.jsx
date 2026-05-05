@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { Camera, User, Mail, BookOpen, Power, Settings } from 'lucide-react'
 
 // ─── Inline styles mirroring original CSS tokens (no new colors/fonts/themes) ───
 const css = {
@@ -687,7 +688,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
             
             <div style={css.modalAvatar}>
               {userFirstName.slice(0, 2).toUpperCase()}
-              <div style={css.modalAvatarEdit}>📷</div>
+              <div style={css.modalAvatarEdit}><Camera size={18} aria-hidden="true" /></div>
             </div>
             
             <h2 style={css.modalTitle}>Edit Profile</h2>
@@ -695,7 +696,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
             <div style={css.modalInputGroup}>
               <label style={css.modalLabel}>Full Name</label>
               <div style={css.modalInputWrapper}>
-                <span style={css.modalInputIcon}>👤</span>
+                <span style={css.modalInputIcon}><User size={16} aria-hidden="true" /></span>
                 <input
                   style={css.modalInputWithIcon}
                   type="text"
@@ -708,7 +709,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
             <div style={css.modalInputGroup}>
               <label style={css.modalLabel}>Email Address</label>
               <div style={css.modalInputWrapper}>
-                <span style={css.modalInputIcon}>✉️</span>
+                <span style={css.modalInputIcon}><Mail size={16} aria-hidden="true" /></span>
                 <input
                   style={css.modalInputWithIcon}
                   type="email"
@@ -806,7 +807,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
         </div>
         <div style={css.headerActions}>
           <button style={{...css.logoutBtn, marginRight: 8}} onClick={() => setShowProfileModal(true)} title="Edit Profile">
-            ⚙️
+            <Settings size={18} aria-hidden="true" />
           </button>
           <div style={css.avatar}>{userFirstName.slice(0, 2).toUpperCase()}</div>
           <button style={css.logoutBtn} onClick={onLogout}>Logout</button>
@@ -822,7 +823,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
             <div style={css.heroGreeting}>
               <h2 style={css.heroH2}>Good {greeting}, {userFirstName}</h2>
               <p style={css.heroSub}>Here is your library overview for today</p>
-              <span style={css.heroBadge(onHold)}>{onHold ? "⚠ On Hold" : "✓ Good Standing"}</span>
+              <span style={css.heroBadge(onHold)}>{onHold ? <><AlertTriangle size={14} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: 4 }} />On Hold</> : <><CheckCircle size={14} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: 4 }} />Good Standing</>}</span>
             </div>
             <div style={css.newsRow}>
               {NEWS.map((n) => <span key={n} style={css.newsPill}>{n}</span>)}
@@ -910,7 +911,7 @@ export default function StudentInterface({ user: propUser, onLogout: propLogout 
                 </div>
                 <div style={{ ...css.curatedRow, marginTop: 16 }}>
                   {CURATED.map((list) => (
-                    <span key={list} style={css.curatedPill}>📖 {list}</span>
+                    <span key={list} style={css.curatedPill}><BookOpen size={14} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{list}</span>
                   ))}
                 </div>
               </div>

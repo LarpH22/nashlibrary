@@ -1,7 +1,7 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Search, Users, ClipboardList, Bell } from 'lucide-react'
+import { Search, Users, ClipboardList, Bell, BookOpen } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.port && window.location.port !== '5000' ? 'http://localhost:5000' : '')
 if (API_BASE_URL) {
@@ -370,7 +370,7 @@ function App() {
 
       <header className="site-header">
         <div className="brand-area">
-          <div className="brand-mark">📚</div>
+          <div className="brand-mark"><BookOpen size={30} strokeWidth={1.9} aria-hidden="true" /></div>
           <div className="brand-copy">
             <span className="brand-name">LIBRASYS</span>
             <span className="brand-tag">Access books anytime, anywhere</span>

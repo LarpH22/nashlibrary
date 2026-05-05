@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { AlertTriangle, CheckCircle } from 'lucide-react'
 import axios from 'axios'
 
 const FinesCard = ({ token }) => {
@@ -75,11 +76,11 @@ const FinesCard = ({ token }) => {
       </div>
 
       {!hasPending && (
-        <p className="fines-checkline">✓ No outstanding balance</p>
+        <p className="fines-checkline"><CheckCircle size={16} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />No outstanding balance</p>
       )}
 
       {hasPending && (
-        <p className="fines-warning">⚠️ You have outstanding fines. Please settle them to avoid service restrictions.</p>
+        <p className="fines-warning"><AlertTriangle size={16} aria-hidden="true" /> You have outstanding fines. Please settle them to avoid service restrictions.</p>
       )}
 
       {fines.total_paid > 0 && (
@@ -112,7 +113,7 @@ const FinesCard = ({ token }) => {
       )}
 
       {(!fines.fines || fines.fines.length === 0) && !hasPending && (
-        <p className="fines-no-records">✅ No fines on your account.</p>
+        <p className="fines-no-records"><CheckCircle size={16} aria-hidden="true" /> No fines on your account.</p>
       )}
     </div>
   )

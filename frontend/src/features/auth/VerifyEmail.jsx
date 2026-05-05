@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { AlertTriangle, RefreshCcw, Mail, CheckCircle, XCircle, ShieldCheck, Clock3 } from 'lucide-react'
 import api from '../../shared/api.js'
 
 export function VerifyEmail() {
@@ -164,7 +165,7 @@ export function VerifyEmail() {
       <div className="auth-page">
         <section className="auth-card verify-card">
           <div className="verify-header">
-            <div className="verify-icon">⚠️</div>
+            <div className="verify-icon"><AlertTriangle size={32} aria-hidden="true" /></div>
             <h2>Browser Context Error</h2>
           </div>
           <div className="message error">
@@ -173,9 +174,9 @@ export function VerifyEmail() {
           <div className="context-error-info">
             <p>This page encountered a browser security issue. Here's what to do:</p>
             <ul>
-              <li>🔄 <strong>Refresh this page</strong> to reload in the correct context</li>
-              <li>📧 Or <strong>click the verification link again</strong> from your email</li>
-              <li>💻 Make sure you're using a standard web browser (Chrome, Firefox, Safari, Edge)</li>
+              <li><RefreshCcw size={16} aria-hidden="true" /> <strong>Refresh this page</strong> to reload in the correct context</li>
+              <li><Mail size={16} aria-hidden="true" /> Or <strong>click the verification link again</strong> from your email</li>
+              <li><ShieldCheck size={16} aria-hidden="true" /> Make sure you're using a standard web browser (Chrome, Firefox, Safari, Edge)</li>
             </ul>
           </div>
           <div className="action-buttons">
@@ -196,7 +197,7 @@ export function VerifyEmail() {
       <div className="auth-page">
         <section className="auth-card verify-card">
           <div className="verify-header">
-            <div className="verify-icon">📧</div>
+            <div className="verify-icon"><Mail size={32} aria-hidden="true" /></div>
             <h2>Email Verification</h2>
           </div>
 
@@ -214,7 +215,7 @@ export function VerifyEmail() {
     <div className="auth-page">
       <section className="auth-card verify-card">
         <div className="verify-header">
-          <div className="verify-icon">{isSuccess ? '✅' : '❌'}</div>
+          <div className="verify-icon">{isSuccess ? <CheckCircle size={32} aria-hidden="true" /> : <XCircle size={32} aria-hidden="true" />}</div>
           <h2>Email Verification</h2>
         </div>
 
@@ -226,10 +227,10 @@ export function VerifyEmail() {
           <div className="verification-info">
             <h3>What happens next?</h3>
             <ul>
-              <li>✅ Your email has been verified</li>
-              <li>⏳ Your account is now pending admin approval</li>
-              <li>📧 You will be notified once approved</li>
-              <li>🔐 Only approved accounts can log in</li>
+              <li><CheckCircle size={16} aria-hidden="true" /> Your email has been verified</li>
+              <li><Clock3 size={16} aria-hidden="true" /> Your account is now pending admin approval</li>
+              <li><Mail size={16} aria-hidden="true" /> You will be notified once approved</li>
+              <li><ShieldCheck size={16} aria-hidden="true" /> Only approved accounts can log in</li>
             </ul>
             <p className="redirect-notice">Redirecting to login page in a few seconds...</p>
           </div>

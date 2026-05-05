@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, LogOut, Bell, X } from 'lucide-react'
+import { BookOpen, LogOut, Bell, X, BarChart3, UserCheck, Repeat, Users, Layers, PenTool, Key, CheckCircle, XCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchCategories,
@@ -27,24 +27,24 @@ const navSections = [
   {
     section: 'MAIN',
     items: [
-      { id: 'overview', icon: '📊', title: 'Overview' },
-      { id: 'registrations', icon: '📝', title: 'Registration Requests' },
-      { id: 'books', icon: '📖', title: 'Books' },
-      { id: 'loans', icon: '🔄', title: 'Issue / Return', badge: '3' },
-      { id: 'students', icon: '👥', title: 'Students' }
+      { id: 'overview', icon: BarChart3, title: 'Overview' },
+      { id: 'registrations', icon: UserCheck, title: 'Registration Requests' },
+      { id: 'books', icon: BookOpen, title: 'Books' },
+      { id: 'loans', icon: Repeat, title: 'Issue / Return', badge: '3' },
+      { id: 'students', icon: Users, title: 'Students' }
     ]
   },
   {
     section: 'LIBRARY',
     items: [
-      { id: 'categories', icon: '🗂', title: 'Categories' },
-      { id: 'authors', icon: '✍️', title: 'Authors' }
+      { id: 'categories', icon: Layers, title: 'Categories' },
+      { id: 'authors', icon: PenTool, title: 'Authors' }
     ]
   },
   {
     section: 'ACCOUNT',
     items: [
-      { id: 'account', icon: '🔑', title: 'Change Password' }
+      { id: 'account', icon: Key, title: 'Change Password' }
     ]
   }
 ]
@@ -113,10 +113,10 @@ export function AdminDashboard() {
 
   const stats = useMemo(
     () => [
-      { label: 'Categories', value: categories.length, type: 'gold' },
-      { label: 'Authors', value: authors.length, type: 'blue' },
-      { label: 'Books', value: books.length, type: 'green' },
-      { label: 'Loans', value: loans.length, type: 'purple' }
+      { label: 'Categories', value: categories.length, type: 'gold', icon: Layers },
+      { label: 'Authors', value: authors.length, type: 'blue', icon: PenTool },
+      { label: 'Books', value: books.length, type: 'green', icon: BookOpen },
+      { label: 'Loans', value: loans.length, type: 'purple', icon: Repeat }
     ],
     [categories, authors, books, loans]
   )
@@ -322,7 +322,7 @@ export function AdminDashboard() {
                 <div className="stat-label">{stat.label}</div>
                 <div className="stat-num">{stat.value}</div>
                 <div className="stat-sub">Current total</div>
-                <div className="stat-icon">{stat.label === 'Books' ? '📚' : stat.label === 'Loans' ? '🔄' : stat.label === 'Authors' ? '✍️' : '🗂'}</div>
+                <div className="stat-icon"><stat.icon size={20} strokeWidth={1.9} aria-hidden="true" /></div>
               </div>
             ))}
           </div>
@@ -378,7 +378,7 @@ export function AdminDashboard() {
                     <td>{request.student_number}</td>
                     <td>{request.department || ''}</td>
                     <td>{request.year_level || ''}</td>
-                    <td>{request.email_verified ? '✅' : '❌'}</td>
+                    <td>{request.email_verified ? <CheckCircle size={16} aria-hidden="true" className="status-icon status-icon-success" /> : <XCircle size={16} aria-hidden="true" className="status-icon status-icon-error" />}</td>
                     <td>
                       {request.document_url ? (
                         <button
@@ -706,7 +706,7 @@ export function AdminDashboard() {
               <div className="nav-section">{section.section}</div>
               {section.items.map((item) => (
                 <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
-                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-icon"><item.icon size={16} strokeWidth={1.8} aria-hidden="true" /></span>
                   <span>{item.title}</span>
                   {item.badge && <span className="nav-badge">{item.badge}</span>}
                 </div>
