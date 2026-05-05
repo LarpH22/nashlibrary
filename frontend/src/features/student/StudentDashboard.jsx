@@ -148,21 +148,38 @@ export function StudentDashboard() {
     navigate('/login', { replace: true })
   }
 
+  const authFetch = useCallback(async (url, options = {}) => {
+    const token = getAuthToken()
+    if (!token || isJwtExpired(token)) {
+      redirectToLogin()
+      return null
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    }
+
+    const response = await fetch(url, { ...options, headers })
+    const data = await response.json().catch(() => ({}))
+
+    if (response.status === 401) {
+      console.warn('[StudentDashboard] unauthorized request', { url, message: data?.message || 'Unauthorized' })
+      redirectToLogin()
+      return null
+    }
+
+    return { response, data }
+  }, [getAuthToken, redirectToLogin])
+
   const loadLoans = useCallback(async () => {
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/loans/student', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-      if (response.status === 401) {
-        console.warn('[StudentDashboard] loadLoans unauthorized', response)
-        redirectToLogin()
+      const result = await authFetch('/api/loans/student')
+      if (!result) {
         return
       }
-      const data = await response.json()
+      const { response, data } = result
       console.log('[StudentDashboard] loadLoans response', response.status, data)
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load student loans')
@@ -174,23 +191,15 @@ export function StudentDashboard() {
       setFetchError(message)
       addNotification(message)
     }
-  }, [addNotification, getAuthToken, redirectToLogin])
+  }, [addNotification, authFetch])
 
   const loadProfile = useCallback(async () => {
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/students/profile', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-      if (response.status === 401) {
-        console.warn('[StudentDashboard] loadProfile unauthorized', response)
-        redirectToLogin()
+      const result = await authFetch('/api/students/profile')
+      if (!result) {
         return
       }
-      const data = await response.json()
+      const { response, data } = result
       console.log('[StudentDashboard] loadProfile response', response.status, data)
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load profile')
@@ -209,7 +218,7 @@ export function StudentDashboard() {
       setFetchError(message)
       addNotification(message)
     }
-  }, [addNotification, getAuthToken, redirectToLogin])
+  }, [addNotification, authFetch])
 
   const loadPopularBooks = useCallback(async () => {
     try {
@@ -326,19 +335,17 @@ export function StudentDashboard() {
 
     setSavingProfile(true)
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/student/profile', {
+      const result = await authFetch('/api/student/profile', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
         body: JSON.stringify({
           full_name: editProfileForm.full_name.trim(),
           email: editProfileForm.email.trim()
         })
       })
-      const data = await response.json().catch(() => ({}))
+      if (!result) {
+        return
+      }
+      const { response, data } = result
       if (!response.ok) {
         setEditProfileErrors({ form: data?.message || 'Unable to update profile.' })
         return
@@ -362,19 +369,22 @@ export function StudentDashboard() {
   async function handleChangePassword(event) {
     event.preventDefault()
     try {
-      const response = await fetch('/api/auth/change-password', {
+      const result = await authFetch('/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(passwordForm)
       })
+      if (!result) {
+        return
+      }
+      const { response, data } = result
       if (response.ok) {
         setPasswordForm({ old_password: '', new_password: '' })
         addNotification('Password changed successfully.')
       } else {
-        addNotification('Password change failed.')
+        addNotification(data?.message || 'Password change failed.')
       }
-    } catch {
-      addNotification('Error changing password.')
+    } catch (error) {
+      addNotification(error?.message || 'Error changing password.')
     }
   }
 

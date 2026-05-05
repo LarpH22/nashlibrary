@@ -1,9 +1,21 @@
+import os
+
+from ..config import Config
 from ..database.db_connection import get_connection
 from ...domain.repositories.book_repository import BookRepository
 from .inventory_schema import ensure_inventory_schema
 
 
 class BookRepositoryImpl(BookRepository):
+    def _resolve_upload_path_for_db(self, file_path: str):
+        upload_root = os.path.abspath(Config.EBOOK_UPLOAD_FOLDER)
+        candidate = os.path.abspath(file_path)
+        if os.path.commonpath([upload_root, candidate]) != upload_root:
+            raise ValueError("E-book file must be stored in the configured upload directory")
+        if not os.path.isfile(candidate):
+            raise ValueError("E-book file is not available on the server")
+        return candidate
+
     def add_book(self, title: str, author: str, isbn: str, available_copies: int = 1, total_copies: int = 1):
         with get_connection() as conn:
             try:
@@ -344,21 +356,31 @@ class BookRepositoryImpl(BookRepository):
                 )
                 return cur.fetchone()
 
-    def create_ebook(self, book_id: int, title: str, original_filename: str, stored_filename: str, file_path: str, file_type: str, file_size: int, uploaded_by_role: str, uploaded_by_id: int | None):
+    def create_ebook(self, book_id: int | None, title: str, original_filename: str, stored_filename: str, file_path: str, file_type: str, file_size: int, uploaded_by_role: str, uploaded_by_id: int | None, author: str | None = None, category: str | None = None):
         with get_connection() as conn:
             try:
                 ensure_inventory_schema(conn)
+                normalized_file_path = self._resolve_upload_path_for_db(file_path)
+                actual_file_size = os.path.getsize(normalized_file_path)
+                if actual_file_size <= 0:
+                    raise ValueError("E-book file is empty")
+                if int(file_size or 0) != actual_file_size:
+                    file_size = actual_file_size
+
                 with conn.cursor() as cur:
-                    cur.execute("SELECT book_id FROM books WHERE book_id=%s LIMIT 1", (book_id,))
-                    if not cur.fetchone():
-                        raise ValueError("Book not found")
+                    # If book_id is provided, validate it exists
+                    if book_id is not None:
+                        cur.execute("SELECT book_id FROM books WHERE book_id=%s LIMIT 1", (book_id,))
+                        if not cur.fetchone():
+                            raise ValueError("Book not found")
+                    
                     cur.execute(
                         """
                         INSERT INTO ebooks
-                            (book_id, title, original_filename, stored_filename, file_path, file_type, file_size, uploaded_by_role, uploaded_by_id)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            (book_id, title, original_filename, stored_filename, file_path, file_type, file_size, author, category, uploaded_by_role, uploaded_by_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """,
-                        (book_id, title, original_filename, stored_filename, file_path, file_type, file_size, uploaded_by_role, uploaded_by_id),
+                        (book_id, title, original_filename, stored_filename, normalized_file_path, file_type, file_size, author, category, uploaded_by_role, uploaded_by_id),
                     )
                     ebook_id = cur.lastrowid
                 conn.commit()
@@ -369,8 +391,14 @@ class BookRepositoryImpl(BookRepository):
 
     def list_ebooks(self, book_id: int | None = None):
         with get_connection() as conn:
-            ensure_inventory_schema(conn)
-            conn.commit()
+            try:
+                ensure_inventory_schema(conn)
+                self._register_orphan_ebook_files(conn)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+
             with conn.cursor() as cur:
                 params = []
                 where_clause = ""
@@ -384,27 +412,86 @@ class BookRepositoryImpl(BookRepository):
                         e.book_id,
                         e.title,
                         e.original_filename,
+                        e.stored_filename,
+                        e.file_path,
+                        e.author AS ebook_author,
+                        e.category AS ebook_category,
                         e.file_type,
                         e.file_size,
                         e.uploaded_at,
                         e.qr_code_path,
                         b.title AS book_title,
                         b.isbn,
-                        COALESCE(GROUP_CONCAT(DISTINCT a.name ORDER BY ba.author_order SEPARATOR ', '), '') AS author,
-                        COALESCE(GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', '), '') AS category
+                        COALESCE(GROUP_CONCAT(DISTINCT a.name ORDER BY ba.author_order SEPARATOR ', '), '') AS book_author,
+                        COALESCE(GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', '), '') AS book_category
                     FROM ebooks e
-                    JOIN books b ON e.book_id = b.book_id
+                    LEFT JOIN books b ON e.book_id = b.book_id
                     LEFT JOIN book_authors ba ON b.book_id = ba.book_id
                     LEFT JOIN authors a ON ba.author_id = a.author_id
                     LEFT JOIN books_categories bc ON b.book_id = bc.book_id
                     LEFT JOIN categories c ON bc.category_id = c.category_id
                     {where_clause}
-                    GROUP BY e.ebook_id, e.book_id, e.title, e.original_filename, e.file_type, e.file_size, e.uploaded_at, e.qr_code_path, b.title, b.isbn
+                    GROUP BY e.ebook_id, e.book_id, e.title, e.original_filename, e.stored_filename, e.file_path, e.author, e.category, e.file_type, e.file_size, e.uploaded_at, e.qr_code_path, b.title, b.isbn
                     ORDER BY e.uploaded_at DESC
                     """,
                     tuple(params),
                 )
                 return cur.fetchall()
+
+    def _register_orphan_ebook_files(self, conn):
+        upload_root = os.path.abspath(Config.EBOOK_UPLOAD_FOLDER)
+        if not os.path.isdir(upload_root):
+            return
+
+        files = []
+        for filename in os.listdir(upload_root):
+            file_path = os.path.join(upload_root, filename)
+            if not os.path.isfile(file_path):
+                continue
+            extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+            if extension not in Config.ALLOWED_EBOOK_EXTENSIONS:
+                continue
+            files.append((filename, file_path, extension, os.path.getsize(file_path)))
+
+        if not files:
+            return
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT stored_filename, original_filename, file_path FROM ebooks")
+            existing = cur.fetchall()
+
+            known_names = set()
+            known_paths = set()
+            for row in existing:
+                for key in ("stored_filename", "original_filename"):
+                    value = str(row.get(key) or "").strip()
+                    if value:
+                        known_names.add(value.lower())
+
+                raw_path = str(row.get("file_path") or "").strip()
+                if raw_path:
+                    candidates = [raw_path]
+                    if not os.path.isabs(raw_path):
+                        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+                        candidates.append(os.path.abspath(raw_path))
+                        candidates.append(os.path.abspath(os.path.join(repo_root, raw_path)))
+                        candidates.append(os.path.abspath(os.path.join(upload_root, raw_path)))
+                    for candidate in candidates:
+                        known_paths.add(os.path.abspath(candidate).lower())
+
+            for filename, file_path, extension, file_size in files:
+                if filename.lower() in known_names or os.path.abspath(file_path).lower() in known_paths:
+                    continue
+
+                title = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").strip().title()
+                cur.execute(
+                    """
+                    INSERT INTO ebooks
+                        (book_id, title, original_filename, stored_filename, file_path, file_type, file_size, uploaded_by_role, uploaded_by_id)
+                    VALUES (NULL, %s, %s, %s, %s, %s, %s, 'librarian', NULL)
+                    """,
+                    (title or filename, filename, filename, file_path, extension, file_size),
+                )
 
     def list_ebooks_missing_qr(self):
         with get_connection() as conn:
@@ -430,12 +517,14 @@ class BookRepositoryImpl(BookRepository):
                     """
                     SELECT
                         e.*,
+                        e.author AS ebook_author,
+                        e.category AS ebook_category,
                         b.title AS book_title,
                         b.isbn,
-                        COALESCE(GROUP_CONCAT(DISTINCT a.name ORDER BY ba.author_order SEPARATOR ', '), '') AS author,
-                        COALESCE(GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', '), '') AS category
+                        COALESCE(GROUP_CONCAT(DISTINCT a.name ORDER BY ba.author_order SEPARATOR ', '), '') AS book_author,
+                        COALESCE(GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', '), '') AS book_category
                     FROM ebooks e
-                    JOIN books b ON e.book_id = b.book_id
+                    LEFT JOIN books b ON e.book_id = b.book_id
                     LEFT JOIN book_authors ba ON b.book_id = ba.book_id
                     LEFT JOIN authors a ON ba.author_id = a.author_id
                     LEFT JOIN books_categories bc ON b.book_id = bc.book_id
@@ -443,7 +532,7 @@ class BookRepositoryImpl(BookRepository):
                     WHERE e.ebook_id=%s
                     GROUP BY e.ebook_id, e.book_id, e.title, e.original_filename, e.stored_filename, e.file_path,
                              e.file_type, e.file_size, e.access_level, e.uploaded_by_role, e.uploaded_by_id,
-                             e.uploaded_at, e.qr_code_path, b.title, b.isbn
+                             e.uploaded_at, e.qr_code_path, e.author, e.category, b.title, b.isbn
                     LIMIT 1
                     """,
                     (ebook_id,),
@@ -479,17 +568,19 @@ class BookRepositoryImpl(BookRepository):
                 if not ebook:
                     return None
 
-                cur.execute(
-                    """
-                    SELECT COUNT(*) AS count
-                    FROM borrow_records
-                    WHERE book_id=%s
-                      AND return_date IS NULL
-                      AND status IN ('active', 'borrowed', 'overdue')
-                    """,
-                    (ebook["book_id"],),
-                )
-                active_loans = int((cur.fetchone() or {}).get("count") or 0)
+                active_loans = 0
+                if ebook.get("book_id"):
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) AS count
+                        FROM borrow_records
+                        WHERE book_id=%s
+                          AND return_date IS NULL
+                          AND status IN ('active', 'borrowed', 'overdue')
+                        """,
+                        (ebook["book_id"],),
+                    )
+                    active_loans = int((cur.fetchone() or {}).get("count") or 0)
 
                 cur.execute(
                     """

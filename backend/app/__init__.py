@@ -23,6 +23,41 @@ def create_app(config_object=None):
     CORS(app)
     jwt_manager.init_app(app)
 
+    @jwt_manager.unauthorized_loader
+    def missing_token(reason):
+        return jsonify({
+            'message': 'Authentication required',
+            'error': reason,
+            'code': 'authorization_required',
+            'status': 401,
+        }), 401
+
+    @jwt_manager.invalid_token_loader
+    def invalid_token(reason):
+        return jsonify({
+            'message': 'Invalid authentication token',
+            'error': reason,
+            'code': 'invalid_token',
+            'status': 401,
+        }), 401
+
+    @jwt_manager.expired_token_loader
+    def expired_token(jwt_header, jwt_payload):
+        return jsonify({
+            'message': 'Session expired',
+            'error': 'The authentication token has expired',
+            'code': 'token_expired',
+            'status': 401,
+        }), 401
+
+    @jwt_manager.revoked_token_loader
+    def revoked_token(jwt_header, jwt_payload):
+        return jsonify({
+            'message': 'Authentication token has been revoked',
+            'code': 'token_revoked',
+            'status': 401,
+        }), 401
+
     # Add security headers to prevent embedding and context issues
     @app.after_request
     def add_security_headers(response):
@@ -31,7 +66,7 @@ def create_app(config_object=None):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' http://localhost:* https://*; frame-ancestors 'none';"
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://translate.google.com https://translate.googleapis.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' http://localhost:* https://translate.googleapis.com https://*.googleapis.com; frame-ancestors 'none';"
         # Allow only same-origin and specific trusted origins
         response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
         response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
