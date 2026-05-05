@@ -567,7 +567,6 @@ export function LibrarianDashboard() {
 
     try {
       const response = await api.post('/api/admin/password', passwordForm)
-      console.log('Password change response:', response.status, response.data)
       const successMessage = response.data?.message
       if (response.status === 200 && successMessage && successMessage.toLowerCase().includes('updated successfully')) {
         setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })

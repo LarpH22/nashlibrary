@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS ebook_access_logs;
 DROP TABLE IF EXISTS ebooks;
 DROP TABLE IF EXISTS loan_reminders;
 DROP TABLE IF EXISTS fines;
+DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS borrow_records;
 DROP TABLE IF EXISTS book_copies;
 DROP TABLE IF EXISTS books_categories;
@@ -177,7 +178,7 @@ CREATE TABLE book_copies (
     copy_code VARCHAR(60) NOT NULL UNIQUE,
     barcode_value VARCHAR(80) UNIQUE,
     qr_token VARCHAR(120) UNIQUE,
-    status ENUM('available', 'borrowed', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
+    status ENUM('available', 'borrowed', 'reserved', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
     location VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -274,7 +275,35 @@ CREATE TABLE borrow_records (
     INDEX idx_status (status),
     INDEX idx_copy_id (copy_id),
     INDEX idx_due_date (due_date),
-    INDEX idx_return_date (return_date)
+    INDEX idx_return_date (return_date),
+    INDEX idx_book_status_return (book_id, status, return_date),
+    INDEX idx_student_status_due (student_id, status, due_date)
+);
+
+-- =====================================================
+-- 11A. RESERVATIONS TABLE (Queue-based holds for unavailable books)
+-- =====================================================
+CREATE TABLE reservations (
+    reservation_id INT PRIMARY KEY AUTO_INCREMENT,
+    student_id INT NOT NULL,
+    book_id INT NOT NULL,
+    ready_copy_id INT NULL,
+    queue_position INT NOT NULL DEFAULT 1,
+    reservation_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('active', 'ready', 'claimed', 'cancelled', 'expired') NOT NULL DEFAULT 'active',
+    expiration_date DATETIME NOT NULL,
+    approved_by INT NULL,
+    claimed_at DATETIME NULL,
+    cancelled_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (ready_copy_id) REFERENCES book_copies(copy_id) ON DELETE SET NULL,
+    FOREIGN KEY (approved_by) REFERENCES librarians(librarian_id),
+    INDEX idx_student_status (student_id, status),
+    INDEX idx_book_queue (book_id, status, queue_position, reservation_date),
+    INDEX idx_expiration (status, expiration_date)
 );
 
 CREATE TABLE loan_reminders (

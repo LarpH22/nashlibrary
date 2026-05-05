@@ -40,7 +40,6 @@ export function Login({ onLoginSuccess }) {
         onLoginSuccess()
       }
       navigate('/dashboard')
-      console.log('Login successful:', data)
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || 'Login failed'
       console.error('Login error:', errorMsg, error)

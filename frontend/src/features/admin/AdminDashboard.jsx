@@ -111,7 +111,7 @@ export function AdminDashboard() {
   const [studentFormError, setStudentFormError] = useState('')
   const [studentPasswordForm, setStudentPasswordForm] = useState({ student_id: '', new_password: '', confirm_password: '' })
   const [studentPasswordMessage, setStudentPasswordMessage] = useState('')
-  const [, setMessage] = useState('')
+  const [message, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [showPasswordSuccessModal, setShowPasswordSuccessModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -161,6 +161,13 @@ export function AdminDashboard() {
 
   const removeNotification = (id) => {
     setNotifications((prev) => prev.filter((notif) => notif.id !== id))
+  }
+
+  const showStatusMessage = (text) => {
+    if (!text) return
+    setMessage(text)
+    const id = Date.now()
+    setNotifications((prev) => [...prev, { id, text }])
   }
 
   const stats = useMemo(
@@ -587,7 +594,7 @@ export function AdminDashboard() {
 
   async function handleViewDocument(documentUrl) {
     if (!documentUrl) {
-      window.alert('No document is available for this student.')
+      showStatusMessage('No document is available for this student.')
       return
     }
 
@@ -617,7 +624,7 @@ export function AdminDashboard() {
         previewWindow.document.body.innerHTML = '<div style="font-family:sans-serif;padding:24px">Unable to load registration document.</div>'
       }
       const message = error?.response?.data?.message || 'Unable to load registration document.'
-      window.alert(message)
+      showStatusMessage(message)
     }
   }
 
@@ -1576,6 +1583,14 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="content">
+          {message && (
+            <div className={`status-message ${message.toLowerCase().includes('failed') || message.toLowerCase().includes('unable') || message.toLowerCase().includes('not found') ? 'error-message' : ''}`}>
+              <span>{message}</span>
+              <button className="icon-button" type="button" onClick={() => setMessage('')} aria-label="Dismiss status message">
+                <X size={14} aria-hidden="true" />
+              </button>
+            </div>
+          )}
           {renderPage()}
         </div>
       </div>

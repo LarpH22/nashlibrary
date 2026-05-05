@@ -244,7 +244,6 @@ export function StudentDashboard() {
         return
       }
       const { response, data } = result
-      console.log('[StudentDashboard] loadLoans response', response.status, data)
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load student loans')
       }
@@ -264,7 +263,6 @@ export function StudentDashboard() {
         return
       }
       const { response, data } = result
-      console.log('[StudentDashboard] loadProfile response', response.status, data)
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load profile')
       }

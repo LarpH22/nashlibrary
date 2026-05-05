@@ -54,10 +54,18 @@ def _ensure_inventory_schema_uncached(conn):
         if not _index_exists(cur, "borrow_records", "idx_copy_id"):
             cur.execute("ALTER TABLE borrow_records ADD INDEX idx_copy_id (copy_id)")
 
+        _ensure_borrow_record_indexes(cur)
         _ensure_book_copy_rows(cur)
         _backfill_copy_scan_metadata(cur)
         _assign_existing_active_loans(cur)
         _reconcile_copy_statuses(cur)
+
+
+def _ensure_borrow_record_indexes(cur):
+    if not _index_exists(cur, "borrow_records", "idx_book_status_return"):
+        cur.execute("ALTER TABLE borrow_records ADD INDEX idx_book_status_return (book_id, status, return_date)")
+    if not _index_exists(cur, "borrow_records", "idx_student_status_due"):
+        cur.execute("ALTER TABLE borrow_records ADD INDEX idx_student_status_due (student_id, status, due_date)")
 
 
 def _ensure_book_copy_metadata_columns(cur):

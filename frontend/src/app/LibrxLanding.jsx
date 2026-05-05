@@ -34,7 +34,7 @@ const LibrxLanding = () => {
             <button className="primary-cta" onClick={() => navigate('/login')}>
               Open My Library <ArrowRight size={18} />
             </button>
-            <button className="secondary-cta">Browse Catalog</button>
+            <button className="secondary-cta" onClick={() => navigate('/login')}>Browse Catalog</button>
           </div>
         </div>
       </header>

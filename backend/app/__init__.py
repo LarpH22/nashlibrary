@@ -20,8 +20,20 @@ def create_app(config_object=None):
     app.config['PROPAGATE_EXCEPTIONS'] = True
     app.config['FRONTEND_DIST_FOLDER'] = frontend_folder
 
-    print(f'Frontend static folder: {frontend_folder}')
-    CORS(app)
+    app.logger.info('Frontend static folder: %s', frontend_folder)
+    cors_origins = {
+        app.config.get('BACKEND_URL'),
+        app.config.get('FRONTEND_URL'),
+        'http://127.0.0.1:3000',
+        'http://localhost:3000',
+        'http://127.0.0.1:5173',
+        'http://localhost:5173',
+    }
+    CORS(
+        app,
+        resources={r"/*": {"origins": [origin for origin in cors_origins if origin]}},
+        supports_credentials=False,
+    )
     jwt_manager.init_app(app)
 
     @jwt_manager.unauthorized_loader

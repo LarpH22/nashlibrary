@@ -253,10 +253,9 @@ export function Register() {
 
     setIsLoading(true)
     try {
-      const data = await registerUser(form)
+      await registerUser(form)
       // Registration successful - show verification message
       setMessage(`Registration request submitted successfully! Please check your email at ${form.email} to verify your account. Your account will be pending admin approval after verification.`)
-      console.log('Registration successful:', data)
       // Clear form
       setForm({
         full_name: '',
