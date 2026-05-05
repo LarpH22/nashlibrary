@@ -766,9 +766,19 @@ export function LibrarianDashboard() {
                       <td>
                         <div className="table-actions">
                           <a className="btn btn-outline btn-sm" href={`/ebooks/${ebook.ebook_id}`} target="_blank" rel="noreferrer">Open</a>
-                          <button className="btn btn-blue btn-sm" type="button" onClick={() => handleDownloadEbook(ebook)}>Download</button>
+                          <button
+                            className="btn btn-blue btn-sm"
+                            type="button"
+                            disabled={!ebook.file_available}
+                            onClick={() => ebook.file_available && handleDownloadEbook(ebook)}
+                          >
+                            Download
+                          </button>
                           <button className="btn btn-red btn-sm" type="button" onClick={() => handleDeleteEbook(ebook)}>Delete</button>
                         </div>
+                        {!ebook.file_available && (
+                          <small className="text-danger">File missing on server</small>
+                        )}
                       </td>
                     </tr>
                   ))}
