@@ -1,6 +1,7 @@
 import os
 from flask import jsonify, current_app, request, send_from_directory
 from flask_jwt_extended.exceptions import JWTExtendedException
+from pymysql.err import OperationalError
 import traceback
 import sys
 
@@ -46,6 +47,14 @@ def register_error_handlers(app):
         traceback.print_exc(file=sys.stderr)
         return jsonify({'message': 'Internal server error', 'status': 500}), 500
 
+    @app.errorhandler(OperationalError)
+    def database_connection_error(error):
+        app.logger.error('Database connection error: %s', str(error), exc_info=True)
+        return jsonify({
+            'message': 'Database connection failed. Check DB_HOST, DB_PORT, DB_USER, and DB_PASSWORD.',
+            'status': 503
+        }), 503
+
     @app.errorhandler(Exception)
     def handle_exception(e):
         # Log the exception with full traceback
@@ -59,6 +68,9 @@ def register_error_handlers(app):
         # Special handling for JWT exceptions
         if isinstance(e, JWTExtendedException):
             return jsonify({'message': str(e), 'status': 401}), 401
+
+        if isinstance(e, OperationalError):
+            return database_connection_error(e)
         
         # Return error response
         return jsonify({'message': 'Internal server error', 'status': 500}), 500

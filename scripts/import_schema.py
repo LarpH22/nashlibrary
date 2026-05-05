@@ -61,10 +61,10 @@ try:
 
     conn.close()
     conn = pymysql.connect(
-        host='127.0.0.1',
-        port=3306,
-        user='root',
-        password='',
+        host=Config.DB_HOST,
+        port=int(Config.DB_PORT),
+        user=Config.DB_USER,
+        password=Config.DB_PASSWORD,
         database=DB_NAME,
         charset='utf8mb4'
     )

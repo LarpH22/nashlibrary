@@ -26,7 +26,8 @@ Write-Host ""
 
 # Start backend
 $Env:DB_HOST = '127.0.0.1'
-$Env:DB_PORT = '3306'
+$Env:DB_PORT = '3307'
 $Env:DB_USER = 'root'
+$Env:DB_PASSWORD = ''
 $Env:DB_NAME = 'library_system_v2'
 python backend/run_server.py
