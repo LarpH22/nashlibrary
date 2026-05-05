@@ -32,6 +32,10 @@ class AdminController:
             return 'Passwords do not match'
         return None
 
+    def _validate_password_change(self, old_password, new_password, confirm_password=None):
+        valid, message = self.validation_service.validate_password_change(old_password, new_password, confirm_password)
+        return None if valid else message
+
     def _require_admin(self):
         jwt_claims = get_jwt()
         if jwt_claims.get('role') != 'admin':
@@ -481,10 +485,7 @@ class AdminController:
         old_password = data.get('old_password')
         new_password = data.get('new_password')
         confirm_password = data.get('confirm_password', '')
-        if not old_password or not new_password:
-            return jsonify({'message': 'Old and new passwords are required'}), 400
-
-        password_error = self._validate_new_password(new_password, confirm_password)
+        password_error = self._validate_password_change(old_password, new_password, confirm_password)
         if password_error:
             return jsonify({'message': password_error}), 400
 

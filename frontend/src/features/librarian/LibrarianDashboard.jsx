@@ -5,7 +5,7 @@ import api, { normalizeApiError } from '../../shared/api.js'
 import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
 import { formatCurrency } from '../../shared/utils/index.js'
-import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
+import { PasswordChangeForm, getPasswordChangeValidation } from '../../shared/components/PasswordChangeForm.jsx'
 import { approveReservation, cancelReservation, claimReservation, expireReservations, fetchReservations } from '../reservations/reservationService.js'
 import './LibrarianDashboard.css'
 
@@ -122,8 +122,9 @@ export function LibrarianDashboard() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
   const [ebookUploadTitle, setEbookUploadTitle] = useState('')
   const [ebookUploadFile, setEbookUploadFile] = useState(null)
   const [ebookUploading, setEbookUploading] = useState(false)
@@ -547,31 +548,22 @@ export function LibrarianDashboard() {
   async function handleChangePassword(event) {
     event.preventDefault()
     setPasswordError('')
+    setPasswordSuccess('')
 
-    // Validate fields
-    if (!passwordForm.old_password || !passwordForm.new_password) {
-      setPasswordError('Current password and new password are required.')
+    const formValidation = getPasswordChangeValidation(passwordForm)
+    if (!formValidation.isValid) {
+      setPasswordError(formValidation.message)
       return
     }
 
-    const passwordValidation = validatePassword(passwordForm.new_password, 'New password')
-    if (!passwordValidation.isValid) {
-      setPasswordError(passwordValidation.message)
-      return
-    }
-    const confirmationValidation = validatePasswordConfirmation(passwordForm.new_password, passwordForm.confirm_password)
-    if (!confirmationValidation.isValid) {
-      setPasswordError(confirmationValidation.message)
-      return
-    }
-
+    setPasswordSaving(true)
     try {
       const response = await api.post('/api/admin/password', passwordForm)
       const successMessage = response.data?.message
       if (response.status === 200 && successMessage && successMessage.toLowerCase().includes('updated successfully')) {
         setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
         setPasswordError('')
-        setShowPasswordModal(true)
+        setPasswordSuccess('Password updated successfully.')
       } else {
         const errorMsg = successMessage || 'Password change failed. Please try again.'
         console.warn('Password change did not succeed:', response.status, response.data)
@@ -581,7 +573,15 @@ export function LibrarianDashboard() {
       console.error('Error changing password:', error.response?.status, error.response?.data)
       const errorMsg = error.response?.data?.message || error.message || 'Password change failed. Please try again.'
       setPasswordError(errorMsg)
+    } finally {
+      setPasswordSaving(false)
     }
+  }
+
+  function updatePasswordField(field, value) {
+    setPasswordForm((current) => ({ ...current, [field]: value }))
+    setPasswordError('')
+    setPasswordSuccess('')
   }
 
   function updateAvailabilityFilter(field, value) {
@@ -1274,17 +1274,14 @@ export function LibrarianDashboard() {
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Change Password</div></div>
-          <form className="admin-form" onSubmit={handleChangePassword}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-              <div className="frow">
-                <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => { setPasswordForm({ ...passwordForm, old_password: event.target.value }); setPasswordError(''); }} placeholder="Current password" /></div>
-                <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError(''); }} placeholder={passwordRequirementText} /></div>
-                <div className="fgroup"><label>Confirm new password</label><input type="password" value={passwordForm.confirm_password} onChange={(event) => { setPasswordForm({ ...passwordForm, confirm_password: event.target.value }); setPasswordError(''); }} placeholder="Confirm new password" /></div>
-              </div>
-              <button className="btn btn-blue" type="submit" style={{ alignSelf: 'flex-start' }}>Save password</button>
-              {passwordError && <div className="password-error">{passwordError}</div>}
-            </div>
-          </form>
+          <PasswordChangeForm
+            form={passwordForm}
+            onFieldChange={updatePasswordField}
+            onSubmit={handleChangePassword}
+            error={passwordError}
+            success={passwordSuccess}
+            submitting={passwordSaving}
+          />
         </div>
       )
     }
@@ -1372,21 +1369,6 @@ export function LibrarianDashboard() {
           {renderPage()}
         </div>
       </div>
-      {showPasswordModal && (
-        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Success</div>
-            </div>
-            <div className="modal-body">
-              <div className="modal-message">Password changed successfully!</div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-close" onClick={() => setShowPasswordModal(false)}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

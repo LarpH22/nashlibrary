@@ -105,6 +105,31 @@ class ValidationService:
 
         return True, "Password is strong"
 
+    def validate_password_change(
+        self,
+        old_password: str,
+        new_password: str,
+        confirm_password: str | None = None
+    ) -> tuple[bool, str]:
+        """Validate a role-agnostic password change request."""
+        if not old_password or not new_password:
+            return False, "Current password and new password are required."
+
+        valid, message = self.validate_password_strength(new_password)
+        if not valid:
+            return False, message
+
+        if confirm_password is not None and not confirm_password:
+            return False, "Confirm password is required"
+
+        if confirm_password is not None and new_password != confirm_password:
+            return False, "Passwords do not match"
+
+        if old_password == new_password:
+            return False, "New password must be different from current password"
+
+        return True, "Password change request is valid"
+
     @staticmethod
     def validate_file(file, max_size: int = 5 * 1024 * 1024) -> tuple[bool, str]:
         """Validate uploaded file (type and size)"""

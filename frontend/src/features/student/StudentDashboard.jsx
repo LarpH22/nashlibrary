@@ -23,7 +23,7 @@ import { fetchStudentFines, payFine } from '../fines/fineService.js'
 import { cancelStudentReservation, fetchStudentReservations } from '../reservations/reservationService.js'
 import { clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRole, isJwtExpired } from '../../shared/authStorage.js'
 import { formatCurrency } from '../../shared/utils/index.js'
-import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
+import { PasswordChangeForm, getPasswordChangeValidation } from '../../shared/components/PasswordChangeForm.jsx'
 import './StudentDashboard.css'
 
 const navSections = [
@@ -156,7 +156,7 @@ export function StudentDashboard() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const tabParam = urlParams.get('tab')
-    if (tabParam && ['overview', 'catalog', 'books', 'ebooks', 'reservations', 'reading', 'fines', 'history', 'profile'].includes(tabParam)) {
+    if (tabParam && ['overview', 'catalog', 'books', 'ebooks', 'reservations', 'reading', 'fines', 'history', 'profile', 'password'].includes(tabParam)) {
       setActivePage(tabParam)
     }
   }, [])
@@ -165,6 +165,9 @@ export function StudentDashboard() {
   const [paymentResult, setPaymentResult] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -513,21 +516,17 @@ export function StudentDashboard() {
 
   async function handleChangePassword(event) {
     event.preventDefault()
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    const formValidation = getPasswordChangeValidation(passwordForm)
+    if (!formValidation.isValid) {
+      setPasswordError(formValidation.message)
+      return
+    }
+
+    setPasswordSaving(true)
     try {
-      if (!passwordForm.old_password) {
-        addNotification('Current password is required')
-        return
-      }
-      const passwordValidation = validatePassword(passwordForm.new_password, 'New password')
-      if (!passwordValidation.isValid) {
-        addNotification(passwordValidation.message)
-        return
-      }
-      const confirmationValidation = validatePasswordConfirmation(passwordForm.new_password, passwordForm.confirm_password)
-      if (!confirmationValidation.isValid) {
-        addNotification(confirmationValidation.message)
-        return
-      }
       const result = await authFetch('/api/auth/change-password', {
         method: 'POST',
         body: JSON.stringify(passwordForm)
@@ -538,13 +537,22 @@ export function StudentDashboard() {
       const { response, data } = result
       if (response.ok) {
         setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
+        setPasswordSuccess('Password updated successfully.')
         addNotification('Password changed successfully.')
       } else {
-        addNotification(data?.message || 'Password change failed.')
+        setPasswordError(data?.message || 'Password change failed.')
       }
     } catch (error) {
-      addNotification(error?.message || 'Error changing password.')
+      setPasswordError(error?.message || 'Error changing password.')
+    } finally {
+      setPasswordSaving(false)
     }
+  }
+
+  function updatePasswordField(field, value) {
+    setPasswordForm((current) => ({ ...current, [field]: value }))
+    setPasswordError('')
+    setPasswordSuccess('')
   }
 
   function handlePayFine(fine) {
@@ -1223,21 +1231,14 @@ export function StudentDashboard() {
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Change Password</div></div>
-          <form className="admin-form" style={{ flexDirection: 'column' }} onSubmit={handleChangePassword}>
-            <div className="fgroup">
-              <label>Current password</label>
-              <input type="password" value={passwordForm.old_password} onChange={(event) => setPasswordForm({ ...passwordForm, old_password: event.target.value })} placeholder="Current password" />
-            </div>
-            <div className="fgroup">
-              <label>New password</label>
-              <input type="password" value={passwordForm.new_password} onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })} placeholder={passwordRequirementText} />
-            </div>
-            <div className="fgroup">
-              <label>Confirm new password</label>
-              <input type="password" value={passwordForm.confirm_password} onChange={(event) => setPasswordForm({ ...passwordForm, confirm_password: event.target.value })} placeholder="Confirm new password" />
-            </div>
-            <button className="btn btn-green" type="submit">Save password</button>
-          </form>
+          <PasswordChangeForm
+            form={passwordForm}
+            onFieldChange={updatePasswordField}
+            onSubmit={handleChangePassword}
+            error={passwordError}
+            success={passwordSuccess}
+            submitting={passwordSaving}
+          />
         </div>
       )
     }

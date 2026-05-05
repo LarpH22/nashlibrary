@@ -30,6 +30,7 @@ import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
 import { formatCurrency } from '../../shared/utils/index.js'
 import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
+import { PasswordChangeForm, getPasswordChangeValidation } from '../../shared/components/PasswordChangeForm.jsx'
 import './AdminDashboard.css'
 
 const navSections = [
@@ -113,7 +114,8 @@ export function AdminDashboard() {
   const [studentPasswordMessage, setStudentPasswordMessage] = useState('')
   const [message, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
-  const [showPasswordSuccessModal, setShowPasswordSuccessModal] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -149,12 +151,6 @@ export function AdminDashboard() {
   }, [authorPagination.page])
 
   const handleLogout = () => {
-    clearStoredAuth()
-    navigate('/login', { replace: true })
-  }
-
-  const handlePasswordSuccessConfirm = () => {
-    setShowPasswordSuccessModal(false)
     clearStoredAuth()
     navigate('/login', { replace: true })
   }
@@ -560,28 +556,20 @@ export function AdminDashboard() {
   async function handleChangePassword(event) {
     event.preventDefault()
     setPasswordError('')
+    setPasswordSuccess('')
 
-    if (!passwordForm.old_password || !passwordForm.new_password) {
-      setPasswordError('Current password and new password are required.')
+    const formValidation = getPasswordChangeValidation(passwordForm)
+    if (!formValidation.isValid) {
+      setPasswordError(formValidation.message)
       return
     }
 
-    const passwordValidation = validatePassword(passwordForm.new_password, 'New password')
-    if (!passwordValidation.isValid) {
-      setPasswordError(passwordValidation.message)
-      return
-    }
-    const confirmationValidation = validatePasswordConfirmation(passwordForm.new_password, passwordForm.confirm_password)
-    if (!confirmationValidation.isValid) {
-      setPasswordError(confirmationValidation.message)
-      return
-    }
-
+    setPasswordSaving(true)
     try {
       await changePassword(passwordForm.old_password, passwordForm.new_password, passwordForm.confirm_password)
       setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
       setPasswordError('')
-      setShowPasswordSuccessModal(true)
+      setPasswordSuccess('Password updated successfully.')
     } catch (error) {
       console.error('Password change error:', error)
       const responseData = error.response?.data
@@ -589,7 +577,15 @@ export function AdminDashboard() {
         ? responseData
         : responseData?.message || responseData?.error || error.message || 'Password change failed.'
       setPasswordError(errorMsg)
+    } finally {
+      setPasswordSaving(false)
     }
+  }
+
+  function updatePasswordField(field, value) {
+    setPasswordForm((current) => ({ ...current, [field]: value }))
+    setPasswordError('')
+    setPasswordSuccess('')
   }
 
   async function handleViewDocument(documentUrl) {
@@ -1477,15 +1473,14 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Change Password</div></div>
-          <form className="admin-form" onSubmit={handleChangePassword}>
-            <div className="frow">
-              <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => { setPasswordForm({ ...passwordForm, old_password: event.target.value }); setPasswordError('') }} placeholder="Current password" /></div>
-              <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError('') }} placeholder={passwordRequirementText} /></div>
-              <div className="fgroup"><label>Confirm new password</label><input type="password" value={passwordForm.confirm_password} onChange={(event) => { setPasswordForm({ ...passwordForm, confirm_password: event.target.value }); setPasswordError('') }} placeholder="Confirm new password" /></div>
-            </div>
-            <button className="btn btn-gold" type="submit">Save password</button>
-            {passwordError && <div className="password-error">{passwordError}</div>}
-          </form>
+          <PasswordChangeForm
+            form={passwordForm}
+            onFieldChange={updatePasswordField}
+            onSubmit={handleChangePassword}
+            error={passwordError}
+            success={passwordSuccess}
+            submitting={passwordSaving}
+          />
         </div>
       )
     }
@@ -1526,17 +1521,6 @@ export function AdminDashboard() {
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button onClick={() => setShowLogoutConfirm(false)} style={{ padding: '8px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
               <button onClick={handleLogout} style={{ padding: '8px 16px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>Logout</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showPasswordSuccessModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '420px', width: '100%', color: 'var(--text)' }}>
-            <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Password Updated</div>
-            <div style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '24px' }}>Your password has been changed successfully.</div>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button onClick={handlePasswordSuccessConfirm} className="btn btn-primary" type="button">OK</button>
             </div>
           </div>
         </div>

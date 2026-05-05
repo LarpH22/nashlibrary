@@ -959,13 +959,15 @@
 
 .auth-card input,
 .auth-card select {
-  min-height: 44px;
+  width: 100%;
+  height: 44px;
   padding: 10px 12px;
   border: 1px solid #303650;
   border-radius: 8px;
   background: #1d2232;
   color: #e8e4d9;
   font-size: 14px;
+  line-height: 1.2;
 }
 
 .auth-card input[type="file"] {
@@ -981,11 +983,17 @@
 
 .auth-button,
 .auth-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
   padding: 0 16px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .auth-button-primary,
@@ -1104,6 +1112,121 @@
   background: #1d2232 !important;
 }
 
+.password-change-form {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+}
+
+.password-change-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.password-field-group {
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 42px !important;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent !important;
+  color: var(--muted, #7a7f99) !important;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text, #e8e4d9) !important;
+  box-shadow: none !important;
+  transform: translateY(-50%) !important;
+}
+
+.password-field-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  margin-top: 6px;
+  color: var(--muted, #7a7f99);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.password-field-message svg {
+  flex: 0 0 auto;
+}
+
+.password-field-message.valid {
+  color: var(--green, #2ecc8a);
+}
+
+.password-field-message.invalid {
+  color: var(--red, #e05b5b);
+}
+
+.password-feedback {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.password-feedback.success-message {
+  border: 1px solid rgba(46, 204, 138, 0.32);
+  background: rgba(46, 204, 138, 0.1);
+  color: var(--green, #2ecc8a);
+}
+
+.password-feedback.error-message {
+  border: 1px solid rgba(224, 91, 91, 0.32);
+  background: rgba(224, 91, 91, 0.1);
+  color: var(--red, #e05b5b);
+}
+
+.password-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.password-actions .btn {
+  min-width: 132px;
+}
+
+@media (max-width: 980px) {
+  .password-change-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .file-name {
   margin-top: 0;
   color: #9aa0b8;
@@ -1155,6 +1278,10 @@
   }
 
   .auth-card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .password-change-grid {
     grid-template-columns: 1fr;
   }
 }
