@@ -6,6 +6,7 @@ import {
   BookOpen,
   BookMarked,
   CheckCircle2,
+  CreditCard,
   Flame,
   History,
   KeyRound,
@@ -18,6 +19,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { BookSearch } from '../books/BookSearch.jsx'
 import { fetchMostBorrowedBooks, returnBook } from '../books/bookService.js'
+import { fetchStudentFines, payFine } from '../fines/fineService.js'
 import { clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRole, isJwtExpired } from '../../shared/authStorage.js'
 import './StudentDashboard.css'
 
@@ -29,7 +31,7 @@ const navSections = [
       { id: 'books', icon: BookOpen, title: 'My Borrowed Books' },
       { id: 'popular', icon: Flame, title: 'Top Books' },
       { id: 'catalog', icon: Search, title: 'Search Catalog' },
-      { id: 'ebooks', icon: BookMarked, title: 'E-books' },
+      { id: 'fines', icon: CreditCard, title: 'Fines' },
       { id: 'reading', icon: BookMarked, title: 'Reading History' },
       { id: 'history', icon: History, title: 'Borrowing History' }
     ]
@@ -48,7 +50,7 @@ const pageTitles = {
   books: 'My Borrowed Books',
   popular: 'Top Books',
   catalog: 'Search Catalog',
-  ebooks: 'E-books',
+  fines: 'Fine Management',
   reading: 'Reading History',
   history: 'Borrowing History',
   profile: 'My Profile',
@@ -83,6 +85,7 @@ const getInitials = (name = '') => {
 const getStatIcon = (label) => {
   if (label === 'Borrowed') return BookOpen
   if (label === 'Overdue') return AlertTriangle
+  if (label === 'Unpaid Fines') return CreditCard
   if (label === 'Returned') return CheckCircle2
   return History
 }
@@ -93,7 +96,9 @@ export function StudentDashboard() {
   const [loans, setLoans] = useState([])
   const [profile, setProfile] = useState(null)
   const [popularBooks, setPopularBooks] = useState([])
-  const [ebooks, setEbooks] = useState([])
+  const [fines, setFines] = useState([])
+  const [fineSummary, setFineSummary] = useState({ total_unpaid: 0, total_paid: 0, unpaid_count: 0, paid_count: 0, total_count: 0 })
+  const [payingFineLoanId, setPayingFineLoanId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [notifications, setNotifications] = useState([])
@@ -216,25 +221,16 @@ export function StudentDashboard() {
     }
   }, [addNotification])
 
-  const loadEbooks = useCallback(async () => {
+  const loadFines = useCallback(async () => {
     try {
-      const token = getAuthToken()
-      const response = await fetch('/books/ebooks', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to load e-books')
-      }
-      setEbooks(Array.isArray(data?.ebooks) ? data.ebooks : [])
+      const data = await fetchStudentFines()
+      setFines(Array.isArray(data?.fines) ? data.fines : [])
+      setFineSummary(data?.summary || { total_unpaid: 0, total_paid: 0, unpaid_count: 0, paid_count: 0, total_count: 0 })
     } catch (err) {
-      console.error('[StudentDashboard] loadEbooks error', err)
-      addNotification('Unable to load e-books.')
+      console.error('[StudentDashboard] loadFines error', err)
+      addNotification(err?.response?.data?.message || 'Unable to load fines.')
     }
-  }, [addNotification, getAuthToken])
+  }, [addNotification])
 
   useEffect(() => {
     const token = getAuthToken()
@@ -260,7 +256,7 @@ export function StudentDashboard() {
     setFetchError('')
 
     async function loadDashboardData() {
-      await Promise.allSettled([loadProfile(), loadPopularBooks(), loadEbooks()])
+      await Promise.allSettled([loadProfile(), loadPopularBooks(), loadFines()])
       const currentToken = getAuthToken()
       if (currentToken && !isJwtExpired(currentToken)) {
         await loadLoans()
@@ -268,7 +264,7 @@ export function StudentDashboard() {
     }
 
     loadDashboardData().finally(() => setLoading(false))
-  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, loadEbooks, redirectToLogin])
+  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, loadFines, redirectToLogin])
 
   const stats = useMemo(
     () => {
@@ -276,16 +272,15 @@ export function StudentDashboard() {
       const totalLoanCount = loans.filter(l => !l.is_request).length
       const overdue = loans.filter(l => isApprovedLoan(l) && l.due_date && new Date(l.due_date) < new Date()).length
       const returned = loans.filter(l => l.returned).length
-      const overdueRate = totalLoanCount > 0 ? Math.round((overdue / totalLoanCount) * 100) : 0
       return [
         { label: 'Borrowed', value: active, type: 'green' },
         { label: 'Overdue', value: overdue, type: 'red' },
-        { label: 'Overdue Rate', value: `${overdueRate}%`, type: 'gold' },
+        { label: 'Unpaid Fines', value: `$${Number(fineSummary.total_unpaid || 0).toFixed(2)}`, type: 'gold' },
         { label: 'Returned', value: returned, type: 'blue' },
         { label: 'Total Loans', value: totalLoanCount, type: 'purple' }
       ]
     },
-    [loans]
+    [loans, fineSummary.total_unpaid]
   )
 
   const activeBorrowedBookIds = useMemo(
@@ -386,35 +381,30 @@ export function StudentDashboard() {
   async function handleReturnLoan(loan) {
     try {
       await returnBook(Number(loan.loan_id))
-      await loadLoans()
+      await Promise.allSettled([loadLoans(), loadFines()])
       addNotification(`Returned "${loan.book_title || 'book'}" successfully.`)
     } catch (err) {
-      await loadLoans()
+      await Promise.allSettled([loadLoans(), loadFines()])
       addNotification(err?.response?.data?.message || 'Unable to return this book.')
     }
   }
 
-  async function handleDownloadEbook(ebook) {
+  async function handlePayFine(fine) {
+    const loanId = Number(fine.loan_id || fine.borrow_id)
+    if (!loanId) {
+      addNotification('Unable to identify the loan for this fine.')
+      return
+    }
+
+    setPayingFineLoanId(loanId)
     try {
-      const token = getAuthToken()
-      const response = await fetch(`/books/ebooks/${ebook.ebook_id}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data?.message || 'Unable to download e-book')
-      }
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = ebook.original_filename || `${ebook.title}.${ebook.file_type || 'pdf'}`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      await payFine(loanId)
+      await Promise.allSettled([loadFines(), loadLoans()])
+      addNotification('Fine paid successfully.')
     } catch (err) {
-      addNotification(err?.message || 'Unable to download e-book.')
+      addNotification(err?.response?.data?.message || 'Unable to pay this fine.')
+    } finally {
+      setPayingFineLoanId(null)
     }
   }
 
@@ -454,6 +444,7 @@ export function StudentDashboard() {
               <div style={{ display: 'grid', gap: '10px' }}>
                 <button className="btn btn-green" type="button" onClick={() => setActivePage('books')}>View My Books</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('reading')}>Reading History</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('fines')}>Manage Fines</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('history')}>Borrowing History</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('profile')}>View Profile</button>
               </div>
@@ -551,33 +542,97 @@ export function StudentDashboard() {
       )
     }
 
-    if (activePage === 'ebooks') {
+    if (activePage === 'fines') {
+      const outstandingFines = fines.filter((fine) => ['unpaid', 'pending'].includes(String(fine.status || '').toLowerCase()))
+      const fineHistory = fines.filter((fine) => !['unpaid', 'pending'].includes(String(fine.status || '').toLowerCase()))
+      const renderFineStatus = (fine) => {
+        const status = String(fine.status || '').toLowerCase()
+        if (status === 'paid') return <span className="fine-status paid">Paid</span>
+        if (status === 'waived') return <span className="fine-status waived">Waived</span>
+        if (Number(fine.days_overdue || 0) > 0) return <span className="fine-status overdue">Overdue</span>
+        return <span className="fine-status unpaid">Unpaid</span>
+      }
+
       return (
-        <div className="card">
-          <div className="card-hdr"><div className="card-title">E-book Library</div></div>
-          <div className="admin-table-container">
-            <table>
-              <thead>
-                <tr><th>Title</th><th>Book</th><th>Type</th><th>Size</th><th>Access</th></tr>
-              </thead>
-              <tbody>
-                {ebooks.length === 0 ? (
-                  <tr><td colSpan="5" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No e-books available yet.</td></tr>
-                ) : (
-                  ebooks.map((ebook) => (
-                    <tr key={ebook.ebook_id}>
-                      <td>{ebook.title}</td>
-                      <td>{ebook.book_title}</td>
-                      <td>{String(ebook.file_type).toUpperCase()}</td>
-                      <td>{Math.ceil((ebook.file_size || 0) / 1024)} KB</td>
-                      <td><button className="btn btn-green btn-sm" type="button" onClick={() => handleDownloadEbook(ebook)}>Download</button></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <>
+          <div className="stats-grid fines-stats">
+            <div className="stat red">
+              <div className="stat-label">Outstanding</div>
+              <div className="stat-num">${Number(fineSummary.total_unpaid || 0).toFixed(2)}</div>
+              <div className="stat-sub">{fineSummary.unpaid_count || 0} unpaid</div>
+            </div>
+            <div className="stat green">
+              <div className="stat-label">Paid</div>
+              <div className="stat-num">${Number(fineSummary.total_paid || 0).toFixed(2)}</div>
+              <div className="stat-sub">{fineSummary.paid_count || 0} paid</div>
+            </div>
+            <div className="stat gold">
+              <div className="stat-label">Fine Records</div>
+              <div className="stat-num">{fineSummary.total_count || fines.length}</div>
+              <div className="stat-sub">All statuses</div>
+            </div>
           </div>
-        </div>
+
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Outstanding Fines ({outstandingFines.length})</div></div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr><th>Book</th><th>Due Date</th><th>Overdue</th><th>Amount</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                  {outstandingFines.length === 0 ? (
+                    <tr><td colSpan="6" className="empty-cell">No outstanding fines.</td></tr>
+                  ) : (
+                    outstandingFines.map((fine) => {
+                      const loanId = fine.loan_id || fine.borrow_id
+                      return (
+                        <tr key={`${loanId}-${fine.fine_id || 'computed'}`}>
+                          <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
+                          <td>{fine.due_date ? new Date(fine.due_date).toLocaleDateString() : '-'}</td>
+                          <td>{Number(fine.days_overdue || 0)} day{Number(fine.days_overdue || 0) === 1 ? '' : 's'}</td>
+                          <td>${Number(fine.amount || fine.fine_amount || 0).toFixed(2)}</td>
+                          <td>{renderFineStatus(fine)}</td>
+                          <td>
+                            <button className="btn btn-green btn-sm" type="button" disabled={payingFineLoanId === Number(loanId)} onClick={() => handlePayFine(fine)}>
+                              {payingFineLoanId === Number(loanId) ? 'Paying...' : 'Pay'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Fine History ({fineHistory.length})</div></div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr><th>Book</th><th>Issued</th><th>Paid</th><th>Amount</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {fineHistory.length === 0 ? (
+                    <tr><td colSpan="5" className="empty-cell">No fine history yet.</td></tr>
+                  ) : (
+                    fineHistory.map((fine) => (
+                      <tr key={`${fine.loan_id || fine.borrow_id}-${fine.fine_id || fine.status}`}>
+                        <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
+                        <td>{fine.issued_date ? new Date(fine.issued_date).toLocaleDateString() : '-'}</td>
+                        <td>{fine.paid_date ? new Date(fine.paid_date).toLocaleDateString() : '-'}</td>
+                        <td>${Number(fine.amount || fine.fine_amount || 0).toFixed(2)}</td>
+                        <td>{renderFineStatus(fine)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )
     }
 

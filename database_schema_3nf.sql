@@ -85,7 +85,7 @@ CREATE TABLE students (
     phone VARCHAR(20),
     address TEXT,
     student_number VARCHAR(20) UNIQUE NOT NULL,
-    department VARCHAR(100),
+    department VARCHAR(30),
     year_level INT,
     section VARCHAR(10),
     registration_document VARCHAR(255),
@@ -111,7 +111,7 @@ CREATE TABLE registration_requests (
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     student_number VARCHAR(20) UNIQUE NOT NULL,
-    department VARCHAR(100) NOT NULL,
+    department VARCHAR(30) NOT NULL,
     year_level INT NOT NULL,
     registration_document VARCHAR(255),
     role ENUM('admin', 'librarian', 'student') DEFAULT 'student',
@@ -299,7 +299,7 @@ CREATE TABLE fines (
     student_id INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     reason VARCHAR(255),
-    status ENUM('pending', 'paid', 'waived') DEFAULT 'pending',
+    status ENUM('unpaid', 'paid', 'waived') DEFAULT 'unpaid',
     issued_date DATE NOT NULL,
     paid_date DATE,
     issued_by INT,
@@ -420,9 +420,9 @@ SELECT
     s.student_number,
     s.full_name,
     s.email,
-    COALESCE(SUM(CASE WHEN f.status = 'pending' THEN f.amount ELSE 0 END), 0) as total_pending_fines,
+    COALESCE(SUM(CASE WHEN f.status = 'unpaid' THEN f.amount ELSE 0 END), 0) as total_pending_fines,
     COALESCE(SUM(CASE WHEN f.status = 'paid' THEN f.amount ELSE 0 END), 0) as total_paid_fines,
-    COALESCE(COUNT(DISTINCT CASE WHEN f.status = 'pending' THEN f.fine_id END), 0) as pending_fine_count
+    COALESCE(COUNT(DISTINCT CASE WHEN f.status = 'unpaid' THEN f.fine_id END), 0) as pending_fine_count
 FROM students s
 LEFT JOIN fines f ON s.student_id = f.student_id
 GROUP BY s.student_id;
@@ -652,7 +652,7 @@ BEGIN
     -- Create fine record if applicable
     IF v_fine > 0 THEN
         INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date, issued_by)
-        VALUES (p_borrow_id, v_student_id, v_fine, 'Overdue book', 'pending', CURDATE(), v_librarian_id);
+        VALUES (p_borrow_id, v_student_id, v_fine, 'Overdue book', 'unpaid', CURDATE(), v_librarian_id);
     END IF;
     
     -- Log the action
@@ -785,7 +785,7 @@ BEGIN
     -- Get fine details
     SELECT amount INTO v_amount
     FROM fines 
-    WHERE fine_id = p_fine_id AND status = 'pending';
+    WHERE fine_id = p_fine_id AND status = 'unpaid';
     
     IF v_amount IS NULL THEN
         SET p_message = 'Fine not found or already paid';

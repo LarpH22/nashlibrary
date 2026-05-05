@@ -134,8 +134,8 @@ export function Register() {
     if (!value.trim()) {
       return { isValid: false, message: 'Department / Program is required' }
     }
-    if (value.trim().length > 100) {
-      return { isValid: false, message: 'Department / Program must be less than 100 characters' }
+    if (value.trim().length > 30) {
+      return { isValid: false, message: 'Department / Program must be 30 characters or fewer' }
     }
     return { isValid: true, message: 'Valid department / program' }
   }
@@ -145,8 +145,8 @@ export function Register() {
       return { isValid: false, message: 'Year level is required' }
     }
     const numeric = Number(value)
-    if (!Number.isInteger(numeric) || numeric < 1 || numeric > 10) {
-      return { isValid: false, message: 'Year level must be a number from 1 to 10' }
+    if (!Number.isInteger(numeric) || numeric < 1 || numeric > 4) {
+      return { isValid: false, message: 'Year level must be a number from 1 to 4' }
     }
     return { isValid: true, message: 'Valid year level' }
   }
@@ -370,6 +370,7 @@ export function Register() {
               onChange={handleChange}
               className={getInputClass('department')}
               placeholder="e.g., Computer Science"
+              maxLength="30"
               required
             />
             <span className={getMessageClass('department')}>
@@ -385,7 +386,7 @@ export function Register() {
               onChange={handleChange}
               className={getInputClass('year_level')}
               min="1"
-              max="10"
+              max="4"
               placeholder="e.g., 1"
               required
             />

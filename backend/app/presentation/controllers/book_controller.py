@@ -1,10 +1,11 @@
 import os
+import socket
 import uuid
 from datetime import datetime, timedelta
 from html import escape
 from urllib.parse import quote
 
-from flask import Response, jsonify, request, send_file
+from flask import Response, jsonify, make_response, request, send_file, redirect, current_app
 from werkzeug.utils import secure_filename
 
 from ...application.use_cases.book.add_book import AddBookUseCase
@@ -29,9 +30,6 @@ class BookController:
         books = self.book_repository.list_books()
         for book in books:
             book['detail_url'] = f"/books/{book['book_id']}"
-            book['qr_url'] = book.get('qr_code_path') and self._public_upload_url(book['qr_code_path'])
-            if not book['qr_url']:
-                book['qr_url'] = f"/books/{book['book_id']}/qr.png"
         return jsonify(books), 200
 
     def add_book(self):
@@ -47,13 +45,10 @@ class BookController:
 
         book_id = self.add_book_use_case.execute(title, author, isbn, available_copies, total_copies)
         base_url = self._frontend_base_url(data)
-        qr_code_path = self._generate_book_qr_code(book_id, base_url)
         return jsonify({
             'message': 'Book created',
             'book_id': book_id,
             'detail_url': f"{base_url}/books/{book_id}",
-            'qr_code_path': qr_code_path,
-            'qr_code_url': self._public_upload_url(qr_code_path),
         }), 201
 
     def borrow_book(self, current_user=None):
@@ -175,12 +170,12 @@ class BookController:
             data = request.get_json(silent=True) or {}
             scan_code = str(data.get('code') or '').strip()
         if not scan_code:
-            return jsonify({'message': 'Barcode or QR code is required'}), 400
+            return jsonify({'message': 'Barcode is required'}), 400
 
         copy = self.book_repository.find_copy_by_scan_code(scan_code)
         if not copy:
             return jsonify({'message': 'Book copy not found'}), 404
-        copy['detail_url'] = f"{Config.FRONTEND_URL.rstrip('/')}/dashboard?copy={quote(copy['qr_token'] or copy['barcode_value'] or copy['copy_code'])}"
+        copy['detail_url'] = f"{Config.FRONTEND_URL.rstrip('/')}/dashboard?copy={quote(copy['barcode_value'] or copy['copy_code'])}"
         return jsonify({'copy': copy}), 200
 
     def borrow_by_scan(self, current_user=None):
@@ -190,9 +185,9 @@ class BookController:
             return jsonify({'message': 'Library account access required'}), 403
 
         data = request.get_json() or {}
-        scan_code = str(data.get('code') or data.get('barcode') or data.get('qr_token') or '').strip()
+        scan_code = str(data.get('code') or data.get('barcode') or '').strip()
         if not scan_code:
-            return jsonify({'message': 'Barcode or QR code is required'}), 400
+            return jsonify({'message': 'Barcode is required'}), 400
 
         copy = self.book_repository.find_copy_by_scan_code(scan_code)
         if not copy:
@@ -220,9 +215,9 @@ class BookController:
             return jsonify({'message': 'Library account access required'}), 403
 
         data = request.get_json() or {}
-        scan_code = str(data.get('code') or data.get('barcode') or data.get('qr_token') or '').strip()
+        scan_code = str(data.get('code') or data.get('barcode') or '').strip()
         if not scan_code:
-            return jsonify({'message': 'Barcode or QR code is required'}), 400
+            return jsonify({'message': 'Barcode is required'}), 400
 
         student_id = current_user.get('student_id') if current_user.get('role') == 'student' else None
         try:
@@ -234,21 +229,10 @@ class BookController:
             return jsonify({'message': 'Active loan not found for scanned copy'}), 404
         return jsonify({'message': 'Book returned from scan', 'loan': returned_loan}), 200
 
-    def copy_qr_svg(self, copy_id):
-        copies = self.book_repository.list_copies()
-        copy = next((row for row in copies if int(row['copy_id']) == int(copy_id)), None)
-        if not copy:
-            return jsonify({'message': 'Book copy not found'}), 404
-
-        token = copy.get('qr_token') or copy.get('barcode_value') or copy.get('copy_code')
-        target_url = f"{Config.FRONTEND_URL.rstrip('/')}/books/{copy['book_id']}?copy={quote(token)}"
-        qr_svg = self._qrcode_svg(target_url)
-        if qr_svg:
-            return Response(qr_svg, mimetype='image/svg+xml')
-        svg = self._deterministic_qr_svg(target_url, copy.get('copy_code') or token)
-        return Response(svg, mimetype='image/svg+xml')
-
     def book_detail(self, book_id):
+        if request.accept_mimetypes['text/html'] >= request.accept_mimetypes['application/json']:
+            return redirect(f"/books/{book_id}", code=302)
+
         book = self.book_repository.find_by_id(book_id)
         if not book:
             return jsonify({'message': 'Book not found'}), 404
@@ -257,91 +241,10 @@ class BookController:
         for ebook in ebooks:
             ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
             ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/public-download"
-            ebook['qr_url'] = ebook.get('qr_code_path') and self._public_upload_url(ebook['qr_code_path'])
-            if not ebook['qr_url']:
-                ebook['qr_url'] = f"/books/ebooks/{ebook['ebook_id']}/qr.png"
 
         book['detail_url'] = f"/books/{book['book_id']}"
-        book['qr_url'] = book.get('qr_code_path') and self._public_upload_url(book['qr_code_path'])
-        if not book['qr_url']:
-            book['qr_url'] = f"/books/{book['book_id']}/qr.png"
         book['ebooks'] = ebooks
         return jsonify({'book': book}), 200
-
-    def book_qr_svg(self, book_id):
-        book = self.book_repository.find_by_id(book_id)
-        if not book:
-            return jsonify({'message': 'Book not found'}), 404
-
-        target_url = f"{self._frontend_base_url()}/books/{book_id}"
-        qr_svg = self._qrcode_svg(target_url)
-        if not qr_svg:
-            return jsonify({'message': 'QR code generation is unavailable'}), 500
-        return Response(qr_svg, mimetype='image/svg+xml')
-
-    def book_qr_png(self, book_id):
-        book = self.book_repository.find_by_id(book_id)
-        if not book:
-            return jsonify({'message': 'Book not found'}), 404
-
-        base_url = self._frontend_base_url()
-        qr_code_path = book.get('qr_code_path')
-        if not qr_code_path or not self._stored_qr_exists(qr_code_path):
-            qr_code_path = self._generate_book_qr_code(book_id, base_url)
-
-        file_path = self._absolute_upload_path(qr_code_path)
-        return send_file(file_path, mimetype='image/png', conditional=True)
-
-    def bulk_generate_book_qr_codes(self, current_user=None):
-        if not current_user or current_user.get('role') not in ['admin', 'librarian']:
-            return jsonify({'message': 'Admin or librarian access required'}), 403
-
-        data = request.get_json(silent=True) or {}
-        base_url = self._frontend_base_url(data)
-        force = bool(data.get('force') or request.args.get('force') in ['1', 'true', 'yes'])
-        include_ebooks = data.get('include_ebooks', True)
-        books = self.book_repository.list_books() if force else self.book_repository.list_books_missing_qr()
-        ebooks = self.book_repository.list_ebooks() if force else self.book_repository.list_ebooks_missing_qr()
-
-        generated_books = []
-        generated_ebooks = []
-        failed = []
-        for book in books:
-            try:
-                qr_code_path = self._generate_book_qr_code(book['book_id'], base_url)
-                generated_books.append({
-                    'book_id': book['book_id'],
-                    'qr_code_path': qr_code_path,
-                    'qr_code_url': self._public_upload_url(qr_code_path),
-                    'detail_url': f"{base_url}/books/{book['book_id']}",
-                })
-            except Exception as exc:
-                failed.append({'book_id': book.get('book_id'), 'message': str(exc)})
-
-        if include_ebooks:
-            for ebook in ebooks:
-                try:
-                    qr_code_path = self._generate_ebook_qr_code(ebook['ebook_id'], base_url)
-                    generated_ebooks.append({
-                        'ebook_id': ebook['ebook_id'],
-                        'qr_code_path': qr_code_path,
-                        'qr_code_url': self._public_upload_url(qr_code_path),
-                        'detail_url': f"{base_url}/ebooks/{ebook['ebook_id']}",
-                    })
-                except Exception as exc:
-                    failed.append({'ebook_id': ebook.get('ebook_id'), 'message': str(exc)})
-
-        return jsonify({
-            'message': 'Book QR code generation complete',
-            'base_url': base_url,
-            'generated_count': len(generated_books) + len(generated_ebooks),
-            'generated_book_count': len(generated_books),
-            'generated_ebook_count': len(generated_ebooks),
-            'failed_count': len(failed),
-            'generated_books': generated_books,
-            'generated_ebooks': generated_ebooks,
-            'failed': failed,
-        }), 200 if not failed else 207
 
     def upload_ebook(self, current_user=None):
         if not current_user or current_user.get('role') not in ['admin', 'librarian']:
@@ -394,13 +297,10 @@ class BookController:
             return jsonify({'message': str(exc)}), 404
 
         base_url = self._frontend_base_url()
-        qr_code_path = self._generate_ebook_qr_code(ebook_id, base_url)
         return jsonify({
             'message': 'E-book uploaded',
             'ebook_id': ebook_id,
             'detail_url': f"{base_url}/ebooks/{ebook_id}",
-            'qr_code_path': qr_code_path,
-            'qr_code_url': self._public_upload_url(qr_code_path),
         }), 201
 
     def list_ebooks(self, current_user=None):
@@ -411,9 +311,6 @@ class BookController:
         for ebook in ebooks:
             ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/download"
             ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
-            ebook['qr_url'] = ebook.get('qr_code_path') and self._public_upload_url(ebook['qr_code_path'])
-            if not ebook['qr_url']:
-                ebook['qr_url'] = f"/books/ebooks/{ebook['ebook_id']}/qr.png"
         return jsonify({'ebooks': ebooks}), 200
 
     def download_ebook(self, ebook_id, current_user=None):
@@ -447,40 +344,10 @@ class BookController:
         book = self.book_repository.find_by_id(ebook['book_id'])
         ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
         ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/public-download"
-        ebook['qr_url'] = ebook.get('qr_code_path') and self._public_upload_url(ebook['qr_code_path'])
-        if not ebook['qr_url']:
-            ebook['qr_url'] = f"/books/ebooks/{ebook['ebook_id']}/qr.png"
         if book:
             book['detail_url'] = f"/books/{book['book_id']}"
-            book['qr_url'] = book.get('qr_code_path') and self._public_upload_url(book['qr_code_path'])
-            if not book['qr_url']:
-                book['qr_url'] = f"/books/{book['book_id']}/qr.svg"
         self.book_repository.log_ebook_access(ebook_id, 'student', None, 'view')
         return jsonify({'ebook': ebook, 'book': book}), 200
-
-    def ebook_qr_svg(self, ebook_id):
-        ebook = self.book_repository.find_ebook(ebook_id)
-        if not ebook:
-            return jsonify({'message': 'E-book not found'}), 404
-
-        target_url = f"{self._frontend_base_url()}/ebooks/{ebook_id}"
-        qr_svg = self._qrcode_svg(target_url)
-        if not qr_svg:
-            return jsonify({'message': 'QR code generation is unavailable'}), 500
-        return Response(qr_svg, mimetype='image/svg+xml')
-
-    def ebook_qr_png(self, ebook_id):
-        ebook = self.book_repository.find_ebook(ebook_id)
-        if not ebook:
-            return jsonify({'message': 'E-book not found'}), 404
-
-        base_url = self._frontend_base_url()
-        qr_code_path = ebook.get('qr_code_path')
-        if not qr_code_path or not self._stored_qr_exists(qr_code_path):
-            qr_code_path = self._generate_ebook_qr_code(ebook_id, base_url)
-
-        file_path = self._absolute_upload_path(qr_code_path)
-        return send_file(file_path, mimetype='image/png', conditional=True)
 
     def public_download_ebook(self, ebook_id):
         ebook = self.book_repository.find_ebook(ebook_id)
@@ -541,115 +408,3 @@ class BookController:
         if explicit_base_url:
             return explicit_base_url.rstrip('/')
         return request.host_url.rstrip('/')
-
-    def _public_upload_url(self, relative_path):
-        if not relative_path:
-            return None
-        normalized = str(relative_path).replace('\\', '/').lstrip('/')
-        return f"/{normalized}"
-
-    def _absolute_upload_path(self, relative_path):
-        normalized = str(relative_path).replace('\\', '/').lstrip('/')
-        prefix = 'uploads/qr_codes/'
-        if not normalized.startswith(prefix):
-            raise ValueError('Invalid QR code path')
-        relative_inside_qr_root = normalized[len(prefix):]
-        file_path = os.path.abspath(os.path.join(Config.QR_CODE_FOLDER, *relative_inside_qr_root.split('/')))
-        qr_root = os.path.abspath(Config.QR_CODE_FOLDER)
-        if os.path.commonpath([qr_root, file_path]) != qr_root:
-            raise ValueError('Invalid QR code path')
-        return file_path
-
-    def _stored_qr_exists(self, relative_path):
-        try:
-            return os.path.isfile(self._absolute_upload_path(relative_path))
-        except ValueError:
-            return False
-
-    def _generate_book_qr_code(self, book_id, base_url):
-        detail_url = f"{base_url.rstrip('/')}/books/{book_id}"
-        relative_path = f"uploads/qr_codes/books/book_{book_id}.png"
-        file_path = self._absolute_upload_path(relative_path)
-        self._write_qr_png(detail_url, file_path)
-        self.book_repository.update_book_qr_code_path(book_id, relative_path)
-        return relative_path
-
-    def _generate_ebook_qr_code(self, ebook_id, base_url):
-        detail_url = f"{base_url.rstrip('/')}/ebooks/{ebook_id}"
-        relative_path = f"uploads/qr_codes/ebooks/ebook_{ebook_id}.png"
-        file_path = self._absolute_upload_path(relative_path)
-        self._write_qr_png(detail_url, file_path)
-        self.book_repository.update_ebook_qr_code_path(ebook_id, relative_path)
-        return relative_path
-
-    def _write_qr_png(self, payload, file_path):
-        import qrcode
-
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        qr = qrcode.QRCode(
-            version=None,
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(payload)
-        qr.make(fit=True)
-        image = qr.make_image(fill_color='black', back_color='white')
-        image.save(file_path)
-
-    def _deterministic_qr_svg(self, payload: str, label: str):
-        # Lightweight, dependency-free QR-style code. The encoded URL is embedded for scanners/apps that read the title.
-        import hashlib
-
-        digest = hashlib.sha256(payload.encode('utf-8')).digest()
-        cell = 8
-        size = 29
-        margin = 4
-        width = (size + margin * 2) * cell
-        rects = []
-        finder_positions = [(0, 0), (size - 7, 0), (0, size - 7)]
-
-        def in_finder(x, y):
-            return any(fx <= x < fx + 7 and fy <= y < fy + 7 for fx, fy in finder_positions)
-
-        for fx, fy in finder_positions:
-            for y in range(7):
-                for x in range(7):
-                    border = x in (0, 6) or y in (0, 6)
-                    center = 2 <= x <= 4 and 2 <= y <= 4
-                    if border or center:
-                        rects.append((fx + x, fy + y))
-
-        bit_index = 0
-        for y in range(size):
-            for x in range(size):
-                if in_finder(x, y):
-                    continue
-                byte = digest[(bit_index // 8) % len(digest)]
-                if (byte >> (bit_index % 8)) & 1:
-                    rects.append((x, y))
-                bit_index += 1
-
-        rect_markup = ''.join(
-            f'<rect x="{(x + margin) * cell}" y="{(y + margin) * cell}" width="{cell}" height="{cell}"/>'
-            for x, y in rects
-        )
-        return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{width}" viewBox="0 0 {width} {width}" role="img">
-<title>{escape(payload)}</title>
-<rect width="100%" height="100%" fill="#fff"/>
-<g fill="#111">{rect_markup}</g>
-<text x="50%" y="{width - 8}" text-anchor="middle" font-size="10" font-family="Arial" fill="#111">{escape(label)}</text>
-</svg>"""
-
-    def _qrcode_svg(self, payload: str):
-        try:
-            import io
-            import qrcode
-            import qrcode.image.svg
-
-            image = qrcode.make(payload, image_factory=qrcode.image.svg.SvgPathImage)
-            buffer = io.BytesIO()
-            image.save(buffer)
-            return buffer.getvalue().decode('utf-8')
-        except Exception:
-            return None

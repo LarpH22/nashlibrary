@@ -15,11 +15,27 @@ class LoanRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def find_loan_by_id(self, loan_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
     def find_loans_by_student_id(self, student_id: int):
         raise NotImplementedError
 
     @abstractmethod
+    def find_fines_by_student_id(self, student_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_fine_state_for_loan(self, loan_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
     def calculate_fine(self, loan_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def pay_fine(self, loan_id: int):
         raise NotImplementedError
 
     @abstractmethod

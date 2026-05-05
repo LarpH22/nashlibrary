@@ -32,7 +32,8 @@ def register_blueprints(app):
     app.register_blueprint(book_bp, url_prefix='/books')
     # Search books: /api/books/search
     app.register_blueprint(book_search_bp, url_prefix='/api/books')
-    # Fine routes: /fines/*
+    # Fine routes: /api/fines/* with /fines/* kept for existing clients
     app.register_blueprint(fine_bp, url_prefix='/fines')
+    app.register_blueprint(fine_bp, url_prefix='/api/fines', name='fine_api')
     # Reminder routes: /reminders/*
     app.register_blueprint(reminder_bp, url_prefix='/api/reminders')

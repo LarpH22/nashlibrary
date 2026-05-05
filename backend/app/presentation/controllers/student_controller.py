@@ -87,14 +87,16 @@ class StudentController:
 
         if 'department' in payload and not str(payload.get('department') or '').strip():
             return 'Department / Program is required'
+        if 'department' in payload and len(str(payload.get('department') or '').strip()) > 30:
+            return 'Department / Program must be 30 characters or fewer'
 
         if 'year_level' in payload:
             try:
                 year_level = int(payload.get('year_level'))
             except (TypeError, ValueError):
                 return 'Year level must be a number'
-            if year_level < 1 or year_level > 10:
-                return 'Year level must be between 1 and 10'
+            if year_level < 1 or year_level > 4:
+                return 'Year level must be between 1 and 4'
             payload['year_level'] = year_level
 
         for key in ['full_name', 'department']:

@@ -1351,6 +1351,10 @@ def borrow_book():
 @app.route('/borrowings/<int:borrow_id>/return', methods=['POST'])
 @jwt_required()
 def return_book(borrow_id):
+    return jsonify({
+        'message': 'Legacy loan return is disabled. Use POST /books/return so fine calculation stays centralized.'
+    }), 410
+
     user, student = get_current_user_and_student()
     if not user or not student:
         return jsonify({'message': 'Student account not found'}), 404
@@ -1434,6 +1438,10 @@ def return_book(borrow_id):
 @app.route('/student/fines', methods=['GET'])
 @jwt_required()
 def get_fines():
+    return jsonify({
+        'message': 'Legacy fine history is disabled. Use GET /api/fines/student.'
+    }), 410
+
     user, student = get_current_user_and_student()
     if not user or not student:
         return jsonify({'message': 'Student account not found'}), 404
@@ -1651,6 +1659,10 @@ def return_book_by_isbn(isbn):
     Return a book by ISBN. Updates book status to 'available'
     and restores book availability.
     """
+    return jsonify({
+        'message': 'Legacy ISBN return is disabled. Use POST /books/scan/return so fine calculation stays centralized.'
+    }), 410
+
     user, student = get_current_user_and_student()
     if not user or not student:
         return jsonify({'message': 'Student account not found'}), 404

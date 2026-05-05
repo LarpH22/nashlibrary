@@ -106,13 +106,6 @@ def create_app(config_object=None):
             return asset_response
         return jsonify({'message': 'Asset not found', 'status': 404}), 404
 
-    @app.route('/uploads/qr_codes/<path:path>', methods=['GET'])
-    def serve_qr_code(path):
-        normalized_path = path.replace('\\', '/')
-        if '..' in normalized_path.split('/'):
-            return jsonify({'message': 'QR code not found', 'status': 404}), 404
-        return send_from_directory(Config.QR_CODE_FOLDER, normalized_path)
-
     @app.route('/dashboard/api/<path:subpath>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
     def redirect_dashboard_api(subpath):
         """Redirect relative dashboard API paths to the root API path."""

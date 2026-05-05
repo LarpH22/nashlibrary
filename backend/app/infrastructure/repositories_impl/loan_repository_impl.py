@@ -432,7 +432,7 @@ class LoanRepositoryImpl(LoanRepository):
                             cur.execute(
                                 """
                                 INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date)
-                                VALUES (%s, %s, %s, %s, 'pending', %s)
+                                VALUES (%s, %s, %s, %s, 'unpaid', %s)
                                 """,
                                 (loan_id, loan['student_id'], fine_amount, 'Overdue book return', issued_date),
                             )
@@ -464,6 +464,35 @@ class LoanRepositoryImpl(LoanRepository):
                     (book_id, user_id),
                 )
                 return cur.fetchone()
+
+    def find_loan_by_id(self, loan_id: int):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        br.borrow_id AS loan_id,
+                        br.student_id,
+                        br.book_id,
+                        br.copy_id,
+                        bc.copy_code,
+                        b.title AS book_title,
+                        br.borrow_date AS issue_date,
+                        br.due_date,
+                        br.return_date,
+                        br.status
+                    FROM borrow_records br
+                    LEFT JOIN books b ON br.book_id = b.book_id
+                    LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
+                    WHERE br.borrow_id=%s
+                    LIMIT 1
+                    """,
+                    (loan_id,),
+                )
+                loan = cur.fetchone()
+                if loan:
+                    self._convert_dates(loan, ['issue_date', 'due_date', 'return_date'])
+                return loan
 
     def find_loans_by_student_id(self, student_id: int):
         try:
@@ -507,7 +536,12 @@ class LoanRepositoryImpl(LoanRepository):
                         for loan in loans:
                             due_date = loan.get('due_date')
                             return_date = loan.get('return_date')
-                            loan['fine_amount'] = self._compute_fine(due_date, return_date or datetime.utcnow())
+                            loan['fine_amount'] = self._get_outstanding_fine(
+                                cur,
+                                loan['loan_id'],
+                                due_date,
+                                return_date or datetime.utcnow(),
+                            )
                             loan['days_overdue'] = self._compute_days_overdue(due_date, return_date or datetime.utcnow())
 
                             for field_name in ['issue_date', 'due_date', 'return_date']:
@@ -553,6 +587,170 @@ class LoanRepositoryImpl(LoanRepository):
         for field in fields:
             if field in row and row[field] is not None and hasattr(row[field], 'isoformat'):
                 row[field] = row[field].isoformat()
+
+    def find_fines_by_student_id(self, student_id: int):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        f.fine_id,
+                        f.borrow_id AS loan_id,
+                        f.borrow_id,
+                        f.student_id,
+                        f.amount,
+                        f.reason,
+                        f.status,
+                        f.issued_date,
+                        f.paid_date,
+                        br.book_id,
+                        br.copy_id,
+                        bc.copy_code,
+                        b.title AS book_title,
+                        br.borrow_date AS issue_date,
+                        br.due_date,
+                        br.return_date,
+                        br.status AS loan_status
+                    FROM fines f
+                    LEFT JOIN borrow_records br ON f.borrow_id = br.borrow_id
+                    LEFT JOIN books b ON br.book_id = b.book_id
+                    LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
+                    WHERE f.student_id=%s
+                    ORDER BY f.issued_date DESC, f.fine_id DESC
+                    """,
+                    (student_id,),
+                )
+                fines = list(cur.fetchall() or [])
+                seen_loan_ids = set()
+                for fine in fines:
+                    seen_loan_ids.add(fine.get('loan_id'))
+                    amount = fine.get('amount')
+                    fine['amount'] = round(float(amount or 0), 2)
+                    fine['fine_amount'] = fine['amount']
+                    fine['days_overdue'] = self._compute_days_overdue(
+                        fine.get('due_date'),
+                        fine.get('return_date') or fine.get('paid_date') or datetime.utcnow(),
+                    )
+                    fine['is_paid'] = fine.get('status') == 'paid'
+                    fine['is_unpaid'] = fine.get('status') in ('unpaid', 'pending')
+                    fine['source'] = 'recorded'
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'issue_date', 'due_date', 'return_date'])
+
+                cur.execute(
+                    """
+                    SELECT
+                        br.borrow_id AS loan_id,
+                        br.borrow_id,
+                        br.student_id,
+                        br.book_id,
+                        br.copy_id,
+                        bc.copy_code,
+                        b.title AS book_title,
+                        br.borrow_date AS issue_date,
+                        br.due_date,
+                        br.return_date,
+                        br.status AS loan_status
+                    FROM borrow_records br
+                    LEFT JOIN books b ON br.book_id = b.book_id
+                    LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
+                    WHERE br.student_id=%s
+                      AND br.due_date IS NOT NULL
+                      AND DATE(br.due_date) < CURDATE()
+                      AND br.borrow_id NOT IN (
+                          SELECT borrow_id FROM fines WHERE student_id=%s
+                      )
+                    ORDER BY br.due_date ASC
+                    """,
+                    (student_id, student_id),
+                )
+                computed = list(cur.fetchall() or [])
+                for loan in computed:
+                    if loan.get('loan_id') in seen_loan_ids:
+                        continue
+                    end_date = loan.get('return_date') or datetime.utcnow()
+                    amount = self._compute_fine(loan.get('due_date'), end_date)
+                    if amount <= 0:
+                        continue
+                    loan.update({
+                        'fine_id': None,
+                        'amount': amount,
+                        'fine_amount': amount,
+                        'reason': 'Overdue book fine',
+                        'status': 'unpaid',
+                        'issued_date': None,
+                        'paid_date': None,
+                        'days_overdue': self._compute_days_overdue(loan.get('due_date'), end_date),
+                        'is_paid': False,
+                        'is_unpaid': True,
+                        'source': 'computed',
+                    })
+                    self._convert_dates(loan, ['issue_date', 'due_date', 'return_date'])
+                    fines.append(loan)
+
+                return fines
+
+    def get_fine_state_for_loan(self, loan_id: int):
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT borrow_id, student_id, due_date, return_date
+                    FROM borrow_records
+                    WHERE borrow_id=%s
+                    LIMIT 1
+                    """,
+                    (loan_id,),
+                )
+                loan = cur.fetchone()
+                if not loan:
+                    return None
+
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS fine_count,
+                        COALESCE(SUM(CASE WHEN status IN ('unpaid', 'pending') THEN amount ELSE 0 END), 0) AS unpaid_amount,
+                        SUM(CASE WHEN status='paid' THEN 1 ELSE 0 END) AS paid_count,
+                        SUM(CASE WHEN status IN ('unpaid', 'pending') THEN 1 ELSE 0 END) AS unpaid_count,
+                        SUM(CASE WHEN status='waived' THEN 1 ELSE 0 END) AS waived_count
+                    FROM fines
+                    WHERE borrow_id=%s
+                    """,
+                    (loan_id,),
+                )
+                summary = cur.fetchone() or {}
+                fine_count = int(summary.get('fine_count') or 0)
+                unpaid_amount = round(float(summary.get('unpaid_amount') or 0), 2)
+                end_date = loan.get('return_date') or datetime.utcnow()
+                computed_amount = self._compute_fine(loan.get('due_date'), end_date)
+                days_overdue = self._compute_days_overdue(loan.get('due_date'), end_date)
+
+                status = 'no_fine'
+                payable_amount = 0.0
+                if unpaid_amount > 0:
+                    status = 'unpaid'
+                    payable_amount = unpaid_amount
+                elif fine_count == 0 and computed_amount > 0:
+                    status = 'unpaid'
+                    payable_amount = computed_amount
+                elif int(summary.get('paid_count') or 0) > 0:
+                    status = 'paid'
+                elif int(summary.get('waived_count') or 0) > 0:
+                    status = 'waived'
+
+                return {
+                    'loan_id': loan_id,
+                    'student_id': loan.get('student_id'),
+                    'status': status,
+                    'fine_count': fine_count,
+                    'paid_count': int(summary.get('paid_count') or 0),
+                    'unpaid_count': int(summary.get('unpaid_count') or 0),
+                    'waived_count': int(summary.get('waived_count') or 0),
+                    'computed_amount': round(float(computed_amount or 0), 2),
+                    'payable_amount': round(float(payable_amount or 0), 2),
+                    'days_overdue': days_overdue,
+                }
+
     def calculate_fine(self, loan_id: int):
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -560,9 +758,128 @@ class LoanRepositoryImpl(LoanRepository):
                 record = cur.fetchone()
                 if not record:
                     return 0.0
-                due_date = record.get('due_date')
-                returned_at = record.get('return_date') or datetime.utcnow()
-                return self._compute_fine(due_date, returned_at)
+                return self._get_outstanding_fine(
+                    cur,
+                    loan_id,
+                    record.get('due_date'),
+                    record.get('return_date') or datetime.utcnow(),
+                )
+
+    def pay_fine(self, loan_id: int):
+        with get_connection() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT fine_id, borrow_id, student_id, amount, reason, status, issued_date, paid_date
+                        FROM fines
+                        WHERE borrow_id=%s
+                          AND status IN ('unpaid', 'pending')
+                        ORDER BY issued_date ASC, fine_id ASC
+                        FOR UPDATE
+                        """,
+                        (loan_id,),
+                    )
+                    fines = list(cur.fetchall() or [])
+                    if not fines:
+                        cur.execute("SELECT COUNT(*) AS fine_count FROM fines WHERE borrow_id=%s", (loan_id,))
+                        if int((cur.fetchone() or {}).get('fine_count') or 0) > 0:
+                            conn.rollback()
+                            return None
+
+                        cur.execute(
+                            """
+                            SELECT borrow_id, student_id, due_date, return_date
+                            FROM borrow_records
+                            WHERE borrow_id=%s
+                            LIMIT 1
+                            FOR UPDATE
+                            """,
+                            (loan_id,),
+                        )
+                        loan = cur.fetchone()
+                        if not loan:
+                            conn.rollback()
+                            return None
+
+                        paid_at = datetime.utcnow()
+                        fine_amount = self._compute_fine(loan.get('due_date'), loan.get('return_date') or paid_at)
+                        if fine_amount <= 0:
+                            conn.rollback()
+                            return None
+
+                        cur.execute(
+                            """
+                            INSERT INTO fines
+                                (borrow_id, student_id, amount, reason, status, issued_date, paid_date)
+                            VALUES (%s, %s, %s, %s, 'paid', %s, %s)
+                            """,
+                            (
+                                loan_id,
+                                loan['student_id'],
+                                fine_amount,
+                                'Overdue book fine',
+                                paid_at,
+                                paid_at,
+                            ),
+                        )
+                        fine_id = cur.lastrowid
+                        cur.execute(
+                            """
+                            SELECT fine_id, borrow_id, student_id, amount, reason, status, issued_date, paid_date
+                            FROM fines
+                            WHERE fine_id=%s
+                            """,
+                            (fine_id,),
+                        )
+                        paid_fines = [cur.fetchone()]
+                        total_paid = fine_amount
+                        conn.commit()
+
+                        for fine in paid_fines:
+                            fine['amount'] = round(float(fine.get('amount') or 0), 2)
+                            self._convert_dates(fine, ['issued_date', 'paid_date'])
+                        return {
+                            'loan_id': loan_id,
+                            'total_paid': total_paid,
+                            'fines': paid_fines,
+                        }
+
+                    fine_ids = [fine['fine_id'] for fine in fines]
+                    placeholders = ', '.join(['%s'] * len(fine_ids))
+                    cur.execute(
+                        f"""
+                        UPDATE fines
+                        SET status='paid',
+                            paid_date=NOW()
+                        WHERE fine_id IN ({placeholders})
+                        """,
+                        tuple(fine_ids),
+                    )
+                    cur.execute(
+                        f"""
+                        SELECT fine_id, borrow_id, student_id, amount, reason, status, issued_date, paid_date
+                        FROM fines
+                        WHERE fine_id IN ({placeholders})
+                        ORDER BY issued_date ASC, fine_id ASC
+                        """,
+                        tuple(fine_ids),
+                    )
+                    paid_fines = list(cur.fetchall() or [])
+                    total_paid = round(sum(float(fine.get('amount') or 0) for fine in paid_fines), 2)
+                conn.commit()
+
+                for fine in paid_fines:
+                    fine['amount'] = round(float(fine.get('amount') or 0), 2)
+                    self._convert_dates(fine, ['issued_date', 'paid_date'])
+                return {
+                    'loan_id': loan_id,
+                    'total_paid': total_paid,
+                    'fines': paid_fines,
+                }
+            except Exception:
+                conn.rollback()
+                raise
 
     def _compute_fine(self, due_date, returned_at):
         if not due_date or not returned_at:
@@ -576,6 +893,25 @@ class LoanRepositoryImpl(LoanRepository):
             days_late = (returned_at - due_date).days
             return round(max(0.0, days_late * FINE_RATE_PER_DAY), 2)
         return 0.0
+
+    def _get_outstanding_fine(self, cur, loan_id: int, due_date, returned_at):
+        cur.execute(
+            """
+            SELECT
+                COALESCE(SUM(CASE WHEN status IN ('unpaid', 'pending') THEN amount ELSE 0 END), 0) AS unpaid_amount,
+                COUNT(*) AS fine_count
+            FROM fines
+            WHERE borrow_id=%s
+            """,
+            (loan_id,),
+        )
+        fine_summary = cur.fetchone() or {}
+        unpaid_amount = float(fine_summary.get('unpaid_amount') or 0)
+        if unpaid_amount > 0:
+            return round(unpaid_amount, 2)
+        if int(fine_summary.get('fine_count') or 0) > 0:
+            return 0.0
+        return self._compute_fine(due_date, returned_at)
 
     def _compute_days_overdue(self, due_date, returned_at):
         if not due_date or not returned_at:

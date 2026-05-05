@@ -34,4 +34,4 @@ if __name__ == '__main__':
     print(f'USE_DEV_FRONTEND={os.environ.get("USE_DEV_FRONTEND")}')
     print(f'FRONTEND_URL={Config.FRONTEND_URL}')
     print(f'DB_HOST={Config.DB_HOST} DB_PORT={Config.DB_PORT} DB_NAME={Config.DB_NAME} DB_USER={Config.DB_USER}')
-    app.run(host=host, port=port, debug=False)
+    app.run(host=host, port=port, debug=True)

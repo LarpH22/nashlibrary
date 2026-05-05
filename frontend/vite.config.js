@@ -17,7 +17,8 @@ export default defineConfig({
       '/api': 'http://localhost:5000',
       '/users': 'http://localhost:5000',
       '/books': 'http://localhost:5000',
-      '/fines': 'http://localhost:5000'
+      '/fines': 'http://localhost:5000',
+      '/uploads': 'http://localhost:5000'
     }
   },
   css: {

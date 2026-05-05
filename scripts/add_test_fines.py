@@ -35,9 +35,9 @@ try:
             
             # Add 3 test fines
             fines_to_add = [
-                (borrow_id, student_id, 2.50, 'Overdue book - 5 days late', 'pending'),
+                (borrow_id, student_id, 2.50, 'Overdue book - 5 days late', 'unpaid'),
                 (borrow_id, student_id, 1.50, 'Overdue book - 3 days late', 'paid'),
-                (borrow_id, student_id, 5.00, 'Damaged book cover', 'pending'),
+                (borrow_id, student_id, 5.00, 'Damaged book cover', 'unpaid'),
             ]
             
             for borrow_id_val, student_id_val, amount, reason, status in fines_to_add:

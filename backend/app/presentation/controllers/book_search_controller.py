@@ -38,9 +38,13 @@ class BookSearchController:
         )
 
         if isinstance(result, dict):
+            for book in result.get('books', []):
+                self._attach_book_links(book)
             return jsonify(result), 200
 
         total = len(result)
+        for book in result:
+            self._attach_book_links(book)
         return jsonify({
             'books': result,
             'pagination': {
@@ -54,4 +58,12 @@ class BookSearchController:
     def most_borrowed_books(self):
         limit = request.args.get('limit', 5, type=int)
         books = self.most_borrowed_books_use_case.execute(limit=limit)
+        for book in books:
+            self._attach_book_links(book)
         return jsonify({'books': books}), 200
+
+    def _attach_book_links(self, book):
+        book_id = book.get('book_id') or book.get('id')
+        if not book_id:
+            return
+        book['detail_url'] = f"/books/{book_id}"

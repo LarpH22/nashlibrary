@@ -122,7 +122,7 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
     def _ensure_student_profile_columns(self, conn):
         with conn.cursor() as cur:
             if not self._column_exists(cur, 'students', 'department'):
-                cur.execute("ALTER TABLE students ADD COLUMN department VARCHAR(100) NULL")
+                cur.execute("ALTER TABLE students ADD COLUMN department VARCHAR(30) NULL")
             if not self._column_exists(cur, 'students', 'year_level'):
                 cur.execute("ALTER TABLE students ADD COLUMN year_level INT NULL")
             if not self._column_exists(cur, 'students', 'last_login'):
@@ -175,7 +175,7 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
                 if not self._column_exists(cur, 'registration_requests', 'student_number'):
                     cur.execute("ALTER TABLE registration_requests ADD COLUMN student_number VARCHAR(20) NULL")
                 if not self._column_exists(cur, 'registration_requests', 'department'):
-                    cur.execute("ALTER TABLE registration_requests ADD COLUMN department VARCHAR(100) NULL")
+                    cur.execute("ALTER TABLE registration_requests ADD COLUMN department VARCHAR(30) NULL")
                 if not self._column_exists(cur, 'registration_requests', 'year_level'):
                     cur.execute("ALTER TABLE registration_requests ADD COLUMN year_level INT NULL")
                 cur.execute(

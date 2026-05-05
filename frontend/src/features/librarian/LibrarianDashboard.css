@@ -68,12 +68,14 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
 .btn-outline:hover{background:var(--bg3);border-color:var(--blue);color:var(--blue)}
 .btn-sm{padding:6px 10px;font-size:11px}
+.btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
 .admin-table-container{overflow-x:auto}
 .admin-table-container table{width:100%;border-collapse:collapse;font-size:13px}
 .admin-table-container thead{background:var(--bg3);border-bottom:2px solid var(--border)}
 .admin-table-container th{padding:12px;text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-size:11px}
 .admin-table-container td{padding:12px;border-bottom:1px solid var(--border);color:var(--text)}
 .admin-table-container tbody tr:hover{background:var(--bg3)}
+.empty-cell{color:var(--muted)!important;padding:18px!important;text-align:center}
 .table-date-input{height:34px;min-width:132px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-family:'DM Sans',sans-serif}
 .table-date-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 8px rgba(91,138,224,0.2)}
 .row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -83,6 +85,9 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
   .sidebar{width:0;position:absolute;height:100%;z-index:100;transform:translateX(-100%)}
   .main{margin-left:0}
   .frow{grid-template-columns:1fr}
+  .ebook-upload-grid{grid-template-columns:1fr}
+  .ebook-upload-actions{justify-content:stretch}
+  .ebook-upload-actions .btn{flex:1}
   .search-input{width:100%}
 }
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,17,23,0.8);display:flex;align-items:center;justify-content:center;z-index:2000}
@@ -96,6 +101,11 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .btn-close:hover{background:#26b877}
 .password-error{color:var(--red);font-size:13px;margin-top:12px;text-align:center;font-weight:500}
 .scan-form,.ebook-upload-form{display:grid;gap:14px;align-items:start}
+.ebook-upload-grid{display:grid;grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) minmax(220px,.95fr) auto;gap:14px;align-items:end}
+.ebook-upload-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end}
+.ebook-upload-actions .btn{min-height:40px;white-space:nowrap}
+.ebook-upload-summary{display:flex;gap:14px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--muted);font-size:12px}
+.ebook-upload-summary strong{color:var(--text);font-weight:600}
 .scan-grid{width:100%}
 .scan-actions{display:flex;gap:10px;flex-wrap:wrap}
 .scan-result{margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;display:grid;gap:4px}
@@ -107,6 +117,14 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .copy-tile img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:6px}
 .copy-tile strong,.copy-tile span,.copy-tile small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .copy-tile span,.copy-tile small{color:var(--muted);font-size:11px}
+.ebook-qr-tile{color:var(--text);text-decoration:none;transition:border-color .15s,transform .15s}
+.ebook-qr-tile:hover{border-color:var(--blue);transform:translateY(-1px)}
+.ebook-title-cell{display:grid;gap:4px;min-width:180px}
+.ebook-title-cell strong{font-weight:600;color:var(--text);overflow-wrap:anywhere}
+.ebook-title-cell span{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:320px}
+.file-type-badge{display:inline-flex;align-items:center;justify-content:center;min-width:48px;border-radius:999px;padding:4px 8px;background:rgba(91,138,224,.14);color:#9db8f4;font-size:11px;font-weight:700}
+.file-type-badge.pdf{background:rgba(224,91,91,.14);color:#f09a9a}
+.file-type-badge.epub{background:rgba(46,204,138,.14);color:#78e0b3}
 .table-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .table-actions .btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .table-qr{width:56px;height:56px;object-fit:contain;background:#fff;border-radius:4px;padding:3px}

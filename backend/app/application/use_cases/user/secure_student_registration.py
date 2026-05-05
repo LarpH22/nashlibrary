@@ -67,11 +67,13 @@ class SecureStudentRegistrationUseCase:
             year_level_value = int(year_level)
         except (TypeError, ValueError):
             raise ValueError("Year level must be a valid number")
-        if year_level_value < 1 or year_level_value > 10:
-            raise ValueError("Year level must be between 1 and 10")
+        if year_level_value < 1 or year_level_value > 4:
+            raise ValueError("Year level must be between 1 and 4")
 
         if not department:
             raise ValueError("Department / Program is required")
+        if len(department) > 30:
+            raise ValueError("Department / Program must be 30 characters or fewer")
 
         # Validate password strength
         valid, message = self.validation_service.validate_password_strength(password)
