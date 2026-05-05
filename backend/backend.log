@@ -6790,3 +6790,5 @@ pymysql.err.OperationalError: (1060, "Duplicate column name 'qr_code_path'")
 2026-05-05 14:23:25,877 INFO werkzeug 127.0.0.1 - - [05/May/2026 14:23:25] "OPTIONS /books/ebooks/3 HTTP/1.1" 200 -
 2026-05-05 14:23:26,300 INFO werkzeug 127.0.0.1 - - [05/May/2026 14:23:26] "[31m[1mDELETE /books/ebooks/3 HTTP/1.1[0m" 409 -
 2026-05-05 14:23:28,941 INFO werkzeug 127.0.0.1 - - [05/May/2026 14:23:28] "[31m[1mDELETE /books/ebooks/3 HTTP/1.1[0m" 409 -
+2026-05-05 14:28:46,665 INFO werkzeug 127.0.0.1 - - [05/May/2026 14:28:46] "[36mGET /assets/index-UBCk9ktx.css HTTP/1.1[0m" 304 -
+2026-05-05 14:28:46,677 INFO werkzeug 127.0.0.1 - - [05/May/2026 14:28:46] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 200 -
