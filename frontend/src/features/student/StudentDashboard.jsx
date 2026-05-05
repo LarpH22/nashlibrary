@@ -19,7 +19,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { BookSearch } from '../books/BookSearch.jsx'
 import { fetchMostBorrowedBooks, fetchEbooks, downloadEbook, openEbook } from '../books/bookService.js'
-import { fetchStudentFines, payFine } from '../fines/fineService.js'
+import { confirmFinePayment, fetchStudentFines, previewFinePayment } from '../fines/fineService.js'
 import { cancelStudentReservation, fetchStudentReservations } from '../reservations/reservationService.js'
 import { clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRole, isJwtExpired } from '../../shared/authStorage.js'
 import { formatCurrency } from '../../shared/utils/index.js'
@@ -162,6 +162,8 @@ export function StudentDashboard() {
   }, [])
   const [payingFineLoanId, setPayingFineLoanId] = useState(null)
   const [paymentFine, setPaymentFine] = useState(null)
+  const [paymentStep, setPaymentStep] = useState('options')
+  const [paymentPreview, setPaymentPreview] = useState(null)
   const [paymentResult, setPaymentResult] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
@@ -563,10 +565,37 @@ export function StudentDashboard() {
     }
 
     setPaymentFine(fine)
+    setPaymentStep('options')
+    setPaymentPreview(null)
     setPaymentResult(null)
   }
 
-  async function submitFinePayment(paymentMethod) {
+  function closePaymentModal() {
+    if (payingFineLoanId) {
+      return
+    }
+    setPaymentFine(null)
+    setPaymentStep('options')
+    setPaymentPreview(null)
+    setPaymentResult(null)
+  }
+
+  function goBackToPaymentOptions() {
+    if (payingFineLoanId) {
+      return
+    }
+    setPaymentStep('options')
+    setPaymentPreview(null)
+    setPaymentResult(null)
+  }
+
+  function selectCashPayment() {
+    setPaymentStep('cash-confirm')
+    setPaymentPreview(null)
+    setPaymentResult(null)
+  }
+
+  async function selectOnlinePayment() {
     const loanId = Number(paymentFine?.loan_id || paymentFine?.borrow_id)
     if (!loanId) {
       addNotification('Unable to identify the loan for this fine.')
@@ -575,12 +604,33 @@ export function StudentDashboard() {
 
     setPayingFineLoanId(loanId)
     try {
-      const result = await payFine(loanId, paymentMethod)
+      const result = await previewFinePayment(loanId, 'online')
+      setPaymentPreview(result?.payment || result)
+      setPaymentStep('online-qr')
+    } catch (err) {
+      addNotification(err?.response?.data?.message || 'Unable to generate payment QR.')
+    } finally {
+      setPayingFineLoanId(null)
+    }
+  }
+
+  async function confirmSelectedPayment(paymentMethod) {
+    const loanId = Number(paymentFine?.loan_id || paymentFine?.borrow_id)
+    if (!loanId) {
+      addNotification('Unable to identify the loan for this fine.')
+      return
+    }
+
+    setPayingFineLoanId(loanId)
+    try {
+      const paymentReference = paymentMethod === 'online' ? paymentPreview?.payment_reference : ''
+      const result = await confirmFinePayment(loanId, paymentMethod, paymentReference)
       await Promise.allSettled([loadFines(), loadLoans()])
       setPaymentResult(result?.payment || result)
+      setPaymentStep('submitted')
       addNotification(result?.message || 'Payment request submitted.')
     } catch (err) {
-      addNotification(err?.response?.data?.message || 'Unable to pay this fine.')
+      addNotification(err?.response?.data?.message || 'Unable to submit this payment.')
     } finally {
       setPayingFineLoanId(null)
     }
@@ -1342,40 +1392,70 @@ export function StudentDashboard() {
         </div>
       )}
       {paymentFine && (
-        <div className="modal-overlay" role="presentation" onClick={() => !payingFineLoanId && setPaymentFine(null)}>
+        <div className="modal-overlay" role="presentation" onClick={closePaymentModal}>
           <div className="profile-modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
                 <div id="payment-modal-title" className="modal-title">Pay Fine</div>
                 <div className="modal-subtitle">{paymentFine.book_title || 'Library fine'} - {formatCurrency(paymentFine.amount || paymentFine.fine_amount)}</div>
               </div>
-              <button className="modal-close" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => setPaymentFine(null)} aria-label="Close payment modal">
+              <button className="modal-close" type="button" disabled={Boolean(payingFineLoanId)} onClick={closePaymentModal} aria-label="Close payment modal">
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
 
             <div className="payment-modal-body">
               <div className="payment-summary">
-                <div><span>Reference</span><strong>{paymentResult?.payment_reference || paymentFine.payment_reference || 'Generated after choosing a method'}</strong></div>
+                <div><span>Reference</span><strong>{paymentResult?.payment_reference || paymentPreview?.payment_reference || paymentFine.payment_reference || 'Generated after choosing a method'}</strong></div>
                 <div><span>Status</span><strong>{paymentResult?.payment_status_label || paymentFine.payment_status_label || 'Unpaid'}</strong></div>
               </div>
 
-              {!paymentResult && (
+              {paymentStep === 'options' && !paymentResult && (
                 <div className="payment-option-grid">
-                  <button className="payment-option" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => submitFinePayment('online')}>
+                  <button className="payment-option" type="button" disabled={Boolean(payingFineLoanId)} onClick={selectOnlinePayment}>
                     <CreditCard size={22} aria-hidden="true" />
                     <strong>Online Payment</strong>
-                    <span>Generate a QR code with the exact amount and reference.</span>
+                    <span>Generate a QR code first. Status changes only after you confirm submission.</span>
                   </button>
-                  <button className="payment-option" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => submitFinePayment('cash')}>
+                  <button className="payment-option" type="button" disabled={Boolean(payingFineLoanId)} onClick={selectCashPayment}>
                     <CheckCircle2 size={22} aria-hidden="true" />
-                    <strong>Cash</strong>
-                    <span>Submit as pending until a librarian or admin confirms.</span>
+                    <strong>Walk-in / Cash</strong>
+                    <span>Review the cash payment request before setting it as pending.</span>
                   </button>
                 </div>
               )}
 
-              {paymentResult && (
+              {paymentStep === 'cash-confirm' && !paymentResult && (
+                <div className="payment-confirm-panel">
+                  <div className="status-message">Confirm walk-in or cash payment only if you will settle this fine with a librarian or admin.</div>
+                  <div className="modal-actions">
+                    <button className="btn btn-outline" type="button" disabled={Boolean(payingFineLoanId)} onClick={goBackToPaymentOptions}>Back</button>
+                    <button className="btn btn-green" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => confirmSelectedPayment('cash')}>
+                      {payingFineLoanId ? 'Submitting...' : 'Confirm Cash Payment'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {paymentStep === 'online-qr' && paymentPreview && !paymentResult && (
+                <div className="payment-result">
+                  <div className="status-message">Scan the QR code and complete the online transfer. Your fine will stay unpaid until you confirm that the payment was submitted.</div>
+                  {paymentPreview.qr_code_data_url && (
+                    <div className="payment-qr-wrap">
+                      <img src={paymentPreview.qr_code_data_url} alt={`Payment QR for ${paymentPreview.payment_reference}`} />
+                      <div className="modal-subtitle">Use GCash or PayMaya with the exact amount and reference.</div>
+                    </div>
+                  )}
+                  <div className="modal-actions">
+                    <button className="btn btn-outline" type="button" disabled={Boolean(payingFineLoanId)} onClick={goBackToPaymentOptions}>Back</button>
+                    <button className="btn btn-green" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => confirmSelectedPayment('online')}>
+                      {payingFineLoanId ? 'Submitting...' : 'I Submitted Online Payment'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {paymentStep === 'submitted' && paymentResult && (
                 <div className="payment-result">
                   <div className="status-message">Payment submitted. Please wait for confirmation before paying again.</div>
                   {paymentResult.qr_code_data_url && (
@@ -1385,7 +1465,7 @@ export function StudentDashboard() {
                     </div>
                   )}
                   <div className="modal-actions">
-                    <button className="btn btn-green" type="button" onClick={() => setPaymentFine(null)}>Done</button>
+                    <button className="btn btn-green" type="button" onClick={closePaymentModal}>Done</button>
                   </div>
                 </div>
               )}

@@ -1201,7 +1201,78 @@ class LoanRepositoryImpl(LoanRepository):
         self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'due_date', 'return_date'])
         return fine
 
-    def create_fine_payment(self, loan_id: int, payment_method: str):
+    def _build_fine_payment_qr_payload(self, cur, fine, loan_id: int, reference: str):
+        cur.execute(
+            """
+            SELECT s.full_name, s.student_number, s.email
+            FROM students s
+            WHERE s.student_id=%s
+            LIMIT 1
+            """,
+            (fine['student_id'],),
+        )
+        student = cur.fetchone() or {}
+        return json.dumps({
+            'merchant': 'LIBRASYS',
+            'provider_hint': 'GCash/PayMaya',
+            'type': 'fine_payment',
+            'reference': reference,
+            'fine_id': fine['fine_id'],
+            'loan_id': loan_id,
+            'student_id': fine['student_id'],
+            'student_number': student.get('student_number'),
+            'student_name': student.get('full_name'),
+            'amount': round(float(fine.get('amount') or 0), 2),
+            'currency': 'PHP',
+        }, separators=(',', ':'))
+
+    def preview_fine_payment(self, loan_id: int, payment_method: str):
+        method = (payment_method or '').strip().lower()
+        if method not in ('cash', 'online'):
+            raise ValueError('Payment method must be cash or online')
+
+        with get_connection() as conn:
+            self._ensure_fine_constraints(conn)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT fine_id, borrow_id, student_id, amount, reason, status, payment_status,
+                           payment_reference, issued_date, paid_date
+                    FROM fines
+                    WHERE borrow_id=%s
+                      AND status IN ('unpaid', 'pending')
+                    ORDER BY issued_date ASC, fine_id ASC
+                    LIMIT 1
+                    """,
+                    (loan_id,),
+                )
+                fine = cur.fetchone()
+                if not fine:
+                    return None
+                if fine.get('payment_status') in ('pending', 'pending_verification'):
+                    raise ValueError('A payment is already pending for this fine')
+
+                reference = fine.get('payment_reference') or f"FINE-{fine['fine_id']}-{uuid.uuid4().hex[:8].upper()}"
+                qr_payload = self._build_fine_payment_qr_payload(cur, fine, loan_id, reference) if method == 'online' else None
+                return {
+                    'loan_id': loan_id,
+                    'fine_id': fine.get('fine_id'),
+                    'amount': round(float(fine.get('amount') or 0), 2),
+                    'payment_method': method,
+                    'payment_status': fine.get('payment_status') or 'unpaid',
+                    'payment_status_label': 'Unpaid',
+                    'payment_reference': reference,
+                    'qr_code_data_url': self._qr_data_url(qr_payload) if qr_payload else None,
+                    'fine': {
+                        **fine,
+                        'fine_amount': round(float(fine.get('amount') or 0), 2),
+                        'payment_method': method,
+                        'payment_reference': reference,
+                        'qr_code_data_url': self._qr_data_url(qr_payload) if qr_payload else None,
+                    },
+                }
+
+    def create_fine_payment(self, loan_id: int, payment_method: str, payment_reference: str | None = None):
         method = (payment_method or '').strip().lower()
         if method not in ('cash', 'online'):
             raise ValueError('Payment method must be cash or online')
@@ -1275,33 +1346,14 @@ class LoanRepositoryImpl(LoanRepository):
                         conn.rollback()
                         raise ValueError('A payment is already pending for this fine')
 
-                    reference = fine.get('payment_reference') or f"FINE-{fine['fine_id']}-{uuid.uuid4().hex[:8].upper()}"
+                    requested_reference = (payment_reference or '').strip()
+                    if len(requested_reference) > 80:
+                        raise ValueError('Payment reference is too long')
+                    reference = requested_reference or fine.get('payment_reference') or f"FINE-{fine['fine_id']}-{uuid.uuid4().hex[:8].upper()}"
                     payment_status = 'pending' if method == 'cash' else 'pending_verification'
                     qr_payload = None
                     if method == 'online':
-                        cur.execute(
-                            """
-                            SELECT s.full_name, s.student_number, s.email
-                            FROM students s
-                            WHERE s.student_id=%s
-                            LIMIT 1
-                            """,
-                            (fine['student_id'],),
-                        )
-                        student = cur.fetchone() or {}
-                        qr_payload = json.dumps({
-                            'merchant': 'LIBRASYS',
-                            'provider_hint': 'GCash/PayMaya',
-                            'type': 'fine_payment',
-                            'reference': reference,
-                            'fine_id': fine['fine_id'],
-                            'loan_id': loan_id,
-                            'student_id': fine['student_id'],
-                            'student_number': student.get('student_number'),
-                            'student_name': student.get('full_name'),
-                            'amount': round(float(fine.get('amount') or 0), 2),
-                            'currency': 'PHP',
-                        }, separators=(',', ':'))
+                        qr_payload = self._build_fine_payment_qr_payload(cur, fine, loan_id, reference)
 
                     cur.execute(
                         """
@@ -1327,6 +1379,8 @@ class LoanRepositoryImpl(LoanRepository):
                     'amount': payment_fine.get('amount'),
                     'payment_method': method,
                     'payment_status': payment_status,
+                    'payment_status_label': payment_fine.get('payment_status_label'),
+                    'payment_method_label': payment_fine.get('payment_method_label'),
                     'payment_reference': reference,
                     'qr_code_data_url': payment_fine.get('qr_code_data_url'),
                     'fine': payment_fine,

@@ -20,6 +20,12 @@ def pay_fine():
     return controller.pay_fine()
 
 
+@fine_bp.route('/payment-preview', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def preview_fine_payment():
+    return controller.preview_fine_payment()
+
+
 @fine_bp.route('/student', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def list_student_fines():

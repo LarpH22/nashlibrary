@@ -65,6 +65,7 @@ class FineController:
         payment_method = (data.get('payment_method') or data.get('method') or 'online').strip().lower()
         if payment_method not in ['cash', 'online']:
             return jsonify({'message': 'payment_method must be cash or online'}), 400
+        payment_reference = (data.get('payment_reference') or '').strip()
 
         fine_state = self.fine_service.get_fine_state_for_loan(loan_id)
         if not fine_state:
@@ -75,15 +76,44 @@ class FineController:
             return jsonify({'message': 'No fine exists for this loan'}), 404
 
         try:
-            payment = self.loan_repository.create_fine_payment(loan_id, payment_method)
+            payment = self.loan_repository.create_fine_payment(loan_id, payment_method, payment_reference or None)
         except ValueError as exc:
             return jsonify({'message': str(exc)}), 409
         if not payment:
             return jsonify({'message': 'No fine exists for this loan'}), 404
         message = 'Cash payment submitted. Please wait for librarian or admin confirmation.'
         if payment_method == 'online':
-            message = 'Online payment QR generated. Complete payment, then wait for verification.'
+            message = 'Online payment submitted. Please wait for verification.'
         return jsonify({'message': message, 'payment': payment}), 200
+
+    def preview_fine_payment(self):
+        data = request.get_json() or {}
+        loan_id, error_response = self._parse_loan_id(data.get('loan_id'))
+        if error_response:
+            return error_response
+        payment_method = (data.get('payment_method') or data.get('method') or 'online').strip().lower()
+        if payment_method not in ['cash', 'online']:
+            return jsonify({'message': 'payment_method must be cash or online'}), 400
+
+        fine_state = self.fine_service.get_fine_state_for_loan(loan_id)
+        if not fine_state:
+            return jsonify({'message': 'Loan not found'}), 404
+        if fine_state.get('status') == 'paid':
+            return jsonify({'message': 'Fine already paid'}), 409
+        if fine_state.get('status') != 'unpaid' or fine_state.get('payable_amount', 0) <= 0:
+            return jsonify({'message': 'No fine exists for this loan'}), 404
+
+        try:
+            payment = self.loan_repository.preview_fine_payment(loan_id, payment_method)
+        except ValueError as exc:
+            return jsonify({'message': str(exc)}), 409
+        if not payment:
+            return jsonify({'message': 'No fine exists for this loan'}), 404
+
+        return jsonify({
+            'message': 'Payment preview generated. No payment status was changed.',
+            'payment': payment
+        }), 200
 
     def list_student_fines(self, current_user):
         if not current_user or current_user.get('role') != 'student':
