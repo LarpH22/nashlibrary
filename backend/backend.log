@@ -759,3 +759,7 @@
 2026-05-05 18:02:37,958 INFO werkzeug 127.0.0.1 - - [05/May/2026 18:02:37] "GET /api/books/most-borrowed?limit=5 HTTP/1.1" 200 -
 2026-05-05 18:02:38,181 INFO werkzeug 127.0.0.1 - - [05/May/2026 18:02:38] "GET /api/fines/student HTTP/1.1" 200 -
 2026-05-05 18:02:38,286 INFO werkzeug 127.0.0.1 - - [05/May/2026 18:02:38] "GET /api/loans/student HTTP/1.1" 200 -
+2026-05-05 18:06:02,698 INFO werkzeug  * Detected change in 'C:\\Users\\Nash Andrei\\OneDrive\\2YPROGRAMMING\\nashlibrary\\backend\\app\\presentation\\controllers\\book_controller.py', reloading
+2026-05-05 18:06:03,055 INFO werkzeug  * Restarting with stat
+2026-05-05 18:06:04,949 WARNING werkzeug  * Debugger is active!
+2026-05-05 18:06:04,968 INFO werkzeug  * Debugger PIN: 183-991-601
