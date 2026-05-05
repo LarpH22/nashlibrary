@@ -311,6 +311,7 @@ class BookController:
         for ebook in ebooks:
             ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/download"
             ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
+            ebook['file_available'] = bool(self._resolve_ebook_file_path(ebook))
         return jsonify({'ebooks': ebooks}), 200
 
     def download_ebook(self, ebook_id, current_user=None):
@@ -321,9 +322,8 @@ class BookController:
         if not ebook:
             return jsonify({'message': 'E-book not found'}), 404
 
-        file_path = os.path.abspath(ebook['file_path'])
-        upload_root = os.path.abspath(Config.EBOOK_UPLOAD_FOLDER)
-        if os.path.commonpath([upload_root, file_path]) != upload_root or not os.path.exists(file_path):
+        file_path = self._resolve_ebook_file_path(ebook)
+        if not file_path:
             return jsonify({'message': 'E-book file is not available'}), 404
 
         actor_id = current_user.get('student_id') or current_user.get('librarian_id') or current_user.get('admin_id')
@@ -354,9 +354,8 @@ class BookController:
         if not ebook:
             return jsonify({'message': 'E-book not found'}), 404
 
-        file_path = os.path.abspath(ebook['file_path'])
-        upload_root = os.path.abspath(Config.EBOOK_UPLOAD_FOLDER)
-        if os.path.commonpath([upload_root, file_path]) != upload_root or not os.path.exists(file_path):
+        file_path = self._resolve_ebook_file_path(ebook)
+        if not file_path:
             return jsonify({'message': 'E-book file is not available'}), 404
 
         self.book_repository.log_ebook_access(ebook_id, 'student', None, 'download')
@@ -389,9 +388,8 @@ class BookController:
         if not deleted_ebook:
             return jsonify({'message': 'E-book not found'}), 404
 
-        file_path = os.path.abspath(deleted_ebook['file_path'])
-        upload_root = os.path.abspath(Config.EBOOK_UPLOAD_FOLDER)
-        if os.path.commonpath([upload_root, file_path]) == upload_root and os.path.exists(file_path):
+        file_path = self._resolve_ebook_file_path(deleted_ebook)
+        if file_path:
             try:
                 os.remove(file_path)
             except OSError as exc:
@@ -401,6 +399,35 @@ class BookController:
                 }), 500
 
         return jsonify({'message': 'E-book deleted'}), 200
+
+    def _resolve_ebook_file_path(self, ebook):
+        if not ebook:
+            return None
+
+        upload_root = os.path.abspath(Config.EBOOK_UPLOAD_FOLDER)
+        candidates = []
+        file_path = str(ebook.get('file_path') or '').strip()
+        if file_path:
+            if os.path.isabs(file_path):
+                candidates.append(file_path)
+            else:
+                candidates.append(os.path.abspath(file_path))
+                repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+                candidates.append(os.path.abspath(os.path.join(repo_root, file_path)))
+                candidates.append(os.path.abspath(os.path.join(upload_root, file_path)))
+
+        stored_filename = str(ebook.get('stored_filename') or '').strip()
+        if stored_filename:
+            candidates.append(os.path.abspath(os.path.join(upload_root, stored_filename)))
+
+        for candidate in candidates:
+            try:
+                if os.path.commonpath([upload_root, candidate]) == upload_root and os.path.exists(candidate):
+                    return candidate
+            except ValueError:
+                continue
+
+        return None
 
     def _frontend_base_url(self, data=None):
         data = data or {}

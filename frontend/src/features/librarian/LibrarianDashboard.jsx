@@ -872,8 +872,8 @@ export function LibrarianDashboard() {
                           <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Catalog only</span>
                         ) : (
                           <>
-                            <button className="btn btn-blue btn-sm" type="button" onClick={() => handleDownloadEbook(ebook)}>Download</button>
-                            <button className="btn btn-danger btn-sm" type="button" onClick={() => handleDeleteEbook(ebook)} style={{ marginLeft: '8px' }}>Delete</button>
+                            <button className="btn btn-blue btn-sm" type="button" disabled={ebook.file_available === false} onClick={() => handleDownloadEbook(ebook)}>Download</button>
+                            <button className="btn btn-red btn-sm" type="button" onClick={() => handleDeleteEbook(ebook)} style={{ marginLeft: '8px' }}>Delete</button>
                           </>
                         )}
                       </div>
