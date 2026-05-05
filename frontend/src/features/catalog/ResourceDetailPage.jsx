@@ -35,7 +35,7 @@ export function ResourceDetailPage({ type }) {
       setMessage('')
       try {
         const url = type === 'ebook'
-          ? `/books/ebooks/${resourceId}/detail`
+          ? `/api/ebooks/${resourceId}/detail`
           : `/books/${resourceId}/detail`
         const response = await api.get(url)
         if (!cancelled) {
@@ -60,7 +60,7 @@ export function ResourceDetailPage({ type }) {
   const ebook = data?.ebook
   const title = type === 'ebook' ? ebook?.title : book?.title
   const linkedBook = type === 'ebook' ? data?.book : book
-  const ebooks = type === 'book' ? (book?.ebooks || []) : []
+  const fileAvailable = type !== 'ebook' || ebook?.file_available !== false
 
   if (status === 'loading') {
     return (
@@ -88,7 +88,7 @@ export function ResourceDetailPage({ type }) {
   return (
     <main className="resource-page">
       <section className="resource-panel">
-        <div className="resource-kicker">{type === 'ebook' ? 'Digital Collection' : 'Library Book'}</div>
+        <div className="resource-kicker">{type === 'ebook' ? 'E-book' : 'Library Book'}</div>
         <h1>{title}</h1>
 
         <div className="resource-meta">
@@ -99,25 +99,14 @@ export function ResourceDetailPage({ type }) {
         </div>
 
         {type === 'ebook' && ebook && (
-          <div className="resource-actions">
-            <a className="resource-button" href={ebook.access_url}>Download e-book</a>
-            <a className="resource-button secondary" href={`${ebook.access_url}?disposition=inline`} target="_blank" rel="noreferrer">View file</a>
-          </div>
-        )}
-
-        {type === 'book' && ebooks.length > 0 && (
-          <div className="resource-digital-list">
-            <h2>Digital editions</h2>
-            {ebooks.map((item) => (
-              <article className="resource-digital-item" key={item.ebook_id}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <span>{String(item.file_type).toUpperCase()} - {Math.ceil((item.file_size || 0) / 1024)} KB</span>
-                </div>
-                <Link className="resource-button secondary" to={`/ebooks/${item.ebook_id}`}>Open</Link>
-              </article>
-            ))}
-          </div>
+          fileAvailable ? (
+            <div className="resource-actions">
+              <a className="resource-button" href={`${ebook.access_url}?disposition=inline`} target="_blank" rel="noreferrer">Open e-book</a>
+              <a className="resource-button secondary" href={ebook.access_url}>Download</a>
+            </div>
+          ) : (
+            <div className="resource-file-message">File not available</div>
+          )
         )}
       </section>
     </main>

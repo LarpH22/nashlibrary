@@ -4,6 +4,7 @@ from .user_routes import user_bp
 from .student_routes import student_bp
 from .loan_routes import loan_bp
 from .book_routes import book_bp
+from .ebook_routes import ebook_bp
 from .book_search_routes import book_search_bp
 from .fine_routes import fine_bp
 from .admin_routes import admin_bp
@@ -30,6 +31,8 @@ def register_blueprints(app):
     app.register_blueprint(seed_bp, url_prefix='/api/seed')
     # Book routes: /books/*
     app.register_blueprint(book_bp, url_prefix='/books')
+    # E-book routes: /api/ebooks/*
+    app.register_blueprint(ebook_bp, url_prefix='/api/ebooks')
     # Search books: /api/books/search
     app.register_blueprint(book_search_bp, url_prefix='/api/books')
     # Fine routes: /api/fines/* with /fines/* kept for existing clients

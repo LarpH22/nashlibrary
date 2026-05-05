@@ -90,6 +90,16 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .table-date-input{height:34px;min-width:132px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-family:'DM Sans',sans-serif}
 .table-date-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 8px rgba(91,138,224,0.2)}
 .row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline-return-form{display:flex;gap:8px;align-items:center;margin-left:auto}
+.inline-return-form input{height:32px;width:110px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-family:'DM Sans',sans-serif;outline:none}
+.inline-return-form input:focus{border-color:var(--blue);box-shadow:0 0 8px rgba(91,138,224,0.2)}
+.loan-student-cell{display:grid;gap:3px;min-width:160px}
+.loan-student-cell strong{font-weight:600;color:var(--text);overflow-wrap:anywhere}
+.loan-student-cell span{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+.loan-status{display:inline-flex;align-items:center;justify-content:center;min-width:72px;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;background:rgba(91,138,224,.14);color:#9db8f4}
+.loan-status.borrowed{background:rgba(46,204,138,.14);color:#78e0b3}
+.loan-status.overdue{background:rgba(224,91,91,.14);color:#f09a9a}
+.loan-status.returned{background:rgba(122,127,153,.18);color:var(--muted)}
 @media (max-width:768px){
   .grid2{grid-template-columns:1fr}
   .grid4{grid-template-columns:1fr}
@@ -103,6 +113,9 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
   .ebook-upload-actions{justify-content:stretch}
   .ebook-upload-actions .btn{flex:1}
   .search-input{width:100%}
+  .card-hdr{align-items:flex-start;flex-direction:column;gap:10px}
+  .inline-return-form{width:100%;margin-left:0}
+  .inline-return-form input{width:100%;flex:1}
 }
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,17,23,0.8);display:flex;align-items:center;justify-content:center;z-index:2000}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
@@ -115,6 +128,7 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .btn-close:hover{background:#26b877}
 .password-error{color:var(--red);font-size:13px;margin-top:12px;text-align:center;font-weight:500}
 .scan-form,.ebook-upload-form{display:grid;gap:14px;align-items:start}
+.ebook-upload-form{margin-bottom:20px;padding:18px;background:var(--bg2);border:1px solid var(--border);border-radius:14px}
 .ebook-upload-grid{display:grid;grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) minmax(220px,.95fr) auto;gap:14px;align-items:end}
 .ebook-upload-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end}
 .ebook-upload-actions .btn{min-height:40px;white-space:nowrap}

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BookOpen, LogOut, Bell, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import api from '../../shared/api.js'
+import api, { normalizeApiError } from '../../shared/api.js'
 import { clearStoredAuth } from '../../shared/authStorage.js'
 import './LibrarianDashboard.css'
 
@@ -58,28 +57,20 @@ async function fetchAllCatalogBooks() {
   return books
 }
 
-function mergeEbooksWithCatalog(ebookRows, catalogBooks) {
-  const rows = Array.isArray(ebookRows) ? [...ebookRows] : []
-  const ebookBookIds = new Set(rows.map((ebook) => Number(ebook.book_id)).filter(Boolean))
+function mergeEbooksWithCatalog(ebookRows) {
+  return Array.isArray(ebookRows) ? [...ebookRows] : []
+}
 
-  for (const book of catalogBooks || []) {
-    const bookId = Number(book?.book_id || book?.id)
-    if (!bookId || ebookBookIds.has(bookId)) {
-      continue
-    }
+function apiMessage(error, fallback) {
+  return normalizeApiError(error, fallback).message || fallback
+}
 
-    rows.push({
-      ebook_id: `book-${bookId}`,
-      book_id: bookId,
-      title: book.title,
-      book_title: book.title,
-      file_type: 'book',
-      file_size: null,
-      is_catalog_only: true
-    })
+function ebookDeleteMessage(error) {
+  const normalized = normalizeApiError(error)
+  if (normalized.status === 409 || normalized.data?.code === 'ebook_in_use') {
+    return 'This e-book cannot be deleted because it is currently borrowed or in use.'
   }
-
-  return rows
+  return normalized.message || 'Unable to delete e-book.'
 }
 
 const isLoanReturned = (loan) => loan.returned || String(loan.status || '').toLowerCase() === 'returned'
@@ -91,6 +82,20 @@ const isLoanOverdue = (loan) => {
 
   const dueDate = new Date(loan.due_date)
   return !Number.isNaN(dueDate.getTime()) && dueDate < new Date()
+}
+
+const formatLoanDate = (value) => {
+  if (!value) {
+    return '-'
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString()
+}
+
+const loanStatusLabel = (loan) => {
+  if (isLoanReturned(loan)) return 'Returned'
+  if (isLoanOverdue(loan)) return 'Overdue'
+  return 'Borrowed'
 }
 
 export function LibrarianDashboard() {
@@ -112,13 +117,16 @@ export function LibrarianDashboard() {
   const [scanForm, setScanForm] = useState({ code: '', student_id: '' })
   const [scanResult, setScanResult] = useState(null)
   const [returnLoanId, setReturnLoanId] = useState('')
+  const [returningLoanId, setReturningLoanId] = useState(null)
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [passwordError, setPasswordError] = useState('')
-  const librarianEmail = localStorage.getItem('user_email') || 'librarian@librasys.edu'
+  const [ebookUploadTitle, setEbookUploadTitle] = useState('')
+  const [ebookUploadFile, setEbookUploadFile] = useState(null)
+  const [ebookUploading, setEbookUploading] = useState(false)
 
   const addNotification = (text) => {
     const id = Date.now()
@@ -136,6 +144,7 @@ export function LibrarianDashboard() {
   const safeBorrowRequests = useMemo(() => (Array.isArray(borrowRequests) ? borrowRequests : []), [borrowRequests])
   const safeStudents = useMemo(() => (Array.isArray(students) ? students : []), [students])
   const pendingBorrowRequests = useMemo(() => safeBorrowRequests.filter((request) => request.status === 'pending'), [safeBorrowRequests])
+  const activeLoans = useMemo(() => safeLoans.filter((loan) => !isLoanReturned(loan)), [safeLoans])
   const overdueLoans = useMemo(() => safeLoans.filter(isLoanOverdue), [safeLoans])
   const navigationSections = useMemo(
     () => baseNavSections.map((section) => {
@@ -210,15 +219,12 @@ export function LibrarianDashboard() {
   const loadEbooks = useCallback(async () => {
     setEbookLoading(true)
     try {
-      const [ebookResponse, catalogBooks] = await Promise.all([
-        api.get('/books/ebooks'),
-        fetchAllCatalogBooks()
-      ])
-      setEbooks(mergeEbooksWithCatalog(ebookResponse.data?.ebooks, catalogBooks))
+      const ebookResponse = await api.get('/api/ebooks')
+      setEbooks(mergeEbooksWithCatalog(ebookResponse.data?.ebooks))
     } catch (error) {
       console.error('Unable to load e-books:', error)
       setEbooks([])
-      addNotification('Unable to load e-books.')
+      addNotification(apiMessage(error, 'Unable to load e-books.'))
     } finally {
       setEbookLoading(false)
     }
@@ -301,7 +307,8 @@ export function LibrarianDashboard() {
   }, [loadAvailabilityBooks])
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(safeEbooks.length / ebookLibraryPageSize))
+    const realEbooks = safeEbooks.filter(e => !e.is_catalog_only)
+    const totalPages = Math.max(1, Math.ceil(realEbooks.length / ebookLibraryPageSize))
     setEbookPage((currentPage) => Math.min(currentPage, totalPages))
   }, [safeEbooks.length])
 
@@ -309,35 +316,11 @@ export function LibrarianDashboard() {
     () => [
       { label: 'Books', value: safeBooks.length, type: 'blue' },
       { label: 'Pending Requests', value: pendingBorrowRequests.length, type: 'gold' },
-      { label: 'Active Loans', value: safeLoans.filter(l => !isLoanReturned(l)).length, type: 'green' },
+      { label: 'Active Loans', value: activeLoans.length, type: 'green' },
       { label: 'Overdue', value: overdueLoans.length, type: 'red' },
       { label: 'Students', value: studentList.length, type: 'purple' }
     ],
-    [safeBooks, pendingBorrowRequests, safeLoans, overdueLoans.length, studentList]
-  )
-
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-  const matchesSearch = (...values) => {
-    if (!normalizedSearchQuery) {
-      return true
-    }
-    return values.some((value) => String(value || '').toLowerCase().includes(normalizedSearchQuery))
-  }
-
-  const filteredBorrowRequests = pendingBorrowRequests.filter((request) =>
-    matchesSearch(request.request_id, request.student_name, request.book_title, request.book_id, request.status)
-  )
-  const filteredAvailabilityBooks = safeAvailabilityBooks.filter((book) =>
-    matchesSearch(book.title, book.author, book.category, book.isbn, book.status)
-  )
-  const filteredOverdueLoans = overdueLoans.filter((loan) =>
-    matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.user_id, loan.status)
-  )
-  const filteredStudentList = studentList.filter((student) =>
-    matchesSearch(student.user_id, student.full_name, student.email, student.status)
-  )
-  const filteredEbooks = safeEbooks.filter((ebook) =>
-    matchesSearch(ebook.title, ebook.book_title, ebook.original_filename, ebook.file_type)
+    [safeBooks, pendingBorrowRequests, activeLoans.length, overdueLoans.length, studentList]
   )
 
   async function handleApproveRequest(requestId) {
@@ -379,24 +362,33 @@ export function LibrarianDashboard() {
     }
   }
 
-  async function handleReturnBook(event) {
-    event.preventDefault()
-    const loanId = Number(returnLoanId)
-    if (!returnLoanId || Number.isNaN(loanId) || loanId <= 0) {
-      addNotification('Please enter a valid Loan ID before returning a book.')
+  async function returnLoanById(loanId, { clearManualInput = false } = {}) {
+    const numericLoanId = Number(loanId)
+    if (!numericLoanId || Number.isNaN(numericLoanId) || numericLoanId <= 0) {
+      addNotification('Choose a valid loan before returning a book.')
       return
     }
 
+    setReturningLoanId(numericLoanId)
     try {
-      await api.post('/books/return', { loan_id: loanId })
-      setReturnLoanId('')
+      await api.post('/books/return', { loan_id: numericLoanId })
+      if (clearManualInput) {
+        setReturnLoanId('')
+      }
       await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks()])
       addNotification('Book return recorded.')
     } catch (error) {
       console.error('Error returning book:', error)
       await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
-      addNotification(error?.response?.data?.message || 'Failed to return book.')
+      addNotification(apiMessage(error, 'Failed to return book.'))
+    } finally {
+      setReturningLoanId(null)
     }
+  }
+
+  async function handleReturnBook(event) {
+    event.preventDefault()
+    await returnLoanById(returnLoanId, { clearManualInput: true })
   }
 
   async function handleLookupScan(event) {
@@ -458,7 +450,7 @@ export function LibrarianDashboard() {
     }
 
     try {
-      const response = await api.get(`/books/ebooks/${ebook.ebook_id}/download`, { responseType: 'blob' })
+      const response = await api.get(`/api/ebooks/${ebook.ebook_id}/download`, { responseType: 'blob' })
       const url = window.URL.createObjectURL(response.data)
       const link = document.createElement('a')
       link.href = url
@@ -468,7 +460,7 @@ export function LibrarianDashboard() {
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch (error) {
-      addNotification(error?.response?.data?.message || 'Unable to download e-book.')
+      addNotification(apiMessage(error, 'Unable to download e-book.'))
     }
   }
 
@@ -478,11 +470,35 @@ export function LibrarianDashboard() {
     }
 
     try {
-      await api.delete(`/books/ebooks/${ebook.ebook_id}`)
+      await api.delete(`/api/ebooks/${ebook.ebook_id}`)
       addNotification('E-book deleted successfully.')
       await loadEbooks()
     } catch (error) {
-      addNotification(error?.response?.data?.message || 'Unable to delete e-book.')
+      addNotification(ebookDeleteMessage(error))
+    }
+  }
+
+  async function handleUploadEbook() {
+    if (!ebookUploadFile) {
+      addNotification('Please choose a PDF or EPUB file to upload.')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('title', ebookUploadTitle.trim())
+    formData.append('ebook', ebookUploadFile)
+
+    setEbookUploading(true)
+    try {
+      await api.post('/api/ebooks', formData)
+      addNotification('E-book uploaded successfully.')
+      setEbookUploadTitle('')
+      setEbookUploadFile(null)
+      await loadEbooks()
+    } catch (error) {
+      addNotification(apiMessage(error, 'Unable to upload e-book.'))
+    } finally {
+      setEbookUploading(false)
     }
   }
 
@@ -558,12 +574,14 @@ export function LibrarianDashboard() {
   }
 
   function setEbookLibraryPage(page) {
-    const totalPages = Math.max(1, Math.ceil(safeEbooks.length / ebookLibraryPageSize))
+    const realEbooks = safeEbooks.filter(e => !e.is_catalog_only)
+    const totalPages = Math.max(1, Math.ceil(realEbooks.length / ebookLibraryPageSize))
     setEbookPage(Math.min(Math.max(1, page), totalPages))
   }
 
   function ebookPageNumbers() {
-    const totalPages = Math.max(1, Math.ceil(safeEbooks.length / ebookLibraryPageSize))
+    const realEbooks = safeEbooks.filter(e => !e.is_catalog_only)
+    const totalPages = Math.max(1, Math.ceil(realEbooks.length / ebookLibraryPageSize))
     const currentPage = Math.min(Math.max(1, ebookPage || 1), totalPages)
     const start = Math.max(1, currentPage - 2)
     const end = Math.min(totalPages, start + 4)
@@ -619,17 +637,17 @@ export function LibrarianDashboard() {
       return (
         <>
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Pending Borrow Requests ({filteredBorrowRequests.length})</div></div>
+            <div className="card-hdr"><div className="card-title">Pending Borrow Requests ({pendingBorrowRequests.length})</div></div>
             <div className="admin-table-container">
               <table>
                 <thead>
                   <tr><th>Request</th><th>Student</th><th>Book</th><th>Requested</th><th>Due Date</th><th>Action</th></tr>
                 </thead>
                 <tbody>
-                  {filteredBorrowRequests.length === 0 ? (
+                  {pendingBorrowRequests.length === 0 ? (
                     <tr><td colSpan="6" style={{ color: 'var(--muted)', textAlign: 'center', padding: '18px' }}>No pending borrow requests.</td></tr>
                   ) : (
-                    filteredBorrowRequests.map((request) => (
+                    pendingBorrowRequests.map((request) => (
                       <tr key={request.request_id}>
                         <td>{request.request_id}</td>
                         <td>{request.student_name || request.student_number || request.student_id}</td>
@@ -657,14 +675,52 @@ export function LibrarianDashboard() {
             </div>
           </div>
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Return Book</div></div>
-            <form className="admin-form" onSubmit={handleReturnBook}>
-              <div className="fgroup" style={{ flex: 1 }}>
-                <label>Loan ID</label>
+            <div className="card-hdr">
+              <div className="card-title">Active Loans ({activeLoans.length})</div>
+              <form className="inline-return-form" onSubmit={handleReturnBook}>
                 <input value={returnLoanId} onChange={(event) => setReturnLoanId(event.target.value)} placeholder="Loan ID" />
-              </div>
-              <button className="btn btn-blue" type="submit">Return Book</button>
-            </form>
+                <button className="btn btn-blue btn-sm" type="submit" disabled={returningLoanId !== null}>Return</button>
+              </form>
+            </div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr><th>Loan</th><th>Book</th><th>Copy</th><th>Student</th><th>Borrowed</th><th>Due</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                  {activeLoans.length === 0 ? (
+                    <tr><td colSpan="8" className="empty-cell">No active loans.</td></tr>
+                  ) : (
+                    activeLoans.map((loan) => (
+                      <tr key={loan.loan_id}>
+                        <td>{loan.loan_id}</td>
+                        <td>{loan.book_title || loan.book_id}</td>
+                        <td>{loan.copy_code || loan.barcode_value || '-'}</td>
+                        <td>
+                          <div className="loan-student-cell">
+                            <strong>{loan.student_name || loan.student_number || loan.user_id}</strong>
+                            {loan.student_email && <span>{loan.student_email}</span>}
+                          </div>
+                        </td>
+                        <td>{formatLoanDate(loan.borrowed_at || loan.issue_date)}</td>
+                        <td>{formatLoanDate(loan.due_date)}</td>
+                        <td><span className={`loan-status ${loanStatusLabel(loan).toLowerCase()}`}>{loanStatusLabel(loan)}</span></td>
+                        <td>
+                          <button
+                            className="btn btn-gold btn-sm"
+                            type="button"
+                            disabled={returningLoanId === Number(loan.loan_id)}
+                            onClick={() => returnLoanById(loan.loan_id)}
+                          >
+                            {returningLoanId === Number(loan.loan_id) ? 'Returning...' : 'Return'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div className="card">
             <div className="card-hdr"><div className="card-title">Barcode / QR Scanner</div></div>
@@ -749,10 +805,10 @@ export function LibrarianDashboard() {
               </thead>
               <tbody>
                 {availabilityLoading ? (
-                  <tr><td colSpan="6">Loading availability...</td></tr>
-                ) : filteredAvailabilityBooks.length === 0 ? (
-                  <tr><td colSpan="6">No books match the current filters.</td></tr>
-                ) : filteredAvailabilityBooks.map((book) => (
+                  <tr><td colSpan="7">Loading availability...</td></tr>
+                ) : safeAvailabilityBooks.length === 0 ? (
+                  <tr><td colSpan="7">No books match the current filters.</td></tr>
+                ) : safeAvailabilityBooks.map((book) => (
                   <tr key={book.book_id}>
                     <td>{book.title}</td>
                     <td>{book.isbn || '—'}</td>
@@ -800,21 +856,36 @@ export function LibrarianDashboard() {
           <div className="admin-table-container">
             <table>
               <thead>
-                <tr><th>Loan ID</th><th>Book</th><th>Student</th><th>Due Date</th><th>Days Overdue</th></tr>
+                <tr><th>Loan ID</th><th>Book</th><th>Copy</th><th>Student</th><th>Due Date</th><th>Days Overdue</th><th>Action</th></tr>
               </thead>
               <tbody>
-                {filteredOverdueLoans.map((loan) => {
-                  const daysOverdue = Math.floor((new Date() - new Date(loan.due_date)) / (1000 * 60 * 60 * 24))
-                  return (
-                    <tr key={loan.loan_id}>
-                      <td>{loan.loan_id}</td>
-                      <td>{loan.book_title || loan.book_id}</td>
-                      <td>{loan.student_name || loan.user_id}</td>
-                      <td>{new Date(loan.due_date).toLocaleDateString()}</td>
-                      <td style={{ color: 'var(--red)', fontWeight: 'bold' }}>{daysOverdue} days</td>
-                    </tr>
-                  )
-                })}
+                {overdueLoans.length === 0 ? (
+                  <tr><td colSpan="7" className="empty-cell">No overdue loans.</td></tr>
+                ) : (
+                  overdueLoans.map((loan) => {
+                    const daysOverdue = Math.max(0, Number(loan.days_overdue || Math.floor((new Date() - new Date(loan.due_date)) / (1000 * 60 * 60 * 24))))
+                    return (
+                      <tr key={loan.loan_id}>
+                        <td>{loan.loan_id}</td>
+                        <td>{loan.book_title || loan.book_id}</td>
+                        <td>{loan.copy_code || loan.barcode_value || '-'}</td>
+                        <td>{loan.student_name || loan.user_id}</td>
+                        <td>{formatLoanDate(loan.due_date)}</td>
+                        <td style={{ color: 'var(--red)', fontWeight: 'bold' }}>{daysOverdue} days</td>
+                        <td>
+                          <button
+                            className="btn btn-gold btn-sm"
+                            type="button"
+                            disabled={returningLoanId === Number(loan.loan_id)}
+                            onClick={() => returnLoanById(loan.loan_id)}
+                          >
+                            {returningLoanId === Number(loan.loan_id) ? 'Returning...' : 'Return'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -825,14 +896,14 @@ export function LibrarianDashboard() {
     if (activePage === 'students') {
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">Student Records ({filteredStudentList.length})</div></div>
+          <div className="card-hdr"><div className="card-title">Student Records</div></div>
           <div className="admin-table-container">
             <table>
               <thead>
                 <tr><th>Student ID</th><th>Name</th><th>Email</th><th>Status</th><th>Books Borrowed</th></tr>
               </thead>
               <tbody>
-                {filteredStudentList.map((student) => {
+                {studentList.map((student) => {
                   const borrowedCount = safeLoans.filter(l => l.user_id === student.user_id && !l.returned).length
                   return (
                     <tr key={student.user_id}>
@@ -852,19 +923,60 @@ export function LibrarianDashboard() {
     }
 
     if (activePage === 'ebooks') {
-      const totalPages = Math.max(1, Math.ceil(filteredEbooks.length / ebookLibraryPageSize))
+      const realEbooks = safeEbooks.filter(e => !e.is_catalog_only)
+      const totalPages = Math.max(1, Math.ceil(realEbooks.length / ebookLibraryPageSize))
       const currentPage = Math.min(Math.max(1, ebookPage || 1), totalPages)
-      const firstResult = filteredEbooks.length === 0 ? 0 : ((currentPage - 1) * ebookLibraryPageSize) + 1
-      const lastResult = Math.min(currentPage * ebookLibraryPageSize, filteredEbooks.length)
-      const visibleEbooks = filteredEbooks.slice((currentPage - 1) * ebookLibraryPageSize, currentPage * ebookLibraryPageSize)
+      const firstResult = realEbooks.length === 0 ? 0 : ((currentPage - 1) * ebookLibraryPageSize) + 1
+      const lastResult = Math.min(currentPage * ebookLibraryPageSize, realEbooks.length)
+      const visibleEbooks = realEbooks.slice((currentPage - 1) * ebookLibraryPageSize, currentPage * ebookLibraryPageSize)
 
       return (
         <div className="card">
           <div className="card-hdr">
             <div className="card-title">E-book Library</div>
             <div className="availability-count">
-              {filteredEbooks.length > 0 ? `${firstResult}-${lastResult} of ${filteredEbooks.length} records` : '0 records'}
+              {realEbooks.length > 0 ? `${firstResult}-${lastResult} of ${realEbooks.length} records` : '0 records'}
             </div>
+          </div>
+          <div className="ebook-upload-form">
+            <div className="ebook-upload-grid">
+              <div className="fgroup">
+                <label htmlFor="ebook-title">E-BOOK TITLE</label>
+                <input
+                  id="ebook-title"
+                  type="text"
+                  value={ebookUploadTitle}
+                  onChange={(event) => setEbookUploadTitle(event.target.value)}
+                  placeholder="Optional display title"
+                />
+              </div>
+
+              <div className="fgroup">
+                <label htmlFor="ebook-file">PDF / EPUB</label>
+                <input
+                  id="ebook-file"
+                  type="file"
+                  accept=".pdf,.epub"
+                  onChange={(event) => setEbookUploadFile(event.target.files?.[0] || null)}
+                />
+              </div>
+              <div className="ebook-upload-actions">
+                <button
+                  className="btn btn-blue"
+                  type="button"
+                  disabled={ebookUploading}
+                  onClick={handleUploadEbook}
+                >
+                  {ebookUploading ? 'Uploading...' : 'Upload E-book'}
+                </button>
+              </div>
+            </div>
+            {(ebookUploadFile || ebookUploadTitle) && (
+              <div className="ebook-upload-summary">
+                <strong>Selected file:</strong> {ebookUploadFile?.name || 'None'}
+                <strong>Display title:</strong> {ebookUploadTitle || 'Not set'}
+              </div>
+            )}
           </div>
           <div className="admin-table-container">
             <table>
@@ -875,7 +987,7 @@ export function LibrarianDashboard() {
                 {ebookLoading ? (
                   <tr><td colSpan="5" className="empty-cell">Loading e-books...</td></tr>
                 ) : visibleEbooks.length === 0 ? (
-                  <tr><td colSpan="5" className="empty-cell">No e-books match the current search.</td></tr>
+                  <tr><td colSpan="5" className="empty-cell">No e-books available yet.</td></tr>
                 ) : visibleEbooks.map((ebook) => (
                   <tr key={ebook.ebook_id}>
                     <td>
@@ -887,21 +999,18 @@ export function LibrarianDashboard() {
                     <td>{ebook.book_title || ebook.title}</td>
                     <td>
                       <span className={`file-type-badge ${String(ebook.file_type || '').toLowerCase()}`}>
-                        {ebook.is_catalog_only ? 'BOOK' : String(ebook.file_type || '').toUpperCase()}
+                        {String(ebook.file_type || '').toUpperCase()}
                       </span>
                     </td>
-                    <td>{ebook.is_catalog_only ? '-' : `${Math.ceil((ebook.file_size || 0) / 1024)} KB`}</td>
+                    <td>{`${Math.ceil((ebook.file_size || 0) / 1024)} KB`}</td>
                     <td>
                       <div className="table-actions">
-                        <a className="btn btn-outline btn-sm" href={ebook.is_catalog_only ? `/books/${ebook.book_id}` : `/ebooks/${ebook.ebook_id}`} target="_blank" rel="noreferrer">Open</a>
-                        {ebook.is_catalog_only ? (
-                          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Catalog only</span>
-                        ) : (
-                          <>
-                            <button className="btn btn-blue btn-sm" type="button" disabled={ebook.file_available === false} onClick={() => handleDownloadEbook(ebook)}>Download</button>
-                            <button className="btn btn-red btn-sm" type="button" onClick={() => handleDeleteEbook(ebook)} style={{ marginLeft: '8px' }}>Delete</button>
-                          </>
+                        <a className="btn btn-outline btn-sm" href={`/ebooks/${ebook.ebook_id}`} target="_blank" rel="noreferrer">Open</a>
+                        {ebook.file_available === false && (
+                          <span style={{ color: 'var(--error)', fontSize: '12px', marginRight: '8px' }}>File missing</span>
                         )}
+                        <button className="btn btn-blue btn-sm" type="button" disabled={ebook.file_available === false} onClick={() => handleDownloadEbook(ebook)}>Download</button>
+                        <button className="btn btn-red btn-sm" type="button" onClick={() => handleDeleteEbook(ebook)} style={{ marginLeft: '8px' }}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -909,7 +1018,7 @@ export function LibrarianDashboard() {
               </tbody>
             </table>
           </div>
-          {safeEbooks.length > ebookLibraryPageSize && (
+          {realEbooks.length > ebookLibraryPageSize && (
             <div className="pagination-bar">
               <button className="btn btn-outline btn-sm" type="button" disabled={currentPage <= 1 || ebookLoading} onClick={() => setEbookLibraryPage(currentPage - 1)}>Previous</button>
               <div className="page-buttons">
@@ -995,11 +1104,9 @@ export function LibrarianDashboard() {
     <div className="librarian-dashboard-app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-icon"><BookOpen size={27} strokeWidth={1.9} aria-hidden="true" /></div>
-          <div className="logo-text">
-            <div className="logo-title">LIBRASYS</div>
-            <div className="logo-sub">Librarian</div>
-          </div>
+          <div className="logo-icon">📚</div>
+          <div className="logo-title">LIBRASYS</div>
+          <div className="logo-sub">Librarian</div>
         </div>
         <nav className="nav">
           {navigationSections.map((section) => (
@@ -1015,6 +1122,16 @@ export function LibrarianDashboard() {
             </div>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="avatar">LI</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Librarian</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>librarian@librasys.edu</div>
+            </div>
+            <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
+          </div>
+        </div>
       </div>
       {showLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
@@ -1031,11 +1148,14 @@ export function LibrarianDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || (activePage === 'ebooks' ? 'E-books' : 'Overview')}</div>
+          <div className="search-wrap">
+            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
+          </div>
           <div style={{ position: 'relative' }}>
-            <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
-              <Bell size={18} aria-hidden="true" />
+            <span style={{ fontSize: '18px', cursor: 'pointer', position: 'relative' }} onClick={() => setShowNotifications(!showNotifications)}>
+              🔔
               {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
-            </button>
+            </span>
             {showNotifications && (
               <div className="notif-panel">
                 <div className="notif-header">Notifications</div>
@@ -1046,9 +1166,7 @@ export function LibrarianDashboard() {
                     notifications.map(notif => (
                       <div key={notif.id} className="notif-item">
                         <div className="notif-text">{notif.text}</div>
-                        <button className="icon-button" type="button" onClick={() => removeNotification(notif.id)} aria-label="Dismiss notification">
-                          <X size={14} aria-hidden="true" />
-                        </button>
+                        <button onClick={() => removeNotification(notif.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '12px' }}>✕</button>
                       </div>
                     ))
                   )}
@@ -1056,18 +1174,7 @@ export function LibrarianDashboard() {
               </div>
             )}
           </div>
-          <div className="topbar-user-card">
-            <div className="topbar-user-profile">
-              <div className="avatar">LI</div>
-              <div className="topbar-user-text">
-                <div className="topbar-user-name">Librarian</div>
-                <div className="topbar-user-email">{librarianEmail}</div>
-              </div>
-            </div>
-            <button className="topbar-logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout">
-              <LogOut size={17} aria-hidden="true" />
-            </button>
-          </div>
+          <div className="avatar">LI</div>
         </div>
         <div className="content">
           {renderPage()}

@@ -25,6 +25,7 @@ def ensure_inventory_schema(conn):
 
         _ensure_book_copy_metadata_columns(cur)
         _ensure_ebook_tables(cur)
+        _ensure_ebook_metadata_columns(cur)
         _ensure_qr_code_columns(cur)
 
         if not _column_exists(cur, "borrow_records", "copy_id"):
@@ -56,7 +57,7 @@ def _ensure_ebook_tables(cur):
         """
         CREATE TABLE IF NOT EXISTS ebooks (
             ebook_id INT PRIMARY KEY AUTO_INCREMENT,
-            book_id INT NOT NULL,
+            book_id INT NULL,
             title VARCHAR(255) NOT NULL,
             original_filename VARCHAR(255) NOT NULL,
             stored_filename VARCHAR(255) NOT NULL UNIQUE,
@@ -67,12 +68,22 @@ def _ensure_ebook_tables(cur):
             uploaded_by_role ENUM('admin', 'librarian') NOT NULL,
             uploaded_by_id INT,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+            FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE SET NULL,
             INDEX idx_book_id (book_id),
             INDEX idx_access_level (access_level)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
     )
+
+    if _column_exists(cur, "ebooks", "book_id"):
+        cur.execute("ALTER TABLE ebooks MODIFY COLUMN book_id INT NULL")
+
+    if not _index_exists(cur, "ebooks", "idx_book_id"):
+        cur.execute("ALTER TABLE ebooks ADD INDEX idx_book_id (book_id)")
+
+    if not _index_exists(cur, "ebooks", "idx_access_level"):
+        cur.execute("ALTER TABLE ebooks ADD INDEX idx_access_level (access_level)")
+
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS ebook_access_logs (
@@ -104,6 +115,13 @@ def _ensure_ebook_tables(cur):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
     )
+
+
+def _ensure_ebook_metadata_columns(cur):
+    if not _column_exists(cur, "ebooks", "author"):
+        cur.execute("ALTER TABLE ebooks ADD COLUMN author VARCHAR(255) NULL AFTER title")
+    if not _column_exists(cur, "ebooks", "category"):
+        cur.execute("ALTER TABLE ebooks ADD COLUMN category VARCHAR(255) NULL AFTER author")
 
 
 def _ensure_qr_code_columns(cur):

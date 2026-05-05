@@ -240,7 +240,10 @@ class BookController:
         ebooks = self.book_repository.list_ebooks(book_id)
         for ebook in ebooks:
             ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
-            ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/public-download"
+            ebook['access_url'] = f"/api/ebooks/{ebook['ebook_id']}/public-download"
+            ebook['file_available'] = bool(self._resolve_ebook_file_path(ebook))
+            if not ebook['file_available']:
+                ebook['file_status'] = 'File not available'
 
         book['detail_url'] = f"/books/{book['book_id']}"
         book['ebooks'] = ebooks
@@ -250,11 +253,10 @@ class BookController:
         if not current_user or current_user.get('role') not in ['admin', 'librarian']:
             return jsonify({'message': 'Admin or librarian access required'}), 403
 
-        book_id = request.form.get('book_id', type=int)
+        book_id = request.form.get('book_id', type=int)  # Optional
         title = (request.form.get('title') or '').strip()
         file = request.files.get('ebook')
-        if not book_id:
-            return jsonify({'message': 'book_id is required'}), 400
+        
         if not file or not file.filename:
             return jsonify({'message': 'PDF or EPUB file is required'}), 400
 
@@ -273,8 +275,18 @@ class BookController:
 
         os.makedirs(Config.EBOOK_UPLOAD_FOLDER, exist_ok=True)
         stored_filename = f"{uuid.uuid4().hex}.{extension}"
-        file_path = os.path.join(Config.EBOOK_UPLOAD_FOLDER, stored_filename)
+        file_path = os.path.abspath(os.path.join(Config.EBOOK_UPLOAD_FOLDER, stored_filename))
         file.save(file_path)
+        if not os.path.isfile(file_path):
+            return jsonify({'message': 'Uploaded file could not be saved'}), 500
+
+        saved_size = os.path.getsize(file_path)
+        if saved_size <= 0:
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+            return jsonify({'message': 'Uploaded e-book is empty'}), 400
 
         uploaded_by_id = current_user.get('admin_id') or current_user.get('librarian_id')
         try:
@@ -285,7 +297,7 @@ class BookController:
                 stored_filename=stored_filename,
                 file_path=file_path,
                 file_type=extension,
-                file_size=file_size,
+                file_size=saved_size,
                 uploaded_by_role=current_user.get('role'),
                 uploaded_by_id=uploaded_by_id,
             )
@@ -294,7 +306,8 @@ class BookController:
                 os.remove(file_path)
             except OSError:
                 pass
-            return jsonify({'message': str(exc)}), 404
+            status_code = 404 if str(exc) == 'Book not found' else 400
+            return jsonify({'message': str(exc)}), status_code
 
         base_url = self._frontend_base_url()
         return jsonify({
@@ -304,14 +317,26 @@ class BookController:
         }), 201
 
     def list_ebooks(self, current_user=None):
-        if not current_user or current_user.get('role') not in ['student', 'admin', 'librarian']:
+        if not current_user:
+            return jsonify({'message': 'Authentication required'}), 401
+        if current_user.get('role') not in ['student', 'admin', 'librarian']:
             return jsonify({'message': 'Library account access required'}), 403
-        book_id = request.args.get('book_id', type=int)
+
+        raw_book_id = (request.args.get('book_id') or '').strip()
+        book_id = None
+        if raw_book_id:
+            try:
+                book_id = int(raw_book_id)
+            except (TypeError, ValueError):
+                return jsonify({'message': 'book_id must be a valid integer'}), 400
+
         ebooks = self.book_repository.list_ebooks(book_id)
         for ebook in ebooks:
-            ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/download"
+            ebook['access_url'] = f"/api/ebooks/{ebook['ebook_id']}/download"
             ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
             ebook['file_available'] = bool(self._resolve_ebook_file_path(ebook))
+            if not ebook['file_available']:
+                ebook['file_status'] = 'File not available'
         return jsonify({'ebooks': ebooks}), 200
 
     def download_ebook(self, ebook_id, current_user=None):
@@ -324,7 +349,7 @@ class BookController:
 
         file_path = self._resolve_ebook_file_path(ebook)
         if not file_path:
-            return jsonify({'message': 'E-book file is not available'}), 404
+            return jsonify({'message': 'File not available', 'code': 'file_not_available'}), 404
 
         actor_id = current_user.get('student_id') or current_user.get('librarian_id') or current_user.get('admin_id')
         self.book_repository.log_ebook_access(ebook_id, current_user.get('role'), actor_id, 'download')
@@ -341,9 +366,13 @@ class BookController:
         if not ebook:
             return jsonify({'message': 'E-book not found'}), 404
 
-        book = self.book_repository.find_by_id(ebook['book_id'])
+        book = self.book_repository.find_by_id(ebook['book_id']) if ebook.get('book_id') else None
+        file_available = bool(self._resolve_ebook_file_path(ebook))
         ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
-        ebook['access_url'] = f"/books/ebooks/{ebook['ebook_id']}/public-download"
+        ebook['access_url'] = f"/api/ebooks/{ebook['ebook_id']}/public-download"
+        ebook['file_available'] = file_available
+        if not file_available:
+            ebook['file_status'] = 'File not available'
         if book:
             book['detail_url'] = f"/books/{book['book_id']}"
         self.book_repository.log_ebook_access(ebook_id, 'student', None, 'view')
@@ -356,12 +385,12 @@ class BookController:
 
         file_path = self._resolve_ebook_file_path(ebook)
         if not file_path:
-            return jsonify({'message': 'E-book file is not available'}), 404
+            return jsonify({'message': 'File not available', 'code': 'file_not_available'}), 404
 
         self.book_repository.log_ebook_access(ebook_id, 'student', None, 'download')
         return send_file(
             file_path,
-            as_attachment=True,
+            as_attachment=request.args.get('disposition') != 'inline',
             download_name=ebook['original_filename'],
             mimetype='application/pdf' if ebook['file_type'] == 'pdf' else 'application/epub+zip',
             conditional=True,
@@ -380,7 +409,8 @@ class BookController:
             return jsonify({'message': 'E-book not found'}), 404
         if blockers:
             return jsonify({
-                'message': 'E-book cannot be deleted while it is borrowed, being accessed, or referenced.',
+                'message': 'This e-book cannot be deleted because it is currently borrowed or in use.',
+                'code': 'ebook_in_use',
                 'blockers': blockers,
             }), 409
 
@@ -420,9 +450,13 @@ class BookController:
         if stored_filename:
             candidates.append(os.path.abspath(os.path.join(upload_root, stored_filename)))
 
+        original_filename = str(ebook.get('original_filename') or '').strip()
+        if original_filename:
+            candidates.append(os.path.abspath(os.path.join(upload_root, original_filename)))
+
         for candidate in candidates:
             try:
-                if os.path.commonpath([upload_root, candidate]) == upload_root and os.path.exists(candidate):
+                if os.path.commonpath([upload_root, candidate]) == upload_root and os.path.isfile(candidate):
                     return candidate
             except ValueError:
                 continue

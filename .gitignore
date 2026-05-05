@@ -1,1 +1,11 @@
 oracleJdk-26/
+*.log
+backend/backend.log
+.env
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/
+instance/
+uploads/

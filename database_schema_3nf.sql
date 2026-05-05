@@ -193,7 +193,7 @@ CREATE TABLE book_copies (
 -- =====================================================
 CREATE TABLE ebooks (
     ebook_id INT PRIMARY KEY AUTO_INCREMENT,
-    book_id INT NOT NULL,
+    book_id INT NULL,
     title VARCHAR(255) NOT NULL,
     original_filename VARCHAR(255) NOT NULL,
     stored_filename VARCHAR(255) NOT NULL UNIQUE,
@@ -204,7 +204,7 @@ CREATE TABLE ebooks (
     uploaded_by_role ENUM('admin', 'librarian') NOT NULL,
     uploaded_by_id INT,
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE SET NULL,
     INDEX idx_book_id (book_id),
     INDEX idx_access_level (access_level)
 );

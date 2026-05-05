@@ -9,8 +9,11 @@ import {
   CreditCard,
   Flame,
   History,
+  KeyRound,
+  Library,
   LogOut,
   Search,
+  User,
   X
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -32,6 +35,13 @@ const navSections = [
       { id: 'reading', icon: BookMarked, title: 'Reading History' },
       { id: 'history', icon: History, title: 'Borrowing History' }
     ]
+  },
+  {
+    section: 'ACCOUNT',
+    items: [
+      { id: 'profile', icon: User, title: 'My Profile' },
+      { id: 'password', icon: KeyRound, title: 'Change Password' }
+    ]
   }
 ]
 
@@ -42,7 +52,9 @@ const pageTitles = {
   catalog: 'Search Catalog',
   fines: 'Fine Management',
   reading: 'Reading History',
-  history: 'Borrowing History'
+  history: 'Borrowing History',
+  profile: 'My Profile',
+  password: 'Change Password'
 }
 
 const formatDate = (value) => {
@@ -96,15 +108,13 @@ export function StudentDashboard() {
   const [fetchError, setFetchError] = useState('')
   const [authStatus, setAuthStatus] = useState('pending')
   const [authMessage, setAuthMessage] = useState('')
-  const [showAccountModal, setShowAccountModal] = useState(false)
+  const [showEditProfile, setShowEditProfile] = useState(false)
   const [editProfileForm, setEditProfileForm] = useState({
     full_name: '',
     email: ''
   })
   const [editProfileErrors, setEditProfileErrors] = useState({})
   const [savingProfile, setSavingProfile] = useState(false)
-  const [passwordError, setPasswordError] = useState('')
-  const [savingPassword, setSavingPassword] = useState(false)
 
   const addNotification = useCallback((text) => {
     const id = Date.now()
@@ -138,21 +148,38 @@ export function StudentDashboard() {
     navigate('/login', { replace: true })
   }
 
+  const authFetch = useCallback(async (url, options = {}) => {
+    const token = getAuthToken()
+    if (!token || isJwtExpired(token)) {
+      redirectToLogin()
+      return null
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    }
+
+    const response = await fetch(url, { ...options, headers })
+    const data = await response.json().catch(() => ({}))
+
+    if (response.status === 401) {
+      console.warn('[StudentDashboard] unauthorized request', { url, message: data?.message || 'Unauthorized' })
+      redirectToLogin()
+      return null
+    }
+
+    return { response, data }
+  }, [getAuthToken, redirectToLogin])
+
   const loadLoans = useCallback(async () => {
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/loans/student', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-      if (response.status === 401) {
-        console.warn('[StudentDashboard] loadLoans unauthorized', response)
-        redirectToLogin()
+      const result = await authFetch('/api/loans/student')
+      if (!result) {
         return
       }
-      const data = await response.json()
+      const { response, data } = result
       console.log('[StudentDashboard] loadLoans response', response.status, data)
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load student loans')
@@ -164,23 +191,15 @@ export function StudentDashboard() {
       setFetchError(message)
       addNotification(message)
     }
-  }, [addNotification, getAuthToken, redirectToLogin])
+  }, [addNotification, authFetch])
 
   const loadProfile = useCallback(async () => {
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/students/profile', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-      if (response.status === 401) {
-        console.warn('[StudentDashboard] loadProfile unauthorized', response)
-        redirectToLogin()
+      const result = await authFetch('/api/students/profile')
+      if (!result) {
         return
       }
-      const data = await response.json()
+      const { response, data } = result
       console.log('[StudentDashboard] loadProfile response', response.status, data)
       if (!response.ok) {
         throw new Error(data?.message || 'Unable to load profile')
@@ -199,7 +218,7 @@ export function StudentDashboard() {
       setFetchError(message)
       addNotification(message)
     }
-  }, [addNotification, getAuthToken, redirectToLogin])
+  }, [addNotification, authFetch])
 
   const loadPopularBooks = useCallback(async () => {
     try {
@@ -283,23 +302,13 @@ export function StudentDashboard() {
   const studentEmail = profile?.email || ''
   const studentInitials = getInitials(studentName)
 
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-  const matchesSearch = (...values) => {
-    if (!normalizedSearchQuery) {
-      return true
-    }
-    return values.some((value) => String(value || '').toLowerCase().includes(normalizedSearchQuery))
-  }
-
-  const openAccountModal = () => {
+  const openEditProfile = () => {
     setEditProfileForm({
       full_name: studentName,
       email: studentEmail
     })
     setEditProfileErrors({})
-    setPasswordForm({ old_password: '', new_password: '' })
-    setPasswordError('')
-    setShowAccountModal(true)
+    setShowEditProfile(true)
   }
 
   const validateEditProfile = () => {
@@ -326,19 +335,17 @@ export function StudentDashboard() {
 
     setSavingProfile(true)
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/student/profile', {
+      const result = await authFetch('/api/student/profile', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
         body: JSON.stringify({
           full_name: editProfileForm.full_name.trim(),
           email: editProfileForm.email.trim()
         })
       })
-      const data = await response.json().catch(() => ({}))
+      if (!result) {
+        return
+      }
+      const { response, data } = result
       if (!response.ok) {
         setEditProfileErrors({ form: data?.message || 'Unable to update profile.' })
         return
@@ -349,6 +356,7 @@ export function StudentDashboard() {
       } else {
         await loadProfile()
       }
+      setShowEditProfile(false)
       addNotification('Profile updated successfully.')
     } catch (err) {
       console.error('[StudentDashboard] save profile error', err)
@@ -360,40 +368,23 @@ export function StudentDashboard() {
 
   async function handleChangePassword(event) {
     event.preventDefault()
-    setPasswordError('')
-
-    if (!passwordForm.old_password || !passwordForm.new_password) {
-      setPasswordError('Both password fields are required.')
-      return
-    }
-
-    if (passwordForm.new_password.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.')
-      return
-    }
-
-    setSavingPassword(true)
     try {
-      const token = getAuthToken()
-      const response = await fetch('/api/auth/change-password', {
+      const result = await authFetch('/api/auth/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
         body: JSON.stringify(passwordForm)
       })
-      const data = await response.json().catch(() => ({}))
+      if (!result) {
+        return
+      }
+      const { response, data } = result
       if (response.ok) {
         setPasswordForm({ old_password: '', new_password: '' })
         addNotification('Password changed successfully.')
       } else {
-        setPasswordError(data?.message || data?.error || 'Password change failed.')
+        addNotification(data?.message || 'Password change failed.')
       }
-    } catch {
-      setPasswordError('Error changing password. Please try again.')
-    } finally {
-      setSavingPassword(false)
+    } catch (error) {
+      addNotification(error?.message || 'Error changing password.')
     }
   }
 
@@ -465,6 +456,7 @@ export function StudentDashboard() {
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('reading')}>Reading History</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('fines')}>Manage Fines</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('history')}>Borrowing History</button>
+                <button className="btn btn-outline" type="button" onClick={() => setActivePage('profile')}>View Profile</button>
               </div>
             </div>
           </div>
@@ -509,17 +501,16 @@ export function StudentDashboard() {
 
     if (activePage === 'books') {
       const borrowedLoans = loans.filter(l => isApprovedLoan(l) || isPendingRequest(l) || isRejectedRequest(l))
-      const filteredLoans = borrowedLoans.filter((loan) => matchesSearch(loan.book_title, loan.book_id, loan.status, loan.issue_date, loan.due_date))
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">My Borrow Requests and Books ({filteredLoans.length})</div></div>
+          <div className="card-hdr"><div className="card-title">My Borrow Requests and Books ({borrowedLoans.length})</div></div>
           <div className="admin-table-container">
             <table>
               <thead>
                 <tr><th>Book Title</th><th>Requested/Issued</th><th>Due Date</th><th>Days/Fine</th><th>Status</th><th>Action</th></tr>
               </thead>
               <tbody>
-                {filteredLoans.map((loan) => {
+                {borrowedLoans.map((loan) => {
                   const daysLeft = loan.due_date ? Math.ceil((new Date(loan.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null
                   const isOverdue = isApprovedLoan(loan) && daysLeft < 0
                   return (
@@ -564,8 +555,6 @@ export function StudentDashboard() {
     if (activePage === 'fines') {
       const outstandingFines = fines.filter((fine) => ['unpaid', 'pending'].includes(String(fine.status || '').toLowerCase()))
       const fineHistory = fines.filter((fine) => !['unpaid', 'pending'].includes(String(fine.status || '').toLowerCase()))
-      const filteredOutstandingFines = outstandingFines.filter((fine) => matchesSearch(fine.book_title, fine.loan_id, fine.status, fine.issued_date, fine.due_date))
-      const filteredFineHistory = fineHistory.filter((fine) => matchesSearch(fine.book_title, fine.loan_id, fine.status, fine.issued_date, fine.paid_date))
       const renderFineStatus = (fine) => {
         const status = String(fine.status || '').toLowerCase()
         if (status === 'paid') return <span className="fine-status paid">Paid</span>
@@ -595,17 +584,17 @@ export function StudentDashboard() {
           </div>
 
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Outstanding Fines ({filteredOutstandingFines.length})</div></div>
+            <div className="card-hdr"><div className="card-title">Outstanding Fines ({outstandingFines.length})</div></div>
             <div className="admin-table-container">
               <table>
                 <thead>
                   <tr><th>Book</th><th>Due Date</th><th>Overdue</th><th>Amount</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
-                  {filteredOutstandingFines.length === 0 ? (
+                  {outstandingFines.length === 0 ? (
                     <tr><td colSpan="6" className="empty-cell">No outstanding fines.</td></tr>
                   ) : (
-                    filteredOutstandingFines.map((fine) => {
+                    outstandingFines.map((fine) => {
                       const loanId = fine.loan_id || fine.borrow_id
                       return (
                         <tr key={`${loanId}-${fine.fine_id || 'computed'}`}>
@@ -629,17 +618,17 @@ export function StudentDashboard() {
           </div>
 
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Fine History ({filteredFineHistory.length})</div></div>
+            <div className="card-hdr"><div className="card-title">Fine History ({fineHistory.length})</div></div>
             <div className="admin-table-container">
               <table>
                 <thead>
                   <tr><th>Book</th><th>Issued</th><th>Paid</th><th>Amount</th><th>Status</th></tr>
                 </thead>
                 <tbody>
-                  {filteredFineHistory.length === 0 ? (
+                  {fineHistory.length === 0 ? (
                     <tr><td colSpan="5" className="empty-cell">No fine history yet.</td></tr>
                   ) : (
-                    filteredFineHistory.map((fine) => (
+                    fineHistory.map((fine) => (
                       <tr key={`${fine.loan_id || fine.borrow_id}-${fine.fine_id || fine.status}`}>
                         <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
                         <td>{fine.issued_date ? new Date(fine.issued_date).toLocaleDateString() : '-'}</td>
@@ -658,7 +647,7 @@ export function StudentDashboard() {
     }
 
     if (activePage === 'reading') {
-      const readingHistory = loans.filter((loan) => matchesSearch(loan.book_title, loan.book_id, loan.status, loan.issue_date, loan.return_date))
+      const readingHistory = loans
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Reading History</div></div>
@@ -704,7 +693,6 @@ export function StudentDashboard() {
     }
 
     if (activePage === 'popular') {
-      const filteredPopularBooks = popularBooks.filter((book) => matchesSearch(book.title, book.author, book.category, book.status))
       return (
         <div className="card">
           <div className="card-hdr"><div className="card-title">Top Borrowed Books</div></div>
@@ -720,10 +708,10 @@ export function StudentDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPopularBooks.length === 0 ? (
-                  <tr><td colSpan="4" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No books match the current search.</td></tr>
+                {popularBooks.length === 0 ? (
+                  <tr><td colSpan="4" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No data available.</td></tr>
                 ) : (
-                  filteredPopularBooks.map((book) => (
+                  popularBooks.map((book) => (
                     <tr key={book.book_id || book.id}>
                       <td>{book.title}</td>
                       <td>{book.author}</td>
@@ -743,17 +731,16 @@ export function StudentDashboard() {
 
     if (activePage === 'history') {
       const history = loans.filter(l => l.returned)
-      const filteredHistory = history.filter((loan) => matchesSearch(loan.book_title, loan.book_id, loan.status, loan.issue_date, loan.return_date))
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">Borrowing History ({filteredHistory.length})</div></div>
+          <div className="card-hdr"><div className="card-title">Borrowing History ({history.length})</div></div>
           <div className="admin-table-container">
             <table>
               <thead>
                 <tr><th>Book Title</th><th>Issued</th><th>Returned</th><th>Duration</th></tr>
               </thead>
               <tbody>
-                {filteredHistory.map((loan) => {
+                {history.map((loan) => {
                   const duration = Math.ceil((new Date(loan.return_date || loan.due_date) - new Date(loan.issue_date)) / (1000 * 60 * 60 * 24))
                   return (
                     <tr key={loan.loan_id}>
@@ -771,6 +758,56 @@ export function StudentDashboard() {
       )
     }
 
+    if (activePage === 'profile') {
+      return (
+        <div className="profile-layout">
+          <div className="card profile-summary-card">
+            <div className="profile-avatar">{studentInitials}</div>
+            <div className="profile-name">{studentName || 'Student'}</div>
+            <div className="profile-email">{displayValue(studentEmail)}</div>
+            <div className="profile-id-panel">
+              <div className="student-id-label">Student ID</div>
+              <div className="student-id-value">{displayValue(studentNumber)}</div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-hdr">
+              <div className="card-title">Student Profile</div>
+              <button className="btn btn-green btn-sm" type="button" onClick={openEditProfile}>Edit Profile</button>
+            </div>
+            <div className="profile-detail-grid">
+              <div><span>Student ID</span><strong>{displayValue(studentNumber)}</strong></div>
+              <div><span>Full Name</span><strong>{displayValue(studentName)}</strong></div>
+              <div><span>Email Address</span><strong>{displayValue(studentEmail)}</strong></div>
+              <div><span>Department / Program</span><strong>{displayValue(profile?.department)}</strong></div>
+              <div><span>Year Level</span><strong>{displayValue(profile?.year_level)}</strong></div>
+              <div><span>Last Login</span><strong>{formatDate(profile?.last_login)}</strong></div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (activePage === 'password') {
+      return (
+        <div className="card">
+          <div className="card-hdr"><div className="card-title">Change Password</div></div>
+          <form className="admin-form" style={{ flexDirection: 'column' }} onSubmit={handleChangePassword}>
+            <div className="fgroup">
+              <label>Current password</label>
+              <input type="password" value={passwordForm.old_password} onChange={(event) => setPasswordForm({ ...passwordForm, old_password: event.target.value })} placeholder="Current password" />
+            </div>
+            <div className="fgroup">
+              <label>New password</label>
+              <input type="password" value={passwordForm.new_password} onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })} placeholder="New password" />
+            </div>
+            <button className="btn btn-green" type="submit">Save password</button>
+          </form>
+        </div>
+      )
+    }
+
     return (
       <div className="card">
         <div className="card-hdr"><div className="card-title">Page unavailable</div></div>
@@ -783,11 +820,9 @@ export function StudentDashboard() {
     <div className="student-dashboard-app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-icon"><BookOpen size={27} strokeWidth={1.9} aria-hidden="true" /></div>
-          <div className="logo-text">
-            <div className="logo-title">LIBRASYS</div>
-            <div className="logo-sub">Student</div>
-          </div>
+          <div className="logo-icon"><Library size={26} strokeWidth={1.8} aria-hidden="true" /></div>
+          <div className="logo-title">LIBRASYS</div>
+          <div className="logo-sub">Student</div>
         </div>
         <nav className="nav">
           {navSections.map((section) => (
@@ -806,95 +841,80 @@ export function StudentDashboard() {
             </div>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="avatar">{studentInitials}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {studentName || 'Student'}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{displayValue(studentEmail || studentNumber)}</div>
+            </div>
+            <button className="icon-button logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)}>
+              <LogOut size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
       </div>
-      {showAccountModal && (
-        <div className="modal-overlay" role="presentation" onClick={() => !(savingProfile || savingPassword) && setShowAccountModal(false)}>
-          <div className="profile-modal account-modal" role="dialog" aria-modal="true" aria-labelledby="student-account-title" onClick={(event) => event.stopPropagation()}>
+      {showEditProfile && (
+        <div className="modal-overlay" role="presentation" onClick={() => !savingProfile && setShowEditProfile(false)}>
+          <div className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
-                <div id="student-account-title" className="modal-title">Student Account</div>
-                <div className="modal-subtitle">Review your profile, update editable details, and change your password.</div>
+                <div id="edit-profile-title" className="modal-title">Edit Profile</div>
+                <div className="modal-subtitle">Student ID, department / program, and year level come from your approved registration.</div>
               </div>
-              <button className="modal-close" type="button" disabled={savingProfile || savingPassword} onClick={() => setShowAccountModal(false)} aria-label="Close student account">
+              <button className="modal-close" type="button" disabled={savingProfile} onClick={() => setShowEditProfile(false)} aria-label="Close edit profile">
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
 
-            <div className="account-modal-grid">
-              <div className="account-summary-panel">
-                <div className="profile-avatar">{studentInitials}</div>
-                <div className="profile-name">{studentName || 'Student'}</div>
-                <div className="profile-email">{displayValue(studentEmail || studentNumber)}</div>
-                <div className="profile-detail-grid compact">
-                  <div><span>Student ID</span><strong>{displayValue(studentNumber)}</strong></div>
-                  <div><span>Department / Program</span><strong>{displayValue(profile?.department)}</strong></div>
-                  <div><span>Year Level</span><strong>{displayValue(profile?.year_level)}</strong></div>
-                  <div><span>Last Login</span><strong>{formatDate(profile?.last_login)}</strong></div>
+            <form className="profile-modal-form" onSubmit={handleSaveProfile}>
+              {editProfileErrors.form && <div className="form-error">{editProfileErrors.form}</div>}
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Student ID</label>
+                  <input value={displayValue(studentNumber)} readOnly />
+                </div>
+                <div className="fgroup">
+                  <label>Department / Program</label>
+                  <input value={displayValue(profile?.department)} readOnly />
                 </div>
               </div>
-
-              <div className="account-forms-panel">
-                <form className="profile-modal-form account-form-section" onSubmit={handleSaveProfile}>
-                  <div className="account-section-title">Edit Profile</div>
-                  {editProfileErrors.form && <div className="form-error">{editProfileErrors.form}</div>}
-                  <div className="fgroup">
-                    <label>Full Name</label>
-                    <input
-                      value={editProfileForm.full_name}
-                      onChange={(event) => setEditProfileForm({ ...editProfileForm, full_name: event.target.value })}
-                      autoComplete="name"
-                    />
-                    {editProfileErrors.full_name && <div className="field-error">{editProfileErrors.full_name}</div>}
-                  </div>
-                  <div className="fgroup">
-                    <label>Email Address</label>
-                    <input
-                      type="email"
-                      value={editProfileForm.email}
-                      onChange={(event) => setEditProfileForm({ ...editProfileForm, email: event.target.value })}
-                      autoComplete="email"
-                    />
-                    {editProfileErrors.email && <div className="field-error">{editProfileErrors.email}</div>}
-                  </div>
-                  <div className="modal-actions">
-                    <button className="btn btn-green" type="submit" disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save Profile'}</button>
-                  </div>
-                </form>
-
-                <form className="profile-modal-form account-form-section" onSubmit={handleChangePassword}>
-                  <div className="account-section-title">Change Password</div>
-                  {passwordError && <div className="form-error">{passwordError}</div>}
-                  <div className="fgroup">
-                    <label>Current password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.old_password}
-                      onChange={(event) => {
-                        setPasswordForm({ ...passwordForm, old_password: event.target.value })
-                        setPasswordError('')
-                      }}
-                      autoComplete="current-password"
-                    />
-                  </div>
-                  <div className="fgroup">
-                    <label>New password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.new_password}
-                      onChange={(event) => {
-                        setPasswordForm({ ...passwordForm, new_password: event.target.value })
-                        setPasswordError('')
-                      }}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                  <div className="modal-actions">
-                    <button className="btn btn-outline" type="button" disabled={savingProfile || savingPassword} onClick={() => setShowAccountModal(false)}>Close</button>
-                    <button className="btn btn-green" type="submit" disabled={savingPassword}>{savingPassword ? 'Saving...' : 'Save Password'}</button>
-                  </div>
-                </form>
+              <div className="frow">
+                <div className="fgroup">
+                  <label>Year Level</label>
+                  <input value={displayValue(profile?.year_level)} readOnly />
+                </div>
+                <div className="fgroup">
+                  <label>Last Login</label>
+                  <input value={formatDate(profile?.last_login)} readOnly />
+                </div>
               </div>
-            </div>
+              <div className="fgroup">
+                <label>Full Name</label>
+                <input
+                  value={editProfileForm.full_name}
+                  onChange={(event) => setEditProfileForm({ ...editProfileForm, full_name: event.target.value })}
+                  autoComplete="name"
+                />
+                {editProfileErrors.full_name && <div className="field-error">{editProfileErrors.full_name}</div>}
+              </div>
+              <div className="fgroup">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  value={editProfileForm.email}
+                  onChange={(event) => setEditProfileForm({ ...editProfileForm, email: event.target.value })}
+                  autoComplete="email"
+                />
+                {editProfileErrors.email && <div className="field-error">{editProfileErrors.email}</div>}
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-outline" type="button" disabled={savingProfile} onClick={() => setShowEditProfile(false)}>Cancel</button>
+                <button className="btn btn-green" type="submit" disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -913,6 +933,10 @@ export function StudentDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
+          <div className="search-wrap">
+            <Search className="search-icon" size={15} strokeWidth={2} aria-hidden="true" />
+            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
+          </div>
           <div style={{ position: 'relative' }}>
             <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
               <Bell size={18} aria-hidden="true" />
@@ -938,25 +962,7 @@ export function StudentDashboard() {
               </div>
             )}
           </div>
-          <div className="topbar-user-card">
-            <div className="topbar-user-profile" role="button" tabIndex={0} title="Open account" onClick={openAccountModal} onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                openAccountModal()
-              }
-            }}>
-              <div className="avatar">{studentInitials}</div>
-              <div className="topbar-user-text">
-                <div className="topbar-user-name">{studentName || 'Student'}</div>
-                <div className="topbar-user-email">{displayValue(studentEmail || studentNumber)}</div>
-              </div>
-            </div>
-            <button className="topbar-logout-button" type="button" title="Logout" onClick={(event) => {
-              setShowLogoutConfirm(true)
-            }} aria-label="Logout">
-              <LogOut size={17} aria-hidden="true" />
-            </button>
-          </div>
+          <div className="avatar">{studentInitials}</div>
         </div>
         <div className="content">
           {authStatus === 'unauthorized' ? (
