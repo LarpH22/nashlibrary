@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BookOpen, LogOut, Bell, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchCategories,
@@ -59,6 +60,8 @@ const pageTitles = {
   account: 'Change Password'
 }
 
+const bookInventoryPageSize = 10
+
 export function AdminDashboard() {
   const navigate = useNavigate()
   const [activePage, setActivePage] = useState('overview')
@@ -80,6 +83,10 @@ export function AdminDashboard() {
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
   const [registrationRequests, setRegistrationRequests] = useState([])
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [bookInventoryPage, setBookInventoryPage] = useState(1)
+  const [notifications, setNotifications] = useState([])
+  const [showNotifications, setShowNotifications] = useState(false)
+  const adminEmail = localStorage.getItem('user_email') || 'admin@librasys.edu'
 
   useEffect(() => {
     loadCategories()
@@ -100,6 +107,10 @@ export function AdminDashboard() {
     navigate('/login', { replace: true })
   }
 
+  const removeNotification = (id) => {
+    setNotifications((prev) => prev.filter((notif) => notif.id !== id))
+  }
+
   const stats = useMemo(
     () => [
       { label: 'Categories', value: categories.length, type: 'gold' },
@@ -109,6 +120,30 @@ export function AdminDashboard() {
     ],
     [categories, authors, books, loans]
   )
+
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+  const matchesSearch = (...values) => {
+    if (!normalizedSearchQuery) {
+      return true
+    }
+    return values.some((value) => String(value || '').toLowerCase().includes(normalizedSearchQuery))
+  }
+
+  const filteredRegistrationRequests = registrationRequests.filter((request) =>
+    matchesSearch(request.full_name, request.email, request.student_number, request.department, request.year_level)
+  )
+  const filteredCategories = categories.filter((category) => matchesSearch(category.name))
+  const filteredAuthors = authors.filter((author) => matchesSearch(author.name))
+  const filteredBooks = books.filter((book) => matchesSearch(book.title, book.author, book.isbn))
+  const filteredLoans = loans.filter((loan) => matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.status))
+
+  const bookInventoryPageNumbers = (totalPages, currentPage) => {
+    const start = Math.max(1, currentPage - 2)
+    const end = Math.min(totalPages, start + 4)
+    const adjustedStart = Math.max(1, end - 4)
+
+    return Array.from({ length: end - adjustedStart + 1 }, (_, index) => adjustedStart + index)
+  }
 
   async function loadCategories() {
     try {
@@ -317,7 +352,7 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr">
-            <div className="card-title">Registration Requests</div>
+            <div className="card-title">Registration Requests ({filteredRegistrationRequests.length})</div>
           </div>
           <p className="subtext">Review submitted student registration requests and verify the uploaded student documentation before approving access.</p>
           <div className="admin-table-container">
@@ -336,7 +371,7 @@ export function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {registrationRequests.map((request) => (
+                {filteredRegistrationRequests.map((request) => (
                   <tr key={request.request_id}>
                     <td>{request.full_name}</td>
                     <td>{request.email}</td>
@@ -403,7 +438,7 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr">
-            <div className="card-title">Category Management</div>
+            <div className="card-title">Category Management ({filteredCategories.length})</div>
           </div>
           <form className="admin-form" onSubmit={handleAddCategory}>
             <div className="fgroup" style={{ flex: 1 }}>
@@ -418,7 +453,7 @@ export function AdminDashboard() {
                 <tr><th>Name</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {categories.map((category) => (
+                {filteredCategories.map((category) => (
                   <tr key={category.category_id}>
                     <td>{category.name}</td>
                     <td>
@@ -437,7 +472,7 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr">
-            <div className="card-title">Author Management</div>
+            <div className="card-title">Author Management ({filteredAuthors.length})</div>
           </div>
           <form className="admin-form" onSubmit={handleAddAuthor}>
             <div className="fgroup" style={{ flex: 1 }}>
@@ -452,7 +487,7 @@ export function AdminDashboard() {
                 <tr><th>Name</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {authors.map((author) => (
+                {filteredAuthors.map((author) => (
                   <tr key={author.author_id}>
                     <td>{author.name}</td>
                     <td>
@@ -468,6 +503,12 @@ export function AdminDashboard() {
     }
 
     if (activePage === 'books') {
+      const totalPages = Math.max(1, Math.ceil(filteredBooks.length / bookInventoryPageSize))
+      const currentPage = Math.min(Math.max(1, bookInventoryPage || 1), totalPages)
+      const firstResult = filteredBooks.length === 0 ? 0 : ((currentPage - 1) * bookInventoryPageSize) + 1
+      const lastResult = Math.min(currentPage * bookInventoryPageSize, filteredBooks.length)
+      const visibleBooks = filteredBooks.slice((currentPage - 1) * bookInventoryPageSize, currentPage * bookInventoryPageSize)
+
       return (
         <>
           <div className="card">
@@ -509,6 +550,9 @@ export function AdminDashboard() {
           <div className="card">
             <div className="card-hdr">
               <div className="card-title">Book Inventory</div>
+              <div className="inventory-count">
+                {filteredBooks.length > 0 ? `${firstResult}-${lastResult} of ${filteredBooks.length} records` : '0 records'}
+              </div>
             </div>
             <div className="admin-table-container">
               <table>
@@ -516,7 +560,9 @@ export function AdminDashboard() {
                   <tr><th>Title</th><th>Author</th><th>ISBN</th><th>Available</th></tr>
                 </thead>
                 <tbody>
-                  {books.map((book) => (
+                  {visibleBooks.length === 0 ? (
+                    <tr><td colSpan="4" className="empty-cell">No books match the current search.</td></tr>
+                  ) : visibleBooks.map((book) => (
                     <tr key={book.book_id}>
                       <td>{book.title}</td>
                       <td>{book.author}</td>
@@ -527,6 +573,25 @@ export function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            {books.length > bookInventoryPageSize && (
+              <div className="pagination-bar">
+                <button className="btn btn-outline btn-sm" type="button" disabled={currentPage <= 1} onClick={() => setBookInventoryPage(currentPage - 1)}>Previous</button>
+                <div className="page-buttons">
+                  {bookInventoryPageNumbers(totalPages, currentPage).map((page) => (
+                    <button
+                      key={page}
+                      className={`page-button ${page === currentPage ? 'active' : ''}`}
+                      type="button"
+                      onClick={() => setBookInventoryPage(page)}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button className="btn btn-outline btn-sm" type="button" disabled={currentPage >= totalPages} onClick={() => setBookInventoryPage(currentPage + 1)}>Next</button>
+                <span className="pagination-summary">Page {currentPage} of {totalPages}</span>
+              </div>
+            )}
           </div>
         </>
       )
@@ -557,14 +622,14 @@ export function AdminDashboard() {
             </div>
           </div>
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Current Loans</div></div>
+            <div className="card-hdr"><div className="card-title">Current Loans ({filteredLoans.length})</div></div>
             <div className="admin-table-container">
               <table>
                 <thead>
                   <tr><th>Loan ID</th><th>Book</th><th>Student</th><th>Status</th></tr>
                 </thead>
                 <tbody>
-                  {loans.map((loan) => (
+                  {filteredLoans.map((loan) => (
                     <tr key={loan.loan_id}>
                       <td>{loan.loan_id}</td>
                       <td>{loan.book_title || loan.book_id}</td>
@@ -629,9 +694,11 @@ export function AdminDashboard() {
     <div className="admin-dashboard-app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-icon">📚</div>
-          <div className="logo-title">LIBRASYS</div>
-          <div className="logo-sub">Administrator</div>
+          <div className="logo-icon"><BookOpen size={27} strokeWidth={1.9} aria-hidden="true" /></div>
+          <div className="logo-text">
+            <div className="logo-title">LIBRASYS</div>
+            <div className="logo-sub">Administrator</div>
+          </div>
         </div>
         <nav className="nav">
           {navSections.map((section) => (
@@ -647,16 +714,6 @@ export function AdminDashboard() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="avatar">AD</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Admin User</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>admin@librasys.edu</div>
-            </div>
-            <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
-          </div>
-        </div>
       </div>
       {showLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
@@ -684,11 +741,43 @@ export function AdminDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
-          <div className="search-wrap">
-            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
+          <div style={{ position: 'relative' }}>
+            <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
+              <Bell size={18} aria-hidden="true" />
+              {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
+            </button>
+            {showNotifications && (
+              <div className="notif-panel">
+                <div className="notif-header">Notifications</div>
+                <div className="notif-list">
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--muted)' }}>No notifications</div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div key={notif.id} className="notif-item">
+                        <div className="notif-text">{notif.text}</div>
+                        <button className="icon-button" type="button" onClick={() => removeNotification(notif.id)} aria-label="Dismiss notification">
+                          <X size={14} aria-hidden="true" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <span style={{ fontSize: '18px', cursor: 'pointer' }}>🔔</span>
-          <div className="avatar">AD</div>
+          <div className="topbar-user-card">
+            <div className="topbar-user-profile">
+              <div className="avatar">AD</div>
+              <div className="topbar-user-text">
+                <div className="topbar-user-name">Admin User</div>
+                <div className="topbar-user-email">{adminEmail}</div>
+              </div>
+            </div>
+            <button className="topbar-logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout">
+              <LogOut size={17} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <div className="content">
           {renderPage()}

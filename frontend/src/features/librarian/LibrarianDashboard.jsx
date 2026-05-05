@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BookOpen, LogOut, Bell, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../shared/api.js'
 import { clearStoredAuth } from '../../shared/authStorage.js'
@@ -117,6 +118,7 @@ export function LibrarianDashboard() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [passwordError, setPasswordError] = useState('')
+  const librarianEmail = localStorage.getItem('user_email') || 'librarian@librasys.edu'
 
   const addNotification = (text) => {
     const id = Date.now()
@@ -312,6 +314,30 @@ export function LibrarianDashboard() {
       { label: 'Students', value: studentList.length, type: 'purple' }
     ],
     [safeBooks, pendingBorrowRequests, safeLoans, overdueLoans.length, studentList]
+  )
+
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+  const matchesSearch = (...values) => {
+    if (!normalizedSearchQuery) {
+      return true
+    }
+    return values.some((value) => String(value || '').toLowerCase().includes(normalizedSearchQuery))
+  }
+
+  const filteredBorrowRequests = pendingBorrowRequests.filter((request) =>
+    matchesSearch(request.request_id, request.student_name, request.book_title, request.book_id, request.status)
+  )
+  const filteredAvailabilityBooks = safeAvailabilityBooks.filter((book) =>
+    matchesSearch(book.title, book.author, book.category, book.isbn, book.status)
+  )
+  const filteredOverdueLoans = overdueLoans.filter((loan) =>
+    matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.user_id, loan.status)
+  )
+  const filteredStudentList = studentList.filter((student) =>
+    matchesSearch(student.user_id, student.full_name, student.email, student.status)
+  )
+  const filteredEbooks = safeEbooks.filter((ebook) =>
+    matchesSearch(ebook.title, ebook.book_title, ebook.original_filename, ebook.file_type)
   )
 
   async function handleApproveRequest(requestId) {
@@ -593,17 +619,17 @@ export function LibrarianDashboard() {
       return (
         <>
           <div className="card">
-            <div className="card-hdr"><div className="card-title">Pending Borrow Requests ({pendingBorrowRequests.length})</div></div>
+            <div className="card-hdr"><div className="card-title">Pending Borrow Requests ({filteredBorrowRequests.length})</div></div>
             <div className="admin-table-container">
               <table>
                 <thead>
                   <tr><th>Request</th><th>Student</th><th>Book</th><th>Requested</th><th>Due Date</th><th>Action</th></tr>
                 </thead>
                 <tbody>
-                  {pendingBorrowRequests.length === 0 ? (
+                  {filteredBorrowRequests.length === 0 ? (
                     <tr><td colSpan="6" style={{ color: 'var(--muted)', textAlign: 'center', padding: '18px' }}>No pending borrow requests.</td></tr>
                   ) : (
-                    pendingBorrowRequests.map((request) => (
+                    filteredBorrowRequests.map((request) => (
                       <tr key={request.request_id}>
                         <td>{request.request_id}</td>
                         <td>{request.student_name || request.student_number || request.student_id}</td>
@@ -723,10 +749,10 @@ export function LibrarianDashboard() {
               </thead>
               <tbody>
                 {availabilityLoading ? (
-                  <tr><td colSpan="7">Loading availability...</td></tr>
-                ) : safeAvailabilityBooks.length === 0 ? (
-                  <tr><td colSpan="7">No books match the current filters.</td></tr>
-                ) : safeAvailabilityBooks.map((book) => (
+                  <tr><td colSpan="6">Loading availability...</td></tr>
+                ) : filteredAvailabilityBooks.length === 0 ? (
+                  <tr><td colSpan="6">No books match the current filters.</td></tr>
+                ) : filteredAvailabilityBooks.map((book) => (
                   <tr key={book.book_id}>
                     <td>{book.title}</td>
                     <td>{book.isbn || '—'}</td>
@@ -777,7 +803,7 @@ export function LibrarianDashboard() {
                 <tr><th>Loan ID</th><th>Book</th><th>Student</th><th>Due Date</th><th>Days Overdue</th></tr>
               </thead>
               <tbody>
-                {overdueLoans.map((loan) => {
+                {filteredOverdueLoans.map((loan) => {
                   const daysOverdue = Math.floor((new Date() - new Date(loan.due_date)) / (1000 * 60 * 60 * 24))
                   return (
                     <tr key={loan.loan_id}>
@@ -799,14 +825,14 @@ export function LibrarianDashboard() {
     if (activePage === 'students') {
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">Student Records</div></div>
+          <div className="card-hdr"><div className="card-title">Student Records ({filteredStudentList.length})</div></div>
           <div className="admin-table-container">
             <table>
               <thead>
                 <tr><th>Student ID</th><th>Name</th><th>Email</th><th>Status</th><th>Books Borrowed</th></tr>
               </thead>
               <tbody>
-                {studentList.map((student) => {
+                {filteredStudentList.map((student) => {
                   const borrowedCount = safeLoans.filter(l => l.user_id === student.user_id && !l.returned).length
                   return (
                     <tr key={student.user_id}>
@@ -826,18 +852,18 @@ export function LibrarianDashboard() {
     }
 
     if (activePage === 'ebooks') {
-      const totalPages = Math.max(1, Math.ceil(safeEbooks.length / ebookLibraryPageSize))
+      const totalPages = Math.max(1, Math.ceil(filteredEbooks.length / ebookLibraryPageSize))
       const currentPage = Math.min(Math.max(1, ebookPage || 1), totalPages)
-      const firstResult = safeEbooks.length === 0 ? 0 : ((currentPage - 1) * ebookLibraryPageSize) + 1
-      const lastResult = Math.min(currentPage * ebookLibraryPageSize, safeEbooks.length)
-      const visibleEbooks = safeEbooks.slice((currentPage - 1) * ebookLibraryPageSize, currentPage * ebookLibraryPageSize)
+      const firstResult = filteredEbooks.length === 0 ? 0 : ((currentPage - 1) * ebookLibraryPageSize) + 1
+      const lastResult = Math.min(currentPage * ebookLibraryPageSize, filteredEbooks.length)
+      const visibleEbooks = filteredEbooks.slice((currentPage - 1) * ebookLibraryPageSize, currentPage * ebookLibraryPageSize)
 
       return (
         <div className="card">
           <div className="card-hdr">
             <div className="card-title">E-book Library</div>
             <div className="availability-count">
-              {safeEbooks.length > 0 ? `${firstResult}-${lastResult} of ${safeEbooks.length} records` : '0 records'}
+              {filteredEbooks.length > 0 ? `${firstResult}-${lastResult} of ${filteredEbooks.length} records` : '0 records'}
             </div>
           </div>
           <div className="admin-table-container">
@@ -849,7 +875,7 @@ export function LibrarianDashboard() {
                 {ebookLoading ? (
                   <tr><td colSpan="5" className="empty-cell">Loading e-books...</td></tr>
                 ) : visibleEbooks.length === 0 ? (
-                  <tr><td colSpan="5" className="empty-cell">No e-books available yet.</td></tr>
+                  <tr><td colSpan="5" className="empty-cell">No e-books match the current search.</td></tr>
                 ) : visibleEbooks.map((ebook) => (
                   <tr key={ebook.ebook_id}>
                     <td>
@@ -969,9 +995,11 @@ export function LibrarianDashboard() {
     <div className="librarian-dashboard-app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-icon">📚</div>
-          <div className="logo-title">LIBRASYS</div>
-          <div className="logo-sub">Librarian</div>
+          <div className="logo-icon"><BookOpen size={27} strokeWidth={1.9} aria-hidden="true" /></div>
+          <div className="logo-text">
+            <div className="logo-title">LIBRASYS</div>
+            <div className="logo-sub">Librarian</div>
+          </div>
         </div>
         <nav className="nav">
           {navigationSections.map((section) => (
@@ -987,16 +1015,6 @@ export function LibrarianDashboard() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="avatar">LI</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Librarian</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>librarian@librasys.edu</div>
-            </div>
-            <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
-          </div>
-        </div>
       </div>
       {showLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
@@ -1013,14 +1031,11 @@ export function LibrarianDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || (activePage === 'ebooks' ? 'E-books' : 'Overview')}</div>
-          <div className="search-wrap">
-            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
-          </div>
           <div style={{ position: 'relative' }}>
-            <span style={{ fontSize: '18px', cursor: 'pointer', position: 'relative' }} onClick={() => setShowNotifications(!showNotifications)}>
-              🔔
+            <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
+              <Bell size={18} aria-hidden="true" />
               {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
-            </span>
+            </button>
             {showNotifications && (
               <div className="notif-panel">
                 <div className="notif-header">Notifications</div>
@@ -1031,7 +1046,9 @@ export function LibrarianDashboard() {
                     notifications.map(notif => (
                       <div key={notif.id} className="notif-item">
                         <div className="notif-text">{notif.text}</div>
-                        <button onClick={() => removeNotification(notif.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                        <button className="icon-button" type="button" onClick={() => removeNotification(notif.id)} aria-label="Dismiss notification">
+                          <X size={14} aria-hidden="true" />
+                        </button>
                       </div>
                     ))
                   )}
@@ -1039,7 +1056,18 @@ export function LibrarianDashboard() {
               </div>
             )}
           </div>
-          <div className="avatar">LI</div>
+          <div className="topbar-user-card">
+            <div className="topbar-user-profile">
+              <div className="avatar">LI</div>
+              <div className="topbar-user-text">
+                <div className="topbar-user-name">Librarian</div>
+                <div className="topbar-user-email">{librarianEmail}</div>
+              </div>
+            </div>
+            <button className="topbar-logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout">
+              <LogOut size={17} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <div className="content">
           {renderPage()}

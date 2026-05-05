@@ -1,0 +1,93 @@
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)
+[route] Route function called
+[current_user] {'email': 'student1@library.com', 'role': 'student', 'student_id': 1, 'librarian_id': None, 'admin_id': None}
+[result] (<Response 1496 bytes [200 OK]>, 200)

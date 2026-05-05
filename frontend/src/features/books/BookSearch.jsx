@@ -106,12 +106,10 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
   }
 
   useEffect(() => {
-    setTitle(initialKeyword || '')
-  }, [initialKeyword])
-
-  useEffect(() => {
-    loadBooks()
-  }, [])
+    const keyword = initialKeyword || ''
+    setTitle(keyword)
+    loadBooks({ title: keyword, author, category, isbn, availability, history }, 1)
+  }, [initialKeyword, author, category, isbn, availability, history])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
