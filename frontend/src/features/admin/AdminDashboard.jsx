@@ -13,7 +13,12 @@ import {
   borrowBook,
   returnBook,
   fetchStudent,
+  fetchStudents,
+  updateStudent,
+  resetStudentPassword,
   fetchLoans,
+  fetchAdminFines,
+  updateFineStatus,
   changePassword,
   fetchRegistrationRequests,
   fetchRegistrationDocument,
@@ -49,11 +54,14 @@ const navSections = [
   }
 ]
 
+navSections[0].items.splice(4, 0, { id: 'fines', icon: '$', title: 'Fines' })
+
 const pageTitles = {
   overview: 'Overview',
   registrations: 'Registration Requests',
   books: 'Books',
   loans: 'Issue / Return',
+  fines: 'Fines Management',
   students: 'Students',
   categories: 'Categories',
   authors: 'Authors',
@@ -61,6 +69,19 @@ const pageTitles = {
 }
 
 const bookInventoryPageSize = 10
+const emptyStudentForm = {
+  student_id: '',
+  full_name: '',
+  email: '',
+  student_number: '',
+  department: '',
+  year_level: '',
+  status: 'active',
+  email_verified: false,
+  registration_document: '',
+  document_url: '',
+  document_exists: false
+}
 
 export function AdminDashboard() {
   const navigate = useNavigate()
@@ -69,8 +90,18 @@ export function AdminDashboard() {
   const [authors, setAuthors] = useState([])
   const [books, setBooks] = useState([])
   const [loans, setLoans] = useState([])
+  const [students, setStudents] = useState([])
+  const [fines, setFines] = useState([])
+  const [fineSummary, setFineSummary] = useState({ total_count: 0, unpaid_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
+  const [fineStatusMessage, setFineStatusMessage] = useState('')
+  const [updatingFineId, setUpdatingFineId] = useState(null)
   const [studentId, setStudentId] = useState('')
   const [student, setStudent] = useState(null)
+  const [editingStudent, setEditingStudent] = useState(null)
+  const [studentForm, setStudentForm] = useState(emptyStudentForm)
+  const [studentFormError, setStudentFormError] = useState('')
+  const [studentPasswordForm, setStudentPasswordForm] = useState({ student_id: '', new_password: '' })
+  const [studentPasswordMessage, setStudentPasswordMessage] = useState('')
   const [, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [showPasswordSuccessModal, setShowPasswordSuccessModal] = useState(false)
@@ -93,6 +124,8 @@ export function AdminDashboard() {
     loadAuthors()
     loadBooks()
     loadLoans()
+    loadStudents()
+    loadFines()
     loadRegistrationRequests()
   }, [])
 
@@ -116,9 +149,11 @@ export function AdminDashboard() {
       { label: 'Categories', value: categories.length, type: 'gold' },
       { label: 'Authors', value: authors.length, type: 'blue' },
       { label: 'Books', value: books.length, type: 'green' },
-      { label: 'Loans', value: loans.length, type: 'purple' }
+      { label: 'Loans', value: loans.length, type: 'purple' },
+      { label: 'Students', value: students.length, type: 'blue' },
+      { label: 'Unpaid Fines', value: `$${Number(fineSummary.total_unpaid || 0).toFixed(2)}`, type: 'red' }
     ],
-    [categories, authors, books, loans]
+    [categories, authors, books, loans, students, fineSummary.total_unpaid]
   )
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
@@ -136,6 +171,12 @@ export function AdminDashboard() {
   const filteredAuthors = authors.filter((author) => matchesSearch(author.name))
   const filteredBooks = books.filter((book) => matchesSearch(book.title, book.author, book.isbn))
   const filteredLoans = loans.filter((loan) => matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.status))
+  const filteredStudents = students.filter((studentRow) =>
+    matchesSearch(studentRow.full_name, studentRow.email, studentRow.student_number, studentRow.status, studentRow.department)
+  )
+  const filteredFines = fines.filter((fine) =>
+    matchesSearch(fine.fine_id, fine.loan_id, fine.student_name, fine.student_number, fine.book_title, fine.status)
+  )
 
   const bookInventoryPageNumbers = (totalPages, currentPage) => {
     const start = Math.max(1, currentPage - 2)
@@ -174,6 +215,38 @@ export function AdminDashboard() {
       setLoans(await fetchLoans())
     } catch {
       setMessage('Unable to load loans.')
+    }
+  }
+
+  async function loadStudents() {
+    try {
+      setStudents(await fetchStudents())
+    } catch {
+      setMessage('Unable to load students.')
+    }
+  }
+
+  async function loadFines() {
+    try {
+      const data = await fetchAdminFines()
+      setFines(Array.isArray(data?.fines) ? data.fines : [])
+      setFineSummary(data?.summary || { total_count: 0, unpaid_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
+    } catch {
+      setMessage('Unable to load fines.')
+    }
+  }
+
+  async function handleFineStatusChange(fineId, status) {
+    setUpdatingFineId(fineId)
+    setFineStatusMessage('')
+    try {
+      await updateFineStatus(fineId, status)
+      await loadFines()
+      setFineStatusMessage(`Fine marked as ${status}.`)
+    } catch (error) {
+      setFineStatusMessage(error?.response?.data?.message || 'Unable to update fine status.')
+    } finally {
+      setUpdatingFineId(null)
     }
   }
 
@@ -267,6 +340,98 @@ export function AdminDashboard() {
     }
   }
 
+  function openEditStudent(studentRow) {
+    setEditingStudent(studentRow)
+    setStudentForm({
+      student_id: studentRow.student_id || studentRow.user_id || '',
+      full_name: studentRow.full_name || '',
+      email: studentRow.email || '',
+      student_number: studentRow.student_number || '',
+      department: studentRow.department || '',
+      year_level: studentRow.year_level || '',
+      status: studentRow.status || 'active',
+      email_verified: Boolean(studentRow.email_verified),
+      registration_document: studentRow.registration_document || '',
+      document_url: studentRow.document_url || '',
+      document_exists: Boolean(studentRow.document_exists)
+    })
+    setStudentFormError('')
+    setStudentPasswordForm({ student_id: '', new_password: '' })
+    setStudentPasswordMessage('')
+  }
+
+  function validateStudentForm() {
+    if (!studentForm.full_name.trim()) {
+      return 'Full name is required.'
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(studentForm.email.trim())) {
+      return 'Enter a valid email address.'
+    }
+    if (!/^\d{3}-\d{4}$/.test(studentForm.student_number.trim())) {
+      return 'Student ID must use format 241-0449.'
+    }
+    if (!['active', 'inactive', 'suspended', 'pending'].includes(studentForm.status)) {
+      return 'Choose a valid account status.'
+    }
+    if (studentForm.year_level) {
+      const yearLevel = Number(studentForm.year_level)
+      if (!Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 6) {
+        return 'Year level must be a whole number from 1 to 6.'
+      }
+    }
+    return ''
+  }
+
+  async function handleSaveStudent(event) {
+    event.preventDefault()
+    const validationError = validateStudentForm()
+    if (validationError) {
+      setStudentFormError(validationError)
+      return
+    }
+    if (!window.confirm('Save changes to this student account?')) {
+      return
+    }
+    try {
+      const updated = await updateStudent(studentForm.student_id, {
+        full_name: studentForm.full_name.trim(),
+        email: studentForm.email.trim(),
+        student_number: studentForm.student_number.trim(),
+        department: studentForm.department.trim(),
+        year_level: studentForm.year_level ? Number(studentForm.year_level) : '',
+        status: studentForm.status,
+        email_verified: studentForm.email_verified
+      })
+      await loadStudents()
+      setStudent(updated)
+      setEditingStudent(null)
+      setStudentForm(emptyStudentForm)
+      setStudentFormError('')
+      setMessage('Student account updated.')
+    } catch (error) {
+      setStudentFormError(error?.response?.data?.message || 'Unable to update student.')
+    }
+  }
+
+  async function handleResetStudentPassword(event) {
+    event.preventDefault()
+    setStudentPasswordMessage('')
+    if (studentPasswordForm.new_password.length < 8) {
+      setStudentPasswordMessage('Password must be at least 8 characters.')
+      return
+    }
+    if (!window.confirm('Reset this student password now?')) {
+      return
+    }
+    try {
+      await resetStudentPassword(studentPasswordForm.student_id, studentPasswordForm.new_password)
+      setStudentPasswordForm({ student_id: '', new_password: '' })
+      setStudentPasswordMessage('Password reset successfully.')
+    } catch (error) {
+      setStudentPasswordMessage(error?.response?.data?.message || 'Unable to reset password.')
+    }
+  }
+
   async function handleChangePassword(event) {
     event.preventDefault()
     setPasswordError('')
@@ -298,17 +463,37 @@ export function AdminDashboard() {
 
   async function handleViewDocument(documentUrl) {
     if (!documentUrl) {
-      setMessage('No document available for this request.')
+      window.alert('No document is available for this student.')
       return
     }
 
+    const previewWindow = window.open('', '_blank')
+    if (previewWindow) {
+      previewWindow.document.write('<!doctype html><title>Loading document...</title><body style="font-family:sans-serif;padding:24px">Loading document...</body>')
+      previewWindow.document.close()
+    }
     try {
       const blob = await fetchRegistrationDocument(documentUrl)
       const objectUrl = URL.createObjectURL(blob)
-      window.open(objectUrl, '_blank', 'noopener noreferrer')
+      if (previewWindow) {
+        previewWindow.opener = null
+        previewWindow.location.replace(objectUrl)
+      } else {
+        const link = document.createElement('a')
+        link.href = objectUrl
+        link.target = '_blank'
+        link.rel = 'noopener noreferrer'
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+      }
       setTimeout(() => URL.revokeObjectURL(objectUrl), 10000)
-    } catch {
-      setMessage('Unable to load registration document.')
+    } catch (error) {
+      if (previewWindow) {
+        previewWindow.document.body.innerHTML = '<div style="font-family:sans-serif;padding:24px">Unable to load registration document.</div>'
+      }
+      const message = error?.response?.data?.message || 'Unable to load registration document.'
+      window.alert(message)
     }
   }
 
@@ -645,6 +830,304 @@ export function AdminDashboard() {
       )
     }
 
+    if (activePage === 'fines') {
+      const unpaidFines = filteredFines.filter((fine) => fine.status === 'unpaid')
+      const paidFines = filteredFines.filter((fine) => fine.status === 'paid')
+
+      return (
+        <>
+          <div className="grid4">
+            <div className="stat red">
+              <div className="stat-label">Unpaid</div>
+              <div className="stat-num">{fineSummary.unpaid_count || 0}</div>
+              <div className="stat-sub">${Number(fineSummary.total_unpaid || 0).toFixed(2)}</div>
+            </div>
+            <div className="stat green">
+              <div className="stat-label">Paid</div>
+              <div className="stat-num">{fineSummary.paid_count || 0}</div>
+              <div className="stat-sub">${Number(fineSummary.total_paid || 0).toFixed(2)}</div>
+            </div>
+            <div className="stat blue">
+              <div className="stat-label">Total Fines</div>
+              <div className="stat-num">{fineSummary.total_count || fines.length}</div>
+              <div className="stat-sub">Recorded payments</div>
+            </div>
+            <div className="stat gold">
+              <div className="stat-label">Visible</div>
+              <div className="stat-num">{filteredFines.length}</div>
+              <div className="stat-sub">Search results</div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-hdr">
+              <div>
+                <div className="card-title">Walk-in Fine Payments ({filteredFines.length})</div>
+                <div className="subtext">Mark payments after receiving cash or in-person payment from a student.</div>
+              </div>
+              <button className="btn btn-outline btn-sm" type="button" onClick={loadFines}>Refresh</button>
+            </div>
+            {fineStatusMessage && <div className="status-message">{fineStatusMessage}</div>}
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fine ID</th>
+                    <th>Student</th>
+                    <th>Book</th>
+                    <th>Loan</th>
+                    <th>Overdue</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFines.length === 0 ? (
+                    <tr><td colSpan="8" className="empty-cell">No fines found.</td></tr>
+                  ) : filteredFines.map((fine) => {
+                    const isPaid = fine.status === 'paid'
+                    const isUpdating = updatingFineId === fine.fine_id
+                    return (
+                      <tr key={fine.fine_id}>
+                        <td>{fine.fine_id}</td>
+                        <td>
+                          <strong>{fine.student_name || 'Unknown student'}</strong>
+                          <div className="muted-line">{fine.student_number || fine.student_email || `Student ${fine.student_id}`}</div>
+                        </td>
+                        <td>
+                          {fine.book_title || fine.book_id || 'Unknown book'}
+                          <div className="muted-line">{fine.copy_code || ''}</div>
+                        </td>
+                        <td>{fine.loan_id}</td>
+                        <td>{Number(fine.days_overdue || 0)} day{Number(fine.days_overdue || 0) === 1 ? '' : 's'}</td>
+                        <td>${Number(fine.amount || 0).toFixed(2)}</td>
+                        <td><span className={`fine-pill ${isPaid ? 'paid' : 'unpaid'}`}>{isPaid ? 'Paid' : 'Unpaid'}</span></td>
+                        <td>
+                          <button
+                            className="btn btn-gold btn-sm"
+                            type="button"
+                            disabled={isUpdating || isPaid}
+                            onClick={() => handleFineStatusChange(fine.fine_id, 'paid')}
+                          >
+                            Paid
+                          </button>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            type="button"
+                            disabled={isUpdating || !isPaid}
+                            onClick={() => handleFineStatusChange(fine.fine_id, 'unpaid')}
+                          >
+                            Unpaid
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="fine-summary-line">
+              Showing {unpaidFines.length} unpaid and {paidFines.length} paid fine{filteredFines.length === 1 ? '' : 's'}.
+            </div>
+          </div>
+        </>
+      )
+    }
+
+    if (activePage === 'students') {
+      return (
+        <>
+          <div className="card">
+            <div className="card-hdr">
+              <div>
+                <div className="card-title">Student Management</div>
+                <div className="subtext">View registered students, edit account details, open submitted documents, and reset passwords when needed.</div>
+              </div>
+              <button className="btn btn-outline btn-sm" type="button" onClick={loadStudents}>Refresh</button>
+            </div>
+            {studentFormError && <div className="status-message error-message">{studentFormError}</div>}
+            {studentPasswordMessage && <div className="status-message">{studentPasswordMessage}</div>}
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Email</th>
+                    <th>Department / Year</th>
+                    <th>Account</th>
+                    <th>Verified</th>
+                    <th>Document</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudents.length === 0 ? (
+                    <tr><td colSpan="8" className="empty-cell">No registered students found.</td></tr>
+                  ) : filteredStudents.map((studentRow) => (
+                    <tr key={studentRow.student_id || studentRow.user_id || studentRow.student_number}>
+                      <td>
+                        <strong>{studentRow.full_name || 'Unnamed student'}</strong>
+                        <div className="muted-line">{studentRow.student_number || `Student ${studentRow.student_id || studentRow.user_id}`}</div>
+                      </td>
+                      <td>{studentRow.email || '-'}</td>
+                      <td>
+                        {studentRow.department || '-'}
+                        <div className="muted-line">{studentRow.year_level ? `Year ${studentRow.year_level}` : 'Year not set'}</div>
+                      </td>
+                      <td><span className={`student-pill ${studentRow.status || 'active'}`}>{studentRow.status || 'active'}</span></td>
+                      <td>{studentRow.email_verified ? 'Verified' : 'Not verified'}</td>
+                      <td>
+                        {studentRow.document_url && studentRow.document_exists ? (
+                          <button className="btn btn-outline btn-sm" type="button" onClick={() => handleViewDocument(studentRow.document_url)}>View</button>
+                        ) : studentRow.registration_document ? (
+                          <span className="missing-document">Missing</span>
+                        ) : '-'}
+                      </td>
+                      <td>{studentRow.last_login || '-'}</td>
+                      <td>
+                        <div className="row-actions">
+                          <button className="btn btn-gold btn-sm" type="button" onClick={() => openEditStudent(studentRow)}>Edit</button>
+                          <button className="btn btn-outline btn-sm" type="button" onClick={() => {
+                            setStudentPasswordForm({ student_id: studentRow.student_id || studentRow.user_id || '', new_password: '' })
+                            setStudentPasswordMessage('')
+                          }}>Reset Password</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="fine-summary-line">
+              Showing {filteredStudents.length} of {students.length} registered student{students.length === 1 ? '' : 's'}.
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-hdr"><div className="card-title">Student Lookup</div></div>
+            <form className="admin-form" onSubmit={handleSearchStudent}>
+              <div className="frow lookup-row">
+                <div className="fgroup">
+                  <label>Student ID</label>
+                  <input value={studentId} onChange={(event) => setStudentId(event.target.value)} placeholder="241-0449" />
+                </div>
+                <div className="lookup-button-cell">
+                  <button className="btn btn-gold" type="submit">Search</button>
+                </div>
+              </div>
+            </form>
+            {student && (
+              <div className="student-detail-strip">
+                <div>
+                  <strong>{student.full_name || student.name || 'Unnamed student'}</strong>
+                  <div className="muted-line">{student.student_number || student.user_id || student.student_id || '-'}</div>
+                </div>
+                <div>{student.email || '-'}</div>
+                <div><span className={`student-pill ${student.status || 'active'}`}>{student.status || 'active'}</span></div>
+                <button className="btn btn-outline btn-sm" type="button" onClick={() => openEditStudent(student)}>Edit</button>
+              </div>
+            )}
+          </div>
+
+          {editingStudent && (
+            <div className="modal-overlay">
+              <div className="admin-modal">
+                <div className="modal-header">
+                  <div>
+                    <div className="modal-title">Edit Student</div>
+                    <div className="subtext">{editingStudent.student_number || editingStudent.email}</div>
+                  </div>
+                  <button className="icon-button" type="button" onClick={() => setEditingStudent(null)} aria-label="Close edit student">
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </div>
+                <form onSubmit={handleSaveStudent}>
+                  <div className="frow">
+                    <div className="fgroup">
+                      <label>Full name</label>
+                      <input value={studentForm.full_name} onChange={(event) => setStudentForm({ ...studentForm, full_name: event.target.value })} />
+                    </div>
+                    <div className="fgroup">
+                      <label>Email</label>
+                      <input value={studentForm.email} onChange={(event) => setStudentForm({ ...studentForm, email: event.target.value })} />
+                    </div>
+                  </div>
+                  <div className="frow">
+                    <div className="fgroup">
+                      <label>Student ID</label>
+                      <input value={studentForm.student_number} onChange={(event) => setStudentForm({ ...studentForm, student_number: event.target.value })} placeholder="241-0449" />
+                    </div>
+                    <div className="fgroup">
+                      <label>Department</label>
+                      <input value={studentForm.department} onChange={(event) => setStudentForm({ ...studentForm, department: event.target.value })} />
+                    </div>
+                  </div>
+                  <div className="frow">
+                    <div className="fgroup">
+                      <label>Year level</label>
+                      <input type="number" min="1" max="6" value={studentForm.year_level} onChange={(event) => setStudentForm({ ...studentForm, year_level: event.target.value })} />
+                    </div>
+                    <div className="fgroup">
+                      <label>Account status</label>
+                      <select value={studentForm.status} onChange={(event) => setStudentForm({ ...studentForm, status: event.target.value })}>
+                        <option value="active">Active</option>
+                        <option value="pending">Pending</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
+                  </div>
+                  <label className="check-row">
+                    <input type="checkbox" checked={studentForm.email_verified} onChange={(event) => setStudentForm({ ...studentForm, email_verified: event.target.checked })} />
+                    Email verified
+                  </label>
+                  <div className="document-row">
+                    <span>{studentForm.registration_document || 'No registration document uploaded.'}</span>
+                    {studentForm.document_url && studentForm.document_exists && <button className="btn btn-outline btn-sm" type="button" onClick={() => handleViewDocument(studentForm.document_url)}>View Document</button>}
+                    {studentForm.registration_document && !studentForm.document_exists && <span className="missing-document">File missing</span>}
+                  </div>
+                  {studentFormError && <div className="form-error">{studentFormError}</div>}
+                  <div className="modal-actions">
+                    <button className="btn btn-outline" type="button" onClick={() => setEditingStudent(null)}>Cancel</button>
+                    <button className="btn btn-gold" type="submit">Save Changes</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {studentPasswordForm.student_id && !editingStudent && (
+            <div className="modal-overlay">
+              <div className="admin-modal small-modal">
+                <div className="modal-header">
+                  <div>
+                    <div className="modal-title">Reset Student Password</div>
+                    <div className="subtext">This immediately updates the student login password.</div>
+                  </div>
+                  <button className="icon-button" type="button" onClick={() => setStudentPasswordForm({ student_id: '', new_password: '' })} aria-label="Close reset password">
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </div>
+                <form onSubmit={handleResetStudentPassword}>
+                  <div className="fgroup">
+                    <label>New password</label>
+                    <input type="password" value={studentPasswordForm.new_password} onChange={(event) => setStudentPasswordForm({ ...studentPasswordForm, new_password: event.target.value })} placeholder="At least 8 characters" />
+                  </div>
+                  {studentPasswordMessage && <div className="form-error">{studentPasswordMessage}</div>}
+                  <div className="modal-actions">
+                    <button className="btn btn-outline" type="button" onClick={() => setStudentPasswordForm({ student_id: '', new_password: '' })}>Cancel</button>
+                    <button className="btn btn-gold" type="submit">Reset Password</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </>
+      )
+    }
+
     if (activePage === 'students') {
       return (
         <>
@@ -741,6 +1224,17 @@ export function AdminDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
+          <div className="search-wrap">
+            <input
+              className="search-input"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value)
+                setBookInventoryPage(1)
+              }}
+              placeholder="Search..."
+            />
+          </div>
           <div style={{ position: 'relative' }}>
             <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
               <Bell size={18} aria-hidden="true" />

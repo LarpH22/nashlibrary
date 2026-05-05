@@ -1,14 +1,13 @@
 """
 Command-line utility to manage loan reminders.
-Run with: python -m scripts.send_loan_reminders [--days 3]
+Run with: python -m scripts.maintenance.send_loan_reminders [--days 3]
 """
 import sys
 import argparse
 from pathlib import Path
 
-# Add backend to path
-backend_path = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_path))
+project_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(project_root))
 
 from backend.app import create_app
 from backend.app.domain.services.loan_reminder_service import LoanReminderService

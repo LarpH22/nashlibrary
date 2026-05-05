@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { borrowBook, searchBooks } from './bookService.js'
 
 const availabilityOptions = [
@@ -82,9 +82,9 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
       .concat([...setValues].filter((value) => !['Fiction', 'Non-Fiction', 'Sci-Fi', 'History', 'Biography', 'Children', 'Math', 'Technology'].includes(value)))
   }, [books])
 
-  const currentFilters = () => ({ title, author, category, isbn, availability, history })
+  const currentFilters = useCallback(() => ({ title, author, category, isbn, availability, history }), [title, author, category, isbn, availability, history])
 
-  const loadBooks = async (filters = currentFilters(), page = 1) => {
+  const loadBooks = useCallback(async (filters = currentFilters(), page = 1) => {
     setLoading(true)
     setError('')
     try {
@@ -103,13 +103,13 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentFilters])
 
   useEffect(() => {
     const keyword = initialKeyword || ''
     setTitle(keyword)
     loadBooks({ title: keyword, author, category, isbn, availability, history }, 1)
-  }, [initialKeyword, author, category, isbn, availability, history])
+  }, [initialKeyword, author, category, isbn, availability, history, loadBooks])
 
   const handleSubmit = async (event) => {
     event.preventDefault()

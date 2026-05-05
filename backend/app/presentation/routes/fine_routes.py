@@ -25,3 +25,17 @@ def pay_fine():
 def list_student_fines():
     current_user = set_current_user()
     return controller.list_student_fines(current_user)
+
+
+@fine_bp.route('/admin', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def list_all_fines():
+    current_user = set_current_user()
+    return controller.list_all_fines(current_user)
+
+
+@fine_bp.route('/<int:fine_id>/status', methods=['PATCH'], strict_slashes=False)
+@jwt_required()
+def update_fine_status(fine_id):
+    current_user = set_current_user()
+    return controller.update_fine_status(fine_id, current_user)

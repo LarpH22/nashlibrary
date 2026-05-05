@@ -71,6 +71,34 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,0.03)}
 .admin-table-container{overflow-x:auto}
 .empty-cell{color:var(--muted)!important;padding:18px!important;text-align:center}
+.subtext{font-size:12px;color:var(--muted);margin-top:4px}
+.muted-line{font-size:11px;color:var(--muted);margin-top:3px}
+.status-message{margin-bottom:12px;padding:10px 12px;border:1px solid rgba(201,168,76,0.3);background:rgba(201,168,76,0.1);color:var(--gold2);border-radius:8px;font-size:12px}
+.fine-pill{display:inline-flex;align-items:center;justify-content:center;min-width:70px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase}
+.fine-pill.paid{background:rgba(46,204,138,0.14);color:var(--green)}
+.fine-pill.unpaid{background:rgba(224,91,91,0.14);color:var(--red)}
+.student-pill{display:inline-flex;align-items:center;justify-content:center;min-width:72px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;background:rgba(91,138,224,0.14);color:var(--blue)}
+.student-pill.active{background:rgba(46,204,138,0.14);color:var(--green)}
+.student-pill.pending{background:rgba(201,168,76,0.14);color:var(--gold2)}
+.student-pill.inactive{background:rgba(122,127,153,0.14);color:var(--muted)}
+.student-pill.suspended{background:rgba(224,91,91,0.14);color:var(--red)}
+.error-message{border-color:rgba(224,91,91,0.35);background:rgba(224,91,91,0.12);color:var(--red)}
+.missing-document{display:inline-flex;align-items:center;color:var(--red);font-size:12px;font-weight:700}
+.fine-summary-line{margin-top:12px;color:var(--muted);font-size:12px}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap}
+.lookup-row{align-items:end;margin-bottom:0}
+.lookup-button-cell{display:flex;align-items:end;padding-bottom:14px}
+.student-detail-strip{display:grid;grid-template-columns:1.4fr 1.2fr auto auto;gap:14px;align-items:center;border:1px solid var(--border);background:var(--bg3);border-radius:12px;padding:12px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.58);display:flex;align-items:center;justify-content:center;z-index:2100;padding:20px}
+.admin-modal{width:min(760px,100%);max-height:90vh;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;color:var(--text);box-shadow:0 18px 48px rgba(0,0,0,0.35)}
+.small-modal{width:min(420px,100%)}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
+.modal-title{font-size:16px;font-weight:700;color:var(--text)}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.form-error{color:var(--red);font-size:12px;margin-top:10px}
+.check-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:14px}
+.check-row input{width:16px;height:16px;accent-color:var(--gold)}
+.document-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);background:var(--bg3);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted)}
 .inventory-count{font-size:12px;color:var(--muted);font-weight:700}
 .pagination-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
 .page-buttons{display:flex;gap:6px;flex-wrap:wrap}
@@ -89,5 +117,10 @@ tr:hover td{background:rgba(255,255,255,0.03)}
   .topbar{flex-wrap:wrap}
   .topbar-user-card{width:100%;max-width:none;min-width:0;order:5;justify-content:space-between}
   .page-title{min-width:160px}
+  .search-wrap,.search-input{width:100%}
+  .student-detail-strip{grid-template-columns:1fr}
+  .frow{grid-template-columns:1fr}
+  .lookup-button-cell{padding-bottom:0}
+  .modal-actions{flex-direction:column}
   .pagination-summary{width:100%;margin-left:0}
 }

@@ -93,3 +93,45 @@ class FineController:
                 'total_paid': round(sum(float(fine.get('amount') or 0) for fine in paid), 2),
             }
         }), 200
+
+    def list_all_fines(self, current_user):
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'message': 'Admin access is required'}), 403
+
+        fines = self.loan_repository.find_all_fines()
+        unpaid = [fine for fine in fines if fine.get('status') == 'unpaid']
+        paid = [fine for fine in fines if fine.get('status') == 'paid']
+        return jsonify({
+            'message': 'Fines loaded',
+            'fines': fines,
+            'summary': {
+                'total_count': len(fines),
+                'unpaid_count': len(unpaid),
+                'paid_count': len(paid),
+                'total_unpaid': round(sum(float(fine.get('amount') or 0) for fine in unpaid), 2),
+                'total_paid': round(sum(float(fine.get('amount') or 0) for fine in paid), 2),
+            }
+        }), 200
+
+    def update_fine_status(self, fine_id, current_user):
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'message': 'Admin access is required'}), 403
+
+        try:
+            fine_id = int(fine_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'fine_id must be a valid integer'}), 400
+        if fine_id <= 0:
+            return jsonify({'message': 'fine_id must be greater than zero'}), 400
+
+        data = request.get_json() or {}
+        status = data.get('status')
+        try:
+            fine = self.loan_repository.update_fine_status(fine_id, status)
+        except ValueError as exc:
+            return jsonify({'message': str(exc)}), 400
+
+        if not fine:
+            return jsonify({'message': 'Fine not found'}), 404
+
+        return jsonify({'message': 'Fine status updated', 'fine': fine}), 200

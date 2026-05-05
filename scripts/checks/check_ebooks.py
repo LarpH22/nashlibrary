@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import sys
-sys.path.insert(0, '/'.join(__file__.split('\\')[:-1]))
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import mysql.connector
 from backend.config import Config

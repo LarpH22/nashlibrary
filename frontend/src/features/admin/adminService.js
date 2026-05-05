@@ -75,8 +75,33 @@ export async function fetchStudent(studentId) {
   return response.data
 }
 
+export async function fetchStudents() {
+  const response = await api.get('/api/admin/students')
+  return response.data
+}
+
+export async function updateStudent(studentId, student) {
+  const response = await api.put(`/api/admin/students/${encodeURIComponent(studentId)}`, student)
+  return response.data
+}
+
+export async function resetStudentPassword(studentId, newPassword) {
+  const response = await api.post(`/api/admin/students/${encodeURIComponent(studentId)}/reset-password`, { new_password: newPassword })
+  return response.data
+}
+
 export async function fetchLoans() {
   const response = await api.get('/api/admin/loans')
+  return response.data
+}
+
+export async function fetchAdminFines() {
+  const response = await api.get('/api/fines/admin')
+  return response.data
+}
+
+export async function updateFineStatus(fineId, status) {
+  const response = await api.patch(`/api/fines/${fineId}/status`, { status })
   return response.data
 }
 

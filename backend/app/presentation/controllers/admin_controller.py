@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 
 from flask import jsonify, request, send_from_directory, url_for
@@ -30,6 +31,20 @@ class AdminController:
         if jwt_claims.get('role') not in ['admin', 'librarian']:
             return jsonify({'message': 'Admin or librarian access required'}), 403
         return None
+
+    def _attach_student_document_state(self, student):
+        document_name = student.get('registration_document')
+        if not document_name:
+            student['document_exists'] = False
+            return student
+
+        document_path = os.path.abspath(os.path.join(Config.UPLOAD_FOLDER, os.path.basename(document_name)))
+        upload_root = os.path.abspath(Config.UPLOAD_FOLDER)
+        document_exists = document_path.startswith(upload_root) and os.path.exists(document_path)
+        student['document_exists'] = document_exists
+        if document_exists:
+            student['document_url'] = url_for('admin.get_student_document', student_id=student['student_id'])
+        return student
 
     def list_categories(self):
         auth_error = self._require_admin()
@@ -134,12 +149,26 @@ class AdminController:
             with conn.cursor() as cur:
                 if str(student_id).isdigit():
                     cur.execute(
-                        'SELECT student_id, email, full_name, student_number, department, year_level, status FROM students WHERE student_id=%s OR student_number=%s LIMIT 1',
+                        """
+                        SELECT student_id, email, full_name, student_number, department,
+                               year_level, status, email_verified, registration_document,
+                               last_login, created_at, updated_at
+                        FROM students
+                        WHERE student_id=%s OR student_number=%s
+                        LIMIT 1
+                        """,
                         (int(student_id), student_id)
                     )
                 else:
                     cur.execute(
-                        'SELECT student_id, email, full_name, student_number, department, year_level, status FROM students WHERE student_number=%s LIMIT 1',
+                        """
+                        SELECT student_id, email, full_name, student_number, department,
+                               year_level, status, email_verified, registration_document,
+                               last_login, created_at, updated_at
+                        FROM students
+                        WHERE student_number=%s
+                        LIMIT 1
+                        """,
                         (student_id,)
                     )
                 student = cur.fetchone()
@@ -152,20 +181,180 @@ class AdminController:
                 )
                 loans = cur.fetchall()
 
+        self._attach_student_document_state(student)
         student['loans'] = loans
         return jsonify(student), 200
 
     def list_students(self):
-        auth_error = self._require_admin_or_librarian()
+        auth_error = self._require_admin()
         if auth_error:
             return auth_error
 
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('SELECT student_id AS user_id, email, full_name, status FROM students ORDER BY full_name ASC')
+                cur.execute(
+                    """
+                    SELECT
+                        student_id,
+                        student_id AS user_id,
+                        email,
+                        full_name,
+                        student_number,
+                        department,
+                        year_level,
+                        status,
+                        email_verified,
+                        registration_document,
+                        last_login,
+                        created_at,
+                        updated_at
+                    FROM students
+                    ORDER BY full_name ASC
+                    """
+                )
                 students = cur.fetchall()
+                for student in students:
+                    self._attach_student_document_state(student)
 
         return jsonify(students), 200
+
+    def update_student(self, student_id):
+        auth_error = self._require_admin()
+        if auth_error:
+            return auth_error
+
+        try:
+            student_id = int(student_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'Invalid student ID'}), 400
+
+        data = request.get_json() or {}
+        full_name = str(data.get('full_name') or '').strip()
+        email = str(data.get('email') or '').strip().lower()
+        student_number = str(data.get('student_number') or '').strip()
+        department = str(data.get('department') or '').strip() or None
+        year_level = data.get('year_level')
+        status = str(data.get('status') or '').strip().lower()
+        email_verified = data.get('email_verified')
+
+        if not full_name:
+            return jsonify({'message': 'Full name is required'}), 400
+        if len(full_name) > 100:
+            return jsonify({'message': 'Full name must be 100 characters or fewer'}), 400
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            return jsonify({'message': 'A valid email is required'}), 400
+        if not re.match(r'^\d{3}-\d{4}$', student_number):
+            return jsonify({'message': 'Student ID must use format 241-0449'}), 400
+        if status not in ['active', 'inactive', 'suspended', 'pending']:
+            return jsonify({'message': 'Invalid account status'}), 400
+        if year_level in (None, ''):
+            year_level = None
+        else:
+            try:
+                year_level = int(year_level)
+            except (TypeError, ValueError):
+                return jsonify({'message': 'Year level must be a number'}), 400
+            if year_level < 1 or year_level > 6:
+                return jsonify({'message': 'Year level must be between 1 and 6'}), 400
+
+        email_verified = bool(email_verified)
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT student_id FROM students WHERE student_id=%s LIMIT 1', (student_id,))
+                if not cur.fetchone():
+                    return jsonify({'message': 'Student not found'}), 404
+
+                cur.execute('SELECT student_id FROM students WHERE email=%s AND student_id<>%s LIMIT 1', (email, student_id))
+                if cur.fetchone():
+                    return jsonify({'message': 'Email is already used by another student'}), 409
+
+                cur.execute('SELECT student_id FROM students WHERE student_number=%s AND student_id<>%s LIMIT 1', (student_number, student_id))
+                if cur.fetchone():
+                    return jsonify({'message': 'Student ID is already used by another student'}), 409
+
+                cur.execute(
+                    """
+                    UPDATE students
+                    SET full_name=%s,
+                        email=%s,
+                        student_number=%s,
+                        department=%s,
+                        year_level=%s,
+                        status=%s,
+                        email_verified=%s,
+                        updated_at=NOW()
+                    WHERE student_id=%s
+                    """,
+                    (full_name, email, student_number, department, year_level, status, email_verified, student_id),
+                )
+                conn.commit()
+
+        return self.search_student(str(student_id))
+
+    def reset_student_password(self, student_id):
+        auth_error = self._require_admin()
+        if auth_error:
+            return auth_error
+
+        try:
+            student_id = int(student_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'Invalid student ID'}), 400
+
+        data = request.get_json() or {}
+        new_password = str(data.get('new_password') or '')
+        if len(new_password) < 8:
+            return jsonify({'message': 'New password must be at least 8 characters'}), 400
+
+        password_hash = self.auth_service.hash_password(new_password)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE students
+                    SET password_hash=%s,
+                        reset_token=NULL,
+                        reset_expires_at=NULL,
+                        updated_at=NOW()
+                    WHERE student_id=%s
+                    """,
+                    (password_hash, student_id),
+                )
+                conn.commit()
+                if cur.rowcount == 0:
+                    return jsonify({'message': 'Student not found'}), 404
+
+        return jsonify({'message': 'Student password reset successfully'}), 200
+
+    def get_student_document(self, student_id):
+        auth_error = self._require_admin()
+        if auth_error:
+            return auth_error
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT registration_document FROM students WHERE student_id=%s LIMIT 1', (student_id,))
+                student = cur.fetchone()
+
+        if not student:
+            return jsonify({'message': 'Student not found'}), 404
+        document_name = student.get('registration_document')
+        if not document_name:
+            return jsonify({'message': 'No registration document uploaded'}), 404
+
+        document_name = os.path.basename(document_name)
+        file_path = os.path.abspath(os.path.join(Config.UPLOAD_FOLDER, document_name))
+        upload_root = os.path.abspath(Config.UPLOAD_FOLDER)
+        if not file_path.startswith(upload_root):
+            return jsonify({'message': 'Invalid registration document path'}), 400
+        if not os.path.exists(file_path):
+            return jsonify({
+                'message': 'Registration document file is missing on the server',
+                'filename': document_name
+            }), 404
+
+        return send_from_directory(Config.UPLOAD_FOLDER, document_name, as_attachment=False)
 
     def change_password(self):
         data = request.get_json() or {}

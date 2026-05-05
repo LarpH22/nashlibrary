@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AdminDashboard } from './AdminDashboard.jsx'
+import { AdminDashboard } from '../admin/AdminDashboard.jsx'
 import { LibrarianDashboard } from '../librarian/LibrarianDashboard.jsx'
 import { StudentDashboard } from '../student/StudentDashboard.jsx'
 import { AUTH_SESSION_CLEARED_EVENT, clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRole, isJwtExpired } from '../../shared/authStorage.js'

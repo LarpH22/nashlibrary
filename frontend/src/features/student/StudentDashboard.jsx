@@ -73,6 +73,41 @@ const loanStatus = (loan) => String(loan?.status || '').toLowerCase()
 const isPendingRequest = (loan) => loanStatus(loan) === 'pending'
 const isRejectedRequest = (loan) => loanStatus(loan) === 'rejected'
 const isApprovedLoan = (loan) => !loan.is_request && ['active', 'borrowed', 'overdue'].includes(loanStatus(loan)) && !loan.returned
+const toDateOnly = (value) => {
+  if (!value) {
+    return null
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+const daysUntilDue = (dueDate) => {
+  const due = toDateOnly(dueDate)
+  if (!due) {
+    return null
+  }
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.ceil((due - today) / (1000 * 60 * 60 * 24))
+}
+const isLoanOverdue = (loan) => isApprovedLoan(loan) && daysUntilDue(loan.due_date) < 0
+const loanDueStatusLabel = (loan) => {
+  if (isPendingRequest(loan)) return 'Pending'
+  if (isRejectedRequest(loan)) return 'Rejected'
+  if (isLoanOverdue(loan)) return 'Overdue'
+  const daysLeft = daysUntilDue(loan.due_date)
+  if (daysLeft === 0) return 'Due Today'
+  if (daysLeft !== null && daysLeft < 3) return 'Due Soon'
+  return 'Approved'
+}
+const loanDueStatusColor = (loan) => {
+  const status = loanDueStatusLabel(loan)
+  if (status === 'Overdue' || status === 'Rejected') return 'var(--red)'
+  if (status === 'Due Today' || status === 'Due Soon' || status === 'Pending') return 'var(--gold)'
+  return 'var(--green)'
+}
 
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -275,11 +310,46 @@ export function StudentDashboard() {
     loadDashboardData().finally(() => setLoading(false))
   }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, loadFines, redirectToLogin])
 
+  useEffect(() => {
+    if (authStatus !== 'authorized') {
+      return undefined
+    }
+
+    let refreshInFlight = false
+    const refreshLoansAndFines = async () => {
+      if (refreshInFlight || document.visibilityState !== 'visible') {
+        return
+      }
+      refreshInFlight = true
+      try {
+        await Promise.allSettled([loadLoans(), loadFines()])
+      } finally {
+        refreshInFlight = false
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshLoansAndFines()
+      }
+    }
+
+    const intervalId = window.setInterval(refreshLoansAndFines, 30000)
+    window.addEventListener('focus', refreshLoansAndFines)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refreshLoansAndFines)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [authStatus, loadLoans, loadFines])
+
   const stats = useMemo(
     () => {
       const active = loans.filter(l => isApprovedLoan(l)).length
       const totalLoanCount = loans.filter(l => !l.is_request).length
-      const overdue = loans.filter(l => isApprovedLoan(l) && l.due_date && new Date(l.due_date) < new Date()).length
+      const overdue = loans.filter(l => isLoanOverdue(l)).length
       const returned = loans.filter(l => l.returned).length
       return [
         { label: 'Borrowed', value: active, type: 'green' },
@@ -470,14 +540,14 @@ export function StudentDashboard() {
                   </thead>
                   <tbody>
                     {loans.filter(l => isApprovedLoan(l) || isPendingRequest(l)).slice(0, 5).map((loan) => {
-                      const isOverdue = isApprovedLoan(loan) && loan.due_date && new Date(loan.due_date) < new Date()
+                      const statusLabel = loanDueStatusLabel(loan)
                       return (
                         <tr key={loan.loan_id}>
                           <td>{loan.book_title || loan.book_id}</td>
                           <td>{loan.issue_date ? new Date(loan.issue_date).toLocaleDateString() : ''}</td>
                           <td>{loan.due_date ? new Date(loan.due_date).toLocaleDateString() : 'Waiting approval'}</td>
-                          <td style={{ color: isPendingRequest(loan) ? 'var(--gold)' : isOverdue ? 'var(--red)' : 'var(--green)' }}>
-                            {isPendingRequest(loan) ? 'Pending' : isOverdue ? 'Overdue' : 'Approved'}
+                          <td style={{ color: loanDueStatusColor(loan) }}>
+                            {statusLabel}
                           </td>
                           <td>{loan.fine_amount > 0 ? `$${Number(loan.fine_amount).toFixed(2)}` : '-'}</td>
                           <td>
@@ -511,17 +581,18 @@ export function StudentDashboard() {
               </thead>
               <tbody>
                 {borrowedLoans.map((loan) => {
-                  const daysLeft = loan.due_date ? Math.ceil((new Date(loan.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null
-                  const isOverdue = isApprovedLoan(loan) && daysLeft < 0
+                  const daysLeft = daysUntilDue(loan.due_date)
+                  const isOverdue = isLoanOverdue(loan)
+                  const statusLabel = loanDueStatusLabel(loan)
                   return (
                     <tr key={loan.loan_id}>
                       <td>{loan.book_title || loan.book_id}</td>
                       <td>{loan.issue_date ? new Date(loan.issue_date).toLocaleDateString() : ''}</td>
                       <td>{loan.due_date ? new Date(loan.due_date).toLocaleDateString() : '-'}</td>
-                      <td style={{ color: isPendingRequest(loan) ? 'var(--gold)' : isRejectedRequest(loan) ? 'var(--red)' : isOverdue ? 'var(--red)' : daysLeft < 3 ? 'var(--gold)' : 'var(--green)', fontWeight: 'bold' }}>
-                        {isPendingRequest(loan) ? 'Waiting approval' : isRejectedRequest(loan) ? (loan.rejection_reason || 'Rejected') : isOverdue ? `${Math.abs(daysLeft)} days overdue - $${Number(loan.fine_amount || 0).toFixed(2)}` : `${daysLeft} days`}
+                      <td style={{ color: loanDueStatusColor(loan), fontWeight: 'bold' }}>
+                        {isPendingRequest(loan) ? 'Waiting approval' : isRejectedRequest(loan) ? (loan.rejection_reason || 'Rejected') : isOverdue ? `${Math.abs(daysLeft)} days overdue - $${Number(loan.fine_amount || 0).toFixed(2)}` : daysLeft === 0 ? 'Due today' : `${daysLeft} days`}
                       </td>
-                      <td>{isPendingRequest(loan) ? 'Pending' : isRejectedRequest(loan) ? 'Rejected' : isOverdue ? 'Overdue' : daysLeft < 3 ? 'Due Soon' : 'Approved'}</td>
+                      <td>{statusLabel}</td>
                       <td>
                         {isApprovedLoan(loan) ? (
                           <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
@@ -671,7 +742,7 @@ export function StudentDashboard() {
                     const issuedDate = new Date(loan.issue_date)
                     const returnedDate = loan.return_date ? new Date(loan.return_date) : null
                     const durationDays = Math.ceil(((returnedDate || new Date()) - issuedDate) / (1000 * 60 * 60 * 24))
-                    const isOverdue = !loan.returned && new Date(loan.due_date) < new Date()
+                    const isOverdue = isLoanOverdue(loan)
                     return (
                       <tr key={loan.loan_id}>
                         <td>{loan.book_title || loan.book_id}</td>

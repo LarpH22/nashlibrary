@@ -171,11 +171,11 @@ export function VerifyEmail() {
             <p>Unable to verify email in the current browser context.</p>
           </div>
           <div className="context-error-info">
-            <p>This page encountered a browser security issue. Here's what to do:</p>
+            <p>This page encountered a browser security issue. Try these steps:</p>
             <ul>
               <li>🔄 <strong>Refresh this page</strong> to reload in the correct context</li>
               <li>📧 Or <strong>click the verification link again</strong> from your email</li>
-              <li>💻 Make sure you're using a standard web browser (Chrome, Firefox, Safari, Edge)</li>
+              <li>💻 Make sure you are using a standard web browser (Chrome, Firefox, Safari, Edge)</li>
             </ul>
           </div>
           <div className="action-buttons">

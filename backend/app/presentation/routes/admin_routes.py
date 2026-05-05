@@ -46,6 +46,21 @@ def list_students():
 def search_student(student_id):
     return controller.search_student(student_id)
 
+@admin_bp.route('/students/<student_id>', methods=['PUT'], strict_slashes=False)
+@jwt_required()
+def update_student(student_id):
+    return controller.update_student(student_id)
+
+@admin_bp.route('/students/<student_id>/reset-password', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def reset_student_password(student_id):
+    return controller.reset_student_password(student_id)
+
+@admin_bp.route('/students/<int:student_id>/document', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def get_student_document(student_id):
+    return controller.get_student_document(student_id)
+
 @admin_bp.route('/registration-requests', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def list_registration_requests():

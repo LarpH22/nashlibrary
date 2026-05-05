@@ -39,23 +39,7 @@ const pageTitles = {
   account: 'Change Password'
 }
 
-const ebookCatalogPageSize = 100
 const ebookLibraryPageSize = 10
-
-async function fetchAllCatalogBooks() {
-  const firstPage = await api.get('/api/books/search', { params: { page: 1, limit: ebookCatalogPageSize } })
-  const books = Array.isArray(firstPage.data?.books) ? [...firstPage.data.books] : []
-  const totalPages = Number(firstPage.data?.pagination?.total_pages || 1)
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const response = await api.get('/api/books/search', { params: { page, limit: ebookCatalogPageSize } })
-    if (Array.isArray(response.data?.books)) {
-      books.push(...response.data.books)
-    }
-  }
-
-  return books
-}
 
 function mergeEbooksWithCatalog(ebookRows) {
   return Array.isArray(ebookRows) ? [...ebookRows] : []
@@ -310,7 +294,7 @@ export function LibrarianDashboard() {
     const realEbooks = safeEbooks.filter(e => !e.is_catalog_only)
     const totalPages = Math.max(1, Math.ceil(realEbooks.length / ebookLibraryPageSize))
     setEbookPage((currentPage) => Math.min(currentPage, totalPages))
-  }, [safeEbooks.length])
+  }, [safeEbooks])
 
   const stats = useMemo(
     () => [
