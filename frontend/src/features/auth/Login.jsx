@@ -102,7 +102,7 @@ export function Login({ onLoginSuccess }) {
           </label>
 
           <button type="submit" className="auth-button auth-button-primary" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Submit'}
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 

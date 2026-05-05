@@ -77,6 +77,8 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .fine-pill{display:inline-flex;align-items:center;justify-content:center;min-width:70px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase}
 .fine-pill.paid{background:rgba(46,204,138,0.14);color:var(--green)}
 .fine-pill.unpaid{background:rgba(224,91,91,0.14);color:var(--red)}
+.fine-pill.pending,.fine-pill.pending_verification{background:rgba(91,138,224,0.16);color:#9db8f4}
+.fine-pill.failed{background:rgba(224,91,91,0.14);color:#f09a9a}
 .student-pill{display:inline-flex;align-items:center;justify-content:center;min-width:72px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;background:rgba(91,138,224,0.14);color:var(--blue)}
 .student-pill.active{background:rgba(46,204,138,0.14);color:var(--green)}
 .student-pill.pending{background:rgba(201,168,76,0.14);color:var(--gold2)}

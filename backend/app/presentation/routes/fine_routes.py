@@ -39,3 +39,10 @@ def list_all_fines():
 def update_fine_status(fine_id):
     current_user = set_current_user()
     return controller.update_fine_status(fine_id, current_user)
+
+
+@fine_bp.route('/<int:fine_id>/payment', methods=['PATCH'], strict_slashes=False)
+@jwt_required()
+def review_fine_payment(fine_id):
+    current_user = set_current_user()
+    return controller.review_fine_payment(fine_id, current_user)

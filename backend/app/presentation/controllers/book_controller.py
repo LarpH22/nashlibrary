@@ -13,6 +13,7 @@ from ...application.use_cases.book.borrow_book import BorrowBookUseCase
 from ...application.use_cases.book.return_book import ReturnBookUseCase
 from ...domain.services.library_service import LibraryService
 from ...infrastructure.config import Config
+from ...infrastructure.database.db_connection import get_connection
 from ...infrastructure.repositories_impl.book_repository_impl import BookRepositoryImpl
 from ...infrastructure.repositories_impl.loan_repository_impl import LoanRepositoryImpl
 
@@ -25,6 +26,15 @@ class BookController:
         self.add_book_use_case = AddBookUseCase(self.library_service)
         self.borrow_book_use_case = BorrowBookUseCase(self.library_service)
         self.return_book_use_case = ReturnBookUseCase(self.library_service)
+
+    def _parse_pagination_params(self):
+        page = request.args.get('page', type=int)
+        limit = request.args.get('limit', type=int)
+        paginate = page is not None or limit is not None
+        page = page if page and page > 0 else 1
+        limit = limit if limit and limit > 0 else 15
+        offset = (page - 1) * limit
+        return page, limit, offset, paginate
 
     def list_books(self):
         books = self.book_repository.list_books()
@@ -322,6 +332,7 @@ class BookController:
         if current_user.get('role') not in ['student', 'admin', 'librarian']:
             return jsonify({'message': 'Library account access required'}), 403
 
+        page, limit, offset, paginate = self._parse_pagination_params()
         raw_book_id = (request.args.get('book_id') or '').strip()
         book_id = None
         if raw_book_id:
@@ -329,14 +340,38 @@ class BookController:
                 book_id = int(raw_book_id)
             except (TypeError, ValueError):
                 return jsonify({'message': 'book_id must be a valid integer'}), 400
+        search = (request.args.get('search') or '').strip()
 
-        ebooks = self.book_repository.list_ebooks(book_id)
+        ebooks = self.book_repository.list_ebooks(book_id, limit=limit if paginate else None, offset=offset if paginate else None, search=search)
         for ebook in ebooks:
             ebook['access_url'] = f"/api/ebooks/{ebook['ebook_id']}/download"
             ebook['detail_url'] = f"/ebooks/{ebook['ebook_id']}"
             ebook['file_available'] = bool(self._resolve_ebook_file_path(ebook))
             if not ebook['file_available']:
                 ebook['file_status'] = 'File not available'
+
+        if paginate:
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    if book_id is not None and search:
+                        cur.execute('SELECT COUNT(*) AS total FROM ebooks e LEFT JOIN books b ON e.book_id = b.book_id WHERE e.book_id=%s AND (e.title LIKE %s OR e.original_filename LIKE %s OR b.title LIKE %s)', (book_id, f'%{search}%', f'%{search}%', f'%{search}%'))
+                    elif book_id is not None:
+                        cur.execute('SELECT COUNT(*) AS total FROM ebooks WHERE book_id=%s', (book_id,))
+                    elif search:
+                        cur.execute('SELECT COUNT(*) AS total FROM ebooks e LEFT JOIN books b ON e.book_id = b.book_id WHERE e.title LIKE %s OR e.original_filename LIKE %s OR b.title LIKE %s', (f'%{search}%', f'%{search}%', f'%{search}%'))
+                    else:
+                        cur.execute('SELECT COUNT(*) AS total FROM ebooks')
+                    total = cur.fetchone().get('total', 0)
+            return jsonify({
+                'ebooks': ebooks,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'total_pages': max(1, (total + limit - 1) // limit)
+                }
+            }), 200
+
         return jsonify({'ebooks': ebooks}), 200
 
     def download_ebook(self, ebook_id, current_user=None):

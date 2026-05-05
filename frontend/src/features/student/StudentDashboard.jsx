@@ -18,9 +18,12 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { BookSearch } from '../books/BookSearch.jsx'
-import { fetchMostBorrowedBooks, returnBook } from '../books/bookService.js'
+import { fetchMostBorrowedBooks, fetchEbooks, downloadEbook, openEbook } from '../books/bookService.js'
 import { fetchStudentFines, payFine } from '../fines/fineService.js'
+import { cancelStudentReservation, fetchStudentReservations } from '../reservations/reservationService.js'
 import { clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRole, isJwtExpired } from '../../shared/authStorage.js'
+import { formatCurrency } from '../../shared/utils/index.js'
+import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
 import './StudentDashboard.css'
 
 const navSections = [
@@ -31,9 +34,16 @@ const navSections = [
       { id: 'books', icon: BookOpen, title: 'My Borrowed Books' },
       { id: 'popular', icon: Flame, title: 'Top Books' },
       { id: 'catalog', icon: Search, title: 'Search Catalog' },
+      { id: 'reservations', icon: BookMarked, title: 'Reservations' },
       { id: 'fines', icon: CreditCard, title: 'Fines' },
       { id: 'reading', icon: BookMarked, title: 'Reading History' },
       { id: 'history', icon: History, title: 'Borrowing History' }
+    ]
+  },
+  {
+    section: 'RESOURCES',
+    items: [
+      { id: 'ebooks', icon: Library, title: 'E-Books' }
     ]
   },
   {
@@ -48,8 +58,10 @@ const navSections = [
 const pageTitles = {
   overview: 'Overview',
   books: 'My Borrowed Books',
+  ebooks: 'E-Books',
   popular: 'Top Books',
   catalog: 'Search Catalog',
+  reservations: 'Reservations',
   fines: 'Fine Management',
   reading: 'Reading History',
   history: 'Borrowing History',
@@ -131,11 +143,28 @@ export function StudentDashboard() {
   const [loans, setLoans] = useState([])
   const [profile, setProfile] = useState(null)
   const [popularBooks, setPopularBooks] = useState([])
+  const [reservations, setReservations] = useState([])
+  const [cancellingReservationId, setCancellingReservationId] = useState(null)
   const [fines, setFines] = useState([])
   const [fineSummary, setFineSummary] = useState({ total_unpaid: 0, total_paid: 0, unpaid_count: 0, paid_count: 0, total_count: 0 })
+  const [ebooks, setEbooks] = useState([])
+  const [ebookPagination, setEbookPagination] = useState({ page: 1, limit: 15, total: 0, total_pages: 1 })
+  const [ebookSearch, setEbookSearch] = useState('')
+  const [loadingEbooks, setLoadingEbooks] = useState(false)
+
+  // Initialize activePage from URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
+    if (tabParam && ['overview', 'catalog', 'books', 'ebooks', 'reservations', 'reading', 'fines', 'history', 'profile'].includes(tabParam)) {
+      setActivePage(tabParam)
+    }
+  }, [])
   const [payingFineLoanId, setPayingFineLoanId] = useState(null)
+  const [paymentFine, setPaymentFine] = useState(null)
+  const [paymentResult, setPaymentResult] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
+  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -276,6 +305,50 @@ export function StudentDashboard() {
     }
   }, [addNotification])
 
+  const loadReservations = useCallback(async () => {
+    try {
+      const data = await fetchStudentReservations()
+      const nextReservations = Array.isArray(data?.reservations) ? data.reservations : []
+      setReservations((previousReservations) => {
+        const previousReadyIds = new Set(
+          previousReservations
+            .filter((reservation) => String(reservation.status || '').toLowerCase() === 'ready')
+            .map((reservation) => reservation.reservation_id)
+        )
+        nextReservations
+          .filter((reservation) => String(reservation.status || '').toLowerCase() === 'ready')
+          .filter((reservation) => !previousReadyIds.has(reservation.reservation_id))
+          .forEach((reservation) => {
+            addNotification(`"${reservation.book_title || 'Reserved book'}" is ready for pickup.`)
+          })
+        return nextReservations
+      })
+    } catch (err) {
+      console.error('[StudentDashboard] loadReservations error', err)
+      addNotification(err?.response?.data?.message || 'Unable to load reservations.')
+    }
+  }, [addNotification])
+
+  const loadEbooks = useCallback(async (page = 1, search = '') => {
+    setLoadingEbooks(true)
+    try {
+      const data = await fetchEbooks({ page, limit: 15, search })
+      setEbooks(Array.isArray(data?.ebooks) ? data.ebooks : [])
+      setEbookPagination(data?.pagination || { page: 1, limit: 15, total: 0, total_pages: 1 })
+    } catch (err) {
+      console.error('[StudentDashboard] loadEbooks error', err)
+      addNotification('Unable to load e-books.')
+    } finally {
+      setLoadingEbooks(false)
+    }
+  }, [addNotification])
+
+  useEffect(() => {
+    if (activePage === 'ebooks') {
+      loadEbooks(ebookPagination.page, ebookSearch)
+    }
+  }, [activePage, loadEbooks, ebookPagination.page, ebookSearch])
+
   useEffect(() => {
     const token = getAuthToken()
     const storedRole = getStoredUserRole()
@@ -300,7 +373,7 @@ export function StudentDashboard() {
     setFetchError('')
 
     async function loadDashboardData() {
-      await Promise.allSettled([loadProfile(), loadPopularBooks(), loadFines()])
+      await Promise.allSettled([loadProfile(), loadPopularBooks(), loadFines(), loadReservations()])
       const currentToken = getAuthToken()
       if (currentToken && !isJwtExpired(currentToken)) {
         await loadLoans()
@@ -308,7 +381,7 @@ export function StudentDashboard() {
     }
 
     loadDashboardData().finally(() => setLoading(false))
-  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, loadFines, redirectToLogin])
+  }, [decodeTokenRole, getAuthToken, loadLoans, loadProfile, loadPopularBooks, loadFines, loadReservations, redirectToLogin])
 
   useEffect(() => {
     if (authStatus !== 'authorized') {
@@ -322,7 +395,7 @@ export function StudentDashboard() {
       }
       refreshInFlight = true
       try {
-        await Promise.allSettled([loadLoans(), loadFines()])
+        await Promise.allSettled([loadLoans(), loadFines(), loadReservations()])
       } finally {
         refreshInFlight = false
       }
@@ -343,28 +416,32 @@ export function StudentDashboard() {
       window.removeEventListener('focus', refreshLoansAndFines)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [authStatus, loadLoans, loadFines])
+  }, [authStatus, loadLoans, loadFines, loadReservations])
 
   const stats = useMemo(
     () => {
       const active = loans.filter(l => isApprovedLoan(l)).length
       const totalLoanCount = loans.filter(l => !l.is_request).length
       const overdue = loans.filter(l => isLoanOverdue(l)).length
-      const returned = loans.filter(l => l.returned).length
+      const activeReservations = reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).length
       return [
         { label: 'Borrowed', value: active, type: 'green' },
         { label: 'Overdue', value: overdue, type: 'red' },
-        { label: 'Unpaid Fines', value: `$${Number(fineSummary.total_unpaid || 0).toFixed(2)}`, type: 'gold' },
-        { label: 'Returned', value: returned, type: 'blue' },
+        { label: 'Reservations', value: activeReservations, type: 'gold' },
+        { label: 'Unpaid Fines', value: formatCurrency(fineSummary.total_unpaid), type: 'gold' },
         { label: 'Total Loans', value: totalLoanCount, type: 'purple' }
       ]
     },
-    [loans, fineSummary.total_unpaid]
+    [loans, reservations, fineSummary.total_unpaid]
   )
 
   const activeBorrowedBookIds = useMemo(
     () => loans.filter((loan) => isApprovedLoan(loan) || isPendingRequest(loan)).map((loan) => loan.book_id),
     [loans]
+  )
+  const activeReservedBookIds = useMemo(
+    () => reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).map((reservation) => reservation.book_id),
+    [reservations]
   )
 
   const studentNumber = profile?.student_number || (isRegistrationStudentId(profile?.student_id) ? profile.student_id : '')
@@ -439,6 +516,20 @@ export function StudentDashboard() {
   async function handleChangePassword(event) {
     event.preventDefault()
     try {
+      if (!passwordForm.old_password) {
+        addNotification('Current password is required')
+        return
+      }
+      const passwordValidation = validatePassword(passwordForm.new_password, 'New password')
+      if (!passwordValidation.isValid) {
+        addNotification(passwordValidation.message)
+        return
+      }
+      const confirmationValidation = validatePasswordConfirmation(passwordForm.new_password, passwordForm.confirm_password)
+      if (!confirmationValidation.isValid) {
+        addNotification(confirmationValidation.message)
+        return
+      }
       const result = await authFetch('/api/auth/change-password', {
         method: 'POST',
         body: JSON.stringify(passwordForm)
@@ -448,7 +539,7 @@ export function StudentDashboard() {
       }
       const { response, data } = result
       if (response.ok) {
-        setPasswordForm({ old_password: '', new_password: '' })
+        setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
         addNotification('Password changed successfully.')
       } else {
         addNotification(data?.message || 'Password change failed.')
@@ -458,19 +549,19 @@ export function StudentDashboard() {
     }
   }
 
-  async function handleReturnLoan(loan) {
-    try {
-      await returnBook(Number(loan.loan_id))
-      await Promise.allSettled([loadLoans(), loadFines()])
-      addNotification(`Returned "${loan.book_title || 'book'}" successfully.`)
-    } catch (err) {
-      await Promise.allSettled([loadLoans(), loadFines()])
-      addNotification(err?.response?.data?.message || 'Unable to return this book.')
+  function handlePayFine(fine) {
+    const loanId = Number(fine.loan_id || fine.borrow_id)
+    if (!loanId) {
+      addNotification('Unable to identify the loan for this fine.')
+      return
     }
+
+    setPaymentFine(fine)
+    setPaymentResult(null)
   }
 
-  async function handlePayFine(fine) {
-    const loanId = Number(fine.loan_id || fine.borrow_id)
+  async function submitFinePayment(paymentMethod) {
+    const loanId = Number(paymentFine?.loan_id || paymentFine?.borrow_id)
     if (!loanId) {
       addNotification('Unable to identify the loan for this fine.')
       return
@@ -478,9 +569,10 @@ export function StudentDashboard() {
 
     setPayingFineLoanId(loanId)
     try {
-      await payFine(loanId)
+      const result = await payFine(loanId, paymentMethod)
       await Promise.allSettled([loadFines(), loadLoans()])
-      addNotification('Fine paid successfully.')
+      setPaymentResult(result?.payment || result)
+      addNotification(result?.message || 'Payment request submitted.')
     } catch (err) {
       addNotification(err?.response?.data?.message || 'Unable to pay this fine.')
     } finally {
@@ -488,84 +580,168 @@ export function StudentDashboard() {
     }
   }
 
+  async function handleCancelReservation(reservation) {
+    setCancellingReservationId(reservation.reservation_id)
+    try {
+      const response = await cancelStudentReservation(reservation.reservation_id)
+      await loadReservations()
+      addNotification(response?.message || 'Reservation cancelled.')
+    } catch (err) {
+      addNotification(err?.response?.data?.message || 'Unable to cancel reservation.')
+    } finally {
+      setCancellingReservationId(null)
+    }
+  }
+
   function renderPage() {
     if (activePage === 'overview') {
+      const activeLoans = loans.filter((loan) => isApprovedLoan(loan))
+      const overdueLoans = activeLoans.filter((loan) => isLoanOverdue(loan))
+      const totalLoanCount = loans.filter((loan) => !loan.is_request).length
+      const activeReservationCount = reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).length
+      const borrowLimit = 5
+      const borrowLimitPercent = Math.min(100, Math.round((activeLoans.length / borrowLimit) * 100))
+      const currentLoans = activeLoans.slice(0, 3)
+      const recentActivity = [
+        ...overdueLoans.slice(0, 2).map((loan) => ({
+          type: 'danger',
+          text: 'Book overdue',
+          title: loan.book_title || loan.book_id || 'Unknown book',
+          date: loan.due_date
+        })),
+        ...activeLoans.slice(0, 2).map((loan) => ({
+          type: 'gold',
+          text: 'Borrowed',
+          title: loan.book_title || loan.book_id || 'Unknown book',
+          date: loan.issue_date
+        }))
+      ].slice(0, 6)
+      const frequencyMax = Math.max(totalLoanCount, 1)
+      const loanSegments = [
+        { label: 'Borrowed', value: activeLoans.length, color: '#C9A84C' },
+        { label: 'Overdue', value: overdueLoans.length, color: '#e05555' }
+      ]
+
       return (
-        <>
-          <div className="stats-grid">
-            {stats.map((stat) => {
-              const StatIcon = getStatIcon(stat.label)
-              return (
-                <div key={stat.label} className={`stat ${stat.type}`}>
-                  <div className="stat-label">{stat.label}</div>
-                  <div className="stat-num">{stat.value}</div>
-                  <div className="stat-sub">Total</div>
-                  <div className="stat-icon">
-                    <StatIcon size={34} strokeWidth={1.8} aria-hidden="true" />
+        <div className="overview-v2">
+          <div className="stat-grid">
+            <div className="scard danger">
+              <div className="sc-label">Overdue <AlertTriangle size={14} aria-hidden="true" /></div>
+              <div className="sc-val c-red">{overdueLoans.length}</div>
+              <div className="sc-sub">{overdueLoans.length > 0 ? 'Overdue fine active' : 'Clear'}</div>
+              <div className="sc-bar"><div className="sc-bar-fill danger-fill" style={{ width: overdueLoans.length > 0 ? '100%' : '0%' }} /></div>
+            </div>
+            <div className="scard">
+              <div className="sc-label">Borrowed <BookOpen size={14} aria-hidden="true" /></div>
+              <div className="sc-val">{activeLoans.length}</div>
+              <div className="sc-sub">Currently active</div>
+              <div className="sc-bar"><div className="sc-bar-fill gold-fill" style={{ width: `${borrowLimitPercent}%` }} /></div>
+            </div>
+            <div className="scard gold">
+              <div className="sc-label">Total loans <History size={14} aria-hidden="true" /></div>
+              <div className="sc-val c-gold">{totalLoanCount}</div>
+              <div className="sc-sub">{formatCurrency(fineSummary.total_unpaid)} fines</div>
+              <div className="sc-bar"><div className="sc-bar-fill gold-fill" style={{ width: '100%' }} /></div>
+            </div>
+          </div>
+
+          <div className="mid-grid">
+            <div className="card">
+              <div className="card-head">Currently borrowed <span className={`badge ${overdueLoans.length ? 'b-red' : 'b-green'}`}>{overdueLoans.length} overdue</span></div>
+              {currentLoans.length === 0 ? (
+                <div className="empty-mini">No active borrowed books.</div>
+              ) : currentLoans.map((loan) => (
+                <div className="book-row" key={loan.loan_id}>
+                  <div className="bk-cover gold-cover"><BookOpen size={15} aria-hidden="true" /></div>
+                  <div className="book-copy">
+                    <div className="bk-title">{loan.book_title || loan.book_id}</div>
+                    <div className="bk-meta">Due: {loan.due_date ? new Date(loan.due_date).toLocaleDateString() : '-'}</div>
+                  </div>
+                  <span className={`badge ${isLoanOverdue(loan) ? 'b-red' : 'b-gold'}`}>{isLoanOverdue(loan) ? 'Overdue' : 'Borrowed'}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="card">
+              <div className="card-head">Loan breakdown</div>
+              <div className="donut-wrap">
+                <svg width="100" height="100" viewBox="0 0 100 100" aria-hidden="true">
+                  <circle cx="50" cy="50" r="36" fill="none" stroke="#ffffff08" strokeWidth="12" />
+                  <circle cx="50" cy="50" r="36" fill="none" stroke="#C9A84C" strokeWidth="12" strokeDasharray={`${Math.max(0, activeLoans.length / frequencyMax * 226)} 226`} strokeDashoffset="56" transform="rotate(-90 50 50)" />
+                  <circle cx="50" cy="50" r="36" fill="none" stroke="#e05555" strokeWidth="12" strokeDasharray={`${Math.max(0, overdueLoans.length / frequencyMax * 226)} 226`} strokeDashoffset="-102" transform="rotate(-90 50 50)" />
+                  <text x="50" y="46" textAnchor="middle" fontSize="18" fontWeight="500" fill="#c0d0e8">{totalLoanCount}</text>
+                  <text x="50" y="57" textAnchor="middle" fontSize="8" fill="#3d4f6e">loans</text>
+                </svg>
+                <div className="legend-list">
+                  {loanSegments.map((segment) => (
+                    <div className="legend-item" key={segment.label}>
+                      <div className="legend-dot" style={{ background: segment.color }} />
+                      <span className="legend-lbl">{segment.label}</span>
+                      <span className="legend-val">{segment.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="thin-rule" />
+              <div className="card-head compact">Quick actions</div>
+              <div className="dash-action-grid">
+                <button className="mini-action" type="button" onClick={() => setActivePage('books')}>My books</button>
+                <button className="mini-action" type="button" onClick={() => setActivePage('catalog')}>Catalog</button>
+                <button className="mini-action" type="button" onClick={() => setActivePage('fines')}>Fines</button>
+                <button className="mini-action" type="button" onClick={() => setActivePage('ebooks')}>E-books</button>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-head">Recent activity <span className="card-head-tag">this month</span></div>
+              {recentActivity.length === 0 ? (
+                <div className="empty-mini">No activity yet.</div>
+              ) : recentActivity.map((item, index) => (
+                <div className="activity-item" key={`${item.type}-${item.title}-${index}`}>
+                  <div className={`act-dot ${item.type}`} />
+                  <div>
+                    <div className="act-text">{item.text} <span>{item.title}</span></div>
+                    <div className="act-time">{item.date ? new Date(item.date).toLocaleDateString() : 'Recently'}</div>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-          <div className="grid2">
-            <div className="card">
-              <div className="card-hdr"><div className="card-title">Welcome Back!</div></div>
-              <div className="student-id-hero">
-                <div className="student-id-label">Student ID</div>
-                <div className="student-id-value">{displayValue(studentNumber)}</div>
-              </div>
-              <p>View your borrowed books, track due dates, and manage your account from this dashboard.</p>
-              <p style={{ marginTop: '12px', fontSize: '12px', color: 'var(--muted)' }}>
-                {studentName || 'Student'}{studentNumber ? ` - ${studentNumber}` : ''}
-              </p>
-            </div>
-            <div className="card">
-              <div className="card-hdr"><div className="card-title">Quick Actions</div></div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <button className="btn btn-green" type="button" onClick={() => setActivePage('books')}>View My Books</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('reading')}>Reading History</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('fines')}>Manage Fines</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('history')}>Borrowing History</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('profile')}>View Profile</button>
-              </div>
+              ))}
             </div>
           </div>
-          {loans.filter(l => isApprovedLoan(l) || isPendingRequest(l)).length > 0 && (
+
+          <div className="bottom-grid">
             <div className="card">
-              <div className="card-hdr"><div className="card-title">Current Requests and Loans</div></div>
-              <div className="admin-table-container">
-                <table>
-                  <thead>
-                    <tr><th>Book</th><th>Requested/Issued</th><th>Due Date</th><th>Status</th><th>Fine</th><th>Action</th></tr>
-                  </thead>
-                  <tbody>
-                    {loans.filter(l => isApprovedLoan(l) || isPendingRequest(l)).slice(0, 5).map((loan) => {
-                      const statusLabel = loanDueStatusLabel(loan)
-                      return (
-                        <tr key={loan.loan_id}>
-                          <td>{loan.book_title || loan.book_id}</td>
-                          <td>{loan.issue_date ? new Date(loan.issue_date).toLocaleDateString() : ''}</td>
-                          <td>{loan.due_date ? new Date(loan.due_date).toLocaleDateString() : 'Waiting approval'}</td>
-                          <td style={{ color: loanDueStatusColor(loan) }}>
-                            {statusLabel}
-                          </td>
-                          <td>{loan.fine_amount > 0 ? `$${Number(loan.fine_amount).toFixed(2)}` : '-'}</td>
-                          <td>
-                            {isApprovedLoan(loan) ? (
-                              <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
-                            ) : (
-                              <span style={{ color: 'var(--muted)' }}>Awaiting librarian</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <div className="card-head">Top books in catalog <span className="card-head-tag">trending</span></div>
+              {(popularBooks.length ? popularBooks : []).slice(0, 5).map((book, index) => (
+                <div className="top-book-item" key={book.book_id || book.id || index}>
+                  <div className={`rank ${index < 2 ? 'top' : ''}`}>{index + 1}</div>
+                  <div className="bk-cover gold-cover"><BookOpen size={15} aria-hidden="true" /></div>
+                  <div className="book-copy">
+                    <div className="tb-title">{book.title || 'Untitled'}</div>
+                    <div className="tb-genre">{book.category || 'Catalog'} · {book.author || 'Unknown author'}</div>
+                  </div>
+                  <div className="rating">{book.borrow_count ?? 0} loans</div>
+                </div>
+              ))}
+              {popularBooks.length === 0 && <div className="empty-mini">No top books available.</div>}
             </div>
-          )}
-        </>
+
+            <div className="card">
+              <div className="card-head">Account status</div>
+              <div className="borrow-limit-row">
+                <div className="book-copy">
+                  <div className="bk-meta">Borrow limit used</div>
+                  <div className="prog-track"><div className="prog-fill gold-fill" style={{ width: `${borrowLimitPercent}%` }} /></div>
+                </div>
+                <div className="limit-count">{activeLoans.length}/{borrowLimit}</div>
+              </div>
+              <div className="thin-rule" />
+              <div className="status-row"><span>Reservations</span><strong>{activeReservationCount} active</strong></div>
+              <div className="status-row danger"><span>Overdue books</span><strong>{overdueLoans.length} book{overdueLoans.length === 1 ? '' : 's'}</strong></div>
+              <div className="status-row"><span>Unpaid fines</span><strong>{formatCurrency(fineSummary.total_unpaid)}</strong></div>
+              <div className="status-row"><span>Account standing</span><span className={`badge ${Number(fineSummary.total_unpaid || 0) > 0 || overdueLoans.length > 0 ? 'b-gold' : 'b-green'}`}>{Number(fineSummary.total_unpaid || 0) > 0 || overdueLoans.length > 0 ? 'Attention' : 'Good'}</span></div>
+            </div>
+          </div>
+        </div>
       )
     }
 
@@ -577,7 +753,7 @@ export function StudentDashboard() {
           <div className="admin-table-container">
             <table>
               <thead>
-                <tr><th>Book Title</th><th>Requested/Issued</th><th>Due Date</th><th>Days/Fine</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Book Title</th><th>Requested/Issued</th><th>Due Date</th><th>Days/Fine</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {borrowedLoans.map((loan) => {
@@ -590,16 +766,9 @@ export function StudentDashboard() {
                       <td>{loan.issue_date ? new Date(loan.issue_date).toLocaleDateString() : ''}</td>
                       <td>{loan.due_date ? new Date(loan.due_date).toLocaleDateString() : '-'}</td>
                       <td style={{ color: loanDueStatusColor(loan), fontWeight: 'bold' }}>
-                        {isPendingRequest(loan) ? 'Waiting approval' : isRejectedRequest(loan) ? (loan.rejection_reason || 'Rejected') : isOverdue ? `${Math.abs(daysLeft)} days overdue - $${Number(loan.fine_amount || 0).toFixed(2)}` : daysLeft === 0 ? 'Due today' : `${daysLeft} days`}
+                        {isPendingRequest(loan) ? 'Waiting approval' : isRejectedRequest(loan) ? (loan.rejection_reason || 'Rejected') : isOverdue ? `${Math.abs(daysLeft)} days overdue - ${formatCurrency(loan.fine_amount)}` : daysLeft === 0 ? 'Due today' : `${daysLeft} days`}
                       </td>
                       <td>{statusLabel}</td>
-                      <td>
-                        {isApprovedLoan(loan) ? (
-                          <button className="btn btn-gold btn-sm" type="button" onClick={() => handleReturnLoan(loan)}>Return</button>
-                        ) : (
-                          <span style={{ color: 'var(--muted)' }}>No action</span>
-                        )}
-                      </td>
                     </tr>
                   )
                 })}
@@ -610,24 +779,214 @@ export function StudentDashboard() {
       )
     }
 
+    if (activePage === 'ebooks') {
+      const formatFileSize = (bytes) => {
+        if (!bytes) return '-'
+        const sizes = ['B', 'KB', 'MB', 'GB']
+        const i = Math.floor(Math.log(bytes) / Math.log(1024))
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+      }
+
+      const getFileTypeBadge = (ebook) => {
+        const ext = String(ebook.file_type || ebook.original_filename?.split('.').pop() || '').toLowerCase()
+        if (!ext) return <span className="badge badge-muted">Unknown</span>
+        if (ext === 'pdf') return <span className="badge badge-red">PDF</span>
+        if (ext === 'epub') return <span className="badge badge-blue">EPUB</span>
+        return <span className="badge badge-muted">{ext.toUpperCase()}</span>
+      }
+
+      const handleOpenEbook = async (ebook) => {
+        try {
+          const data = await openEbook(ebook.ebook_id)
+          const url = data?.ebook?.access_url || ebook.access_url || `/books/ebooks/${ebook.ebook_id}/download`
+          window.open(`${url}?disposition=inline`, '_blank', 'noopener,noreferrer')
+        } catch (err) {
+          addNotification('Unable to open e-book.')
+        }
+      }
+
+      const handleDownloadEbook = async (ebook) => {
+        try {
+          const blob = await downloadEbook(ebook.ebook_id)
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = ebook.original_filename || `${ebook.title || `ebook-${ebook.ebook_id}`}.${ebook.file_type || 'pdf'}`
+          document.body.appendChild(a)
+          a.click()
+          window.URL.revokeObjectURL(url)
+          document.body.removeChild(a)
+        } catch (err) {
+          addNotification('Unable to download e-book.')
+        }
+      }
+
+      return (
+        <div className="card ebook-library-card">
+          <div className="card-hdr">
+            <div className="card-title">E-Books ({ebookPagination.total})</div>
+            <div className="ebook-search-actions">
+              <div className="ebook-search-field">
+                <Search size={14} aria-hidden="true" />
+                <input
+                  type="text"
+                  placeholder="Search e-books..."
+                  value={ebookSearch}
+                  onChange={(e) => setEbookSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadEbooks(1, e.target.value)}
+                />
+              </div>
+              <button className="btn btn-gold btn-sm ebook-search-button" type="button" onClick={() => loadEbooks(1, ebookSearch)}>Search</button>
+            </div>
+          </div>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Book</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingEbooks ? (
+                  <tr><td colSpan="5" className="empty-cell">Loading e-books...</td></tr>
+                ) : ebooks.length === 0 ? (
+                  <tr><td colSpan="5" className="empty-cell">No e-books found.</td></tr>
+                ) : (
+                  ebooks.map((ebook) => (
+                    <tr key={ebook.ebook_id}>
+                      <td>{ebook.title || ebook.original_filename || 'Untitled'}</td>
+                      <td>{ebook.book_title || 'Unknown book'}</td>
+                      <td>{getFileTypeBadge(ebook)}</td>
+                      <td>{formatFileSize(ebook.file_size)}</td>
+                      <td>
+                        <div className="ebook-row-actions">
+                          <button className="btn btn-gold btn-sm" type="button" onClick={() => handleOpenEbook(ebook)}>Open</button>
+                          {ebook.allow_download !== false && (
+                            <button className="btn btn-outline btn-sm" type="button" onClick={() => handleDownloadEbook(ebook)}>Download</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {ebookPagination.total_pages > 1 && (
+            <div className="pagination-controls" style={{ marginTop: '16px', textAlign: 'center' }}>
+              <button
+                className="btn btn-outline btn-sm"
+                disabled={ebookPagination.page <= 1}
+                onClick={() => loadEbooks(ebookPagination.page - 1, ebookSearch)}
+              >
+                Previous
+              </button>
+              <span style={{ margin: '0 16px' }}>
+                Page {ebookPagination.page} of {ebookPagination.total_pages}
+              </span>
+              <button
+                className="btn btn-outline btn-sm"
+                disabled={ebookPagination.page >= ebookPagination.total_pages}
+                onClick={() => loadEbooks(ebookPagination.page + 1, ebookSearch)}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )
+    }
+
     if (activePage === 'catalog') {
       return (
         <BookSearch
           initialKeyword={searchQuery}
           borrowedBookIds={activeBorrowedBookIds}
+          reservedBookIds={activeReservedBookIds}
           onBorrowed={async (book) => {
             await loadLoans()
             addNotification(`Borrow request for "${book.title}" was submitted.`)
+          }}
+          onReserved={async (book, response) => {
+            await loadReservations()
+            addNotification(response?.message || `Reservation for "${book.title}" was saved.`)
           }}
         />
       )
     }
 
+    if (activePage === 'reservations') {
+      const statusLabel = (status) => {
+        const normalized = String(status || '').toLowerCase()
+        if (normalized === 'ready') return 'Ready for pickup'
+        if (normalized === 'active') return 'Queued'
+        if (normalized === 'claimed') return 'Claimed'
+        if (normalized === 'cancelled') return 'Cancelled'
+        if (normalized === 'expired') return 'Expired'
+        return status || '-'
+      }
+
+      return (
+        <div className="card">
+          <div className="card-hdr"><div className="card-title">My Reservations ({reservations.length})</div></div>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>Book</th><th>Queue</th><th>Status</th><th>Reserved</th><th>Expires</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                {reservations.length === 0 ? (
+                  <tr><td colSpan="6" className="empty-cell">No reservations yet.</td></tr>
+                ) : (
+                  reservations.map((reservation) => {
+                    const status = String(reservation.status || '').toLowerCase()
+                    const canCancel = ['active', 'ready'].includes(status)
+                    return (
+                      <tr key={reservation.reservation_id}>
+                        <td>{reservation.book_title || reservation.book_id}</td>
+                        <td>{reservation.queue_position || '-'}</td>
+                        <td style={{ color: status === 'ready' ? 'var(--green)' : status === 'active' ? 'var(--gold)' : 'var(--muted)' }}>
+                          {statusLabel(status)}
+                        </td>
+                        <td>{reservation.reservation_date ? new Date(reservation.reservation_date).toLocaleDateString() : '-'}</td>
+                        <td>{reservation.expiration_date ? new Date(reservation.expiration_date).toLocaleDateString() : '-'}</td>
+                        <td>
+                          {canCancel ? (
+                            <button className="btn btn-outline btn-sm" type="button" disabled={cancellingReservationId === reservation.reservation_id} onClick={() => handleCancelReservation(reservation)}>
+                              {cancellingReservationId === reservation.reservation_id ? 'Cancelling...' : 'Cancel'}
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--muted)' }}>Closed</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
     if (activePage === 'fines') {
-      const outstandingFines = fines.filter((fine) => ['unpaid', 'pending'].includes(String(fine.status || '').toLowerCase()))
-      const fineHistory = fines.filter((fine) => !['unpaid', 'pending'].includes(String(fine.status || '').toLowerCase()))
-      const renderFineStatus = (fine) => {
+      const outstandingFines = fines.filter((fine) => {
         const status = String(fine.status || '').toLowerCase()
+        const paymentStatus = String(fine.payment_status || '').toLowerCase()
+        return status === 'unpaid' || ['pending', 'pending_verification', 'failed'].includes(paymentStatus)
+      })
+      const fineHistory = fines.filter((fine) => !outstandingFines.includes(fine))
+      const renderFineStatus = (fine) => {
+        const paymentStatus = String(fine.payment_status || '').toLowerCase()
+        const status = String(fine.status || '').toLowerCase()
+        if (paymentStatus === 'pending') return <span className="fine-status pending">Cash Pending</span>
+        if (paymentStatus === 'pending_verification') return <span className="fine-status pending">Pending Verification</span>
+        if (paymentStatus === 'failed') return <span className="fine-status failed">Rejected</span>
         if (status === 'paid') return <span className="fine-status paid">Paid</span>
         if (status === 'waived') return <span className="fine-status waived">Waived</span>
         if (Number(fine.days_overdue || 0) > 0) return <span className="fine-status overdue">Overdue</span>
@@ -639,12 +998,12 @@ export function StudentDashboard() {
           <div className="stats-grid fines-stats">
             <div className="stat red">
               <div className="stat-label">Outstanding</div>
-              <div className="stat-num">${Number(fineSummary.total_unpaid || 0).toFixed(2)}</div>
+              <div className="stat-num">{formatCurrency(fineSummary.total_unpaid)}</div>
               <div className="stat-sub">{fineSummary.unpaid_count || 0} unpaid</div>
             </div>
             <div className="stat green">
               <div className="stat-label">Paid</div>
-              <div className="stat-num">${Number(fineSummary.total_paid || 0).toFixed(2)}</div>
+              <div className="stat-num">{formatCurrency(fineSummary.total_paid)}</div>
               <div className="stat-sub">{fineSummary.paid_count || 0} paid</div>
             </div>
             <div className="stat gold">
@@ -667,16 +1026,18 @@ export function StudentDashboard() {
                   ) : (
                     outstandingFines.map((fine) => {
                       const loanId = fine.loan_id || fine.borrow_id
+                      const paymentStatus = String(fine.payment_status || '').toLowerCase()
+                      const hasPendingPayment = fine.has_pending_payment || ['pending', 'pending_verification'].includes(paymentStatus)
                       return (
                         <tr key={`${loanId}-${fine.fine_id || 'computed'}`}>
                           <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
                           <td>{fine.due_date ? new Date(fine.due_date).toLocaleDateString() : '-'}</td>
                           <td>{Number(fine.days_overdue || 0)} day{Number(fine.days_overdue || 0) === 1 ? '' : 's'}</td>
-                          <td>${Number(fine.amount || fine.fine_amount || 0).toFixed(2)}</td>
+                          <td>{formatCurrency(fine.amount || fine.fine_amount)}</td>
                           <td>{renderFineStatus(fine)}</td>
                           <td>
-                            <button className="btn btn-green btn-sm" type="button" disabled={payingFineLoanId === Number(loanId)} onClick={() => handlePayFine(fine)}>
-                              {payingFineLoanId === Number(loanId) ? 'Paying...' : 'Pay'}
+                            <button className="btn btn-green btn-sm" type="button" disabled={payingFineLoanId === Number(loanId) || hasPendingPayment} onClick={() => handlePayFine(fine)}>
+                              {hasPendingPayment ? 'Pending' : payingFineLoanId === Number(loanId) ? 'Submitting...' : 'Pay'}
                             </button>
                           </td>
                         </tr>
@@ -704,7 +1065,7 @@ export function StudentDashboard() {
                         <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
                         <td>{fine.issued_date ? new Date(fine.issued_date).toLocaleDateString() : '-'}</td>
                         <td>{fine.paid_date ? new Date(fine.paid_date).toLocaleDateString() : '-'}</td>
-                        <td>${Number(fine.amount || fine.fine_amount || 0).toFixed(2)}</td>
+                        <td>{formatCurrency(fine.amount || fine.fine_amount)}</td>
                         <td>{renderFineStatus(fine)}</td>
                       </tr>
                     ))
@@ -871,7 +1232,11 @@ export function StudentDashboard() {
             </div>
             <div className="fgroup">
               <label>New password</label>
-              <input type="password" value={passwordForm.new_password} onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })} placeholder="New password" />
+              <input type="password" value={passwordForm.new_password} onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })} placeholder={passwordRequirementText} />
+            </div>
+            <div className="fgroup">
+              <label>Confirm new password</label>
+              <input type="password" value={passwordForm.confirm_password} onChange={(event) => setPasswordForm({ ...passwordForm, confirm_password: event.target.value })} placeholder="Confirm new password" />
             </div>
             <button className="btn btn-green" type="submit">Save password</button>
           </form>
@@ -892,8 +1257,10 @@ export function StudentDashboard() {
       <div className="sidebar">
         <div className="logo">
           <div className="logo-icon"><Library size={26} strokeWidth={1.8} aria-hidden="true" /></div>
-          <div className="logo-title">LIBRASYS</div>
-          <div className="logo-sub">Student</div>
+          <div className="logo-text">
+            <div className="logo-title">LIBRASYS</div>
+            <div className="logo-sub">Student</div>
+          </div>
         </div>
         <nav className="nav">
           {navSections.map((section) => (
@@ -912,20 +1279,6 @@ export function StudentDashboard() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="avatar">{studentInitials}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {studentName || 'Student'}
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{displayValue(studentEmail || studentNumber)}</div>
-            </div>
-            <button className="icon-button logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)}>
-              <LogOut size={16} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
       </div>
       {showEditProfile && (
         <div className="modal-overlay" role="presentation" onClick={() => !savingProfile && setShowEditProfile(false)}>
@@ -989,6 +1342,58 @@ export function StudentDashboard() {
           </div>
         </div>
       )}
+      {paymentFine && (
+        <div className="modal-overlay" role="presentation" onClick={() => !payingFineLoanId && setPaymentFine(null)}>
+          <div className="profile-modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div id="payment-modal-title" className="modal-title">Pay Fine</div>
+                <div className="modal-subtitle">{paymentFine.book_title || 'Library fine'} - {formatCurrency(paymentFine.amount || paymentFine.fine_amount)}</div>
+              </div>
+              <button className="modal-close" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => setPaymentFine(null)} aria-label="Close payment modal">
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="payment-modal-body">
+              <div className="payment-summary">
+                <div><span>Reference</span><strong>{paymentResult?.payment_reference || paymentFine.payment_reference || 'Generated after choosing a method'}</strong></div>
+                <div><span>Status</span><strong>{paymentResult?.payment_status_label || paymentFine.payment_status_label || 'Unpaid'}</strong></div>
+              </div>
+
+              {!paymentResult && (
+                <div className="payment-option-grid">
+                  <button className="payment-option" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => submitFinePayment('online')}>
+                    <CreditCard size={22} aria-hidden="true" />
+                    <strong>Online Payment</strong>
+                    <span>Generate a QR code with the exact amount and reference.</span>
+                  </button>
+                  <button className="payment-option" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => submitFinePayment('cash')}>
+                    <CheckCircle2 size={22} aria-hidden="true" />
+                    <strong>Cash</strong>
+                    <span>Submit as pending until a librarian or admin confirms.</span>
+                  </button>
+                </div>
+              )}
+
+              {paymentResult && (
+                <div className="payment-result">
+                  <div className="status-message">Payment submitted. Please wait for confirmation before paying again.</div>
+                  {paymentResult.qr_code_data_url && (
+                    <div className="payment-qr-wrap">
+                      <img src={paymentResult.qr_code_data_url} alt={`Payment QR for ${paymentResult.payment_reference}`} />
+                      <div className="modal-subtitle">Scan with GCash or PayMaya, then wait for verification.</div>
+                    </div>
+                  )}
+                  <div className="modal-actions">
+                    <button className="btn btn-green" type="button" onClick={() => setPaymentFine(null)}>Done</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {showLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', color: 'var(--text)' }}>
@@ -1004,10 +1409,6 @@ export function StudentDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
-          <div className="search-wrap">
-            <Search className="search-icon" size={15} strokeWidth={2} aria-hidden="true" />
-            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
-          </div>
           <div style={{ position: 'relative' }}>
             <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
               <Bell size={18} aria-hidden="true" />
@@ -1033,7 +1434,18 @@ export function StudentDashboard() {
               </div>
             )}
           </div>
-          <div className="avatar">{studentInitials}</div>
+          <div className="topbar-user-card">
+            <div className="topbar-user-profile">
+              <div className="avatar">{studentInitials}</div>
+              <div className="topbar-user-text">
+                <div className="topbar-user-name">{studentName || 'Student'}</div>
+                <div className="topbar-user-email">{displayValue(studentEmail || studentNumber)}</div>
+              </div>
+            </div>
+            <button className="topbar-logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout">
+              <LogOut size={17} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <div className="content">
           {authStatus === 'unauthorized' ? (

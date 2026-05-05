@@ -1,18 +1,38 @@
 import logging
+import base64
+import io
+import json
+import uuid
 from datetime import datetime
 
 import pymysql
+import qrcode
 
 from ..database.db_connection import get_connection
+from ..config import Config
 from ...domain.repositories.loan_repository import LoanRepository
 from .inventory_schema import ACTIVE_LOAN_STATUSES, ensure_inventory_schema
+from .reservation_repository_impl import ReservationRepositoryImpl
 
-FINE_RATE_PER_DAY = 1.0
+FINE_RATE_PER_DAY = float(getattr(Config, 'FINE_DAILY_RATE', 100.0) or 100.0)
 
 logger = logging.getLogger(__name__)
 
 
 class LoanRepositoryImpl(LoanRepository):
+    def _column_exists(self, cur, table_name, column_name):
+        cur.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = %s
+              AND column_name = %s
+            """,
+            (table_name, column_name),
+        )
+        return int((cur.fetchone() or {}).get('count') or 0) > 0
+
     def _index_exists(self, cur, table_name, index_name):
         cur.execute(
             """
@@ -24,10 +44,12 @@ class LoanRepositoryImpl(LoanRepository):
             """,
             (table_name, index_name),
         )
-        return cur.fetchone()['count'] > 0
+        return int((cur.fetchone() or {}).get('count') or 0) > 0
 
     def _ensure_fine_constraints(self, conn):
         with conn.cursor() as cur:
+            self._ensure_fine_payment_columns(cur)
+            self._dedupe_fines(cur)
             if self._index_exists(cur, 'fines', 'uq_fines_borrow'):
                 return
             try:
@@ -37,14 +59,175 @@ class LoanRepositoryImpl(LoanRepository):
                     'Could not add unique fine-per-loan constraint because duplicate fine rows already exist'
                 )
 
+    def _ensure_fine_payment_columns(self, cur):
+        if not self._column_exists(cur, 'fines', 'payment_method'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_method ENUM('cash', 'online') NULL AFTER status")
+        if not self._column_exists(cur, 'fines', 'payment_status'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_status ENUM('unpaid', 'pending', 'pending_verification', 'paid', 'failed') NOT NULL DEFAULT 'unpaid' AFTER payment_method")
+        if not self._column_exists(cur, 'fines', 'payment_reference'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_reference VARCHAR(80) NULL AFTER payment_status")
+        if not self._column_exists(cur, 'fines', 'payment_qr_payload'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_qr_payload TEXT NULL AFTER payment_reference")
+        if not self._column_exists(cur, 'fines', 'payment_requested_at'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_requested_at DATETIME NULL AFTER payment_qr_payload")
+        if not self._column_exists(cur, 'fines', 'payment_verified_at'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_verified_at DATETIME NULL AFTER payment_requested_at")
+        if not self._column_exists(cur, 'fines', 'payment_rejected_at'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_rejected_at DATETIME NULL AFTER payment_verified_at")
+
+        cur.execute(
+            """
+            UPDATE fines
+            SET payment_status = CASE
+                WHEN status='paid' THEN 'paid'
+                WHEN status IN ('pending') THEN 'pending'
+                ELSE 'unpaid'
+            END
+            WHERE payment_status IS NULL OR payment_status = ''
+            """
+        )
+
+    def _dedupe_fines(self, cur):
+        cur.execute(
+            """
+            SELECT borrow_id
+            FROM fines
+            WHERE borrow_id IS NOT NULL
+            GROUP BY borrow_id
+            HAVING COUNT(*) > 1
+            """
+        )
+        duplicate_loan_ids = [row['borrow_id'] for row in cur.fetchall() or []]
+        for loan_id in duplicate_loan_ids:
+            cur.execute(
+                """
+                SELECT fine_id, amount, status
+                FROM fines
+                WHERE borrow_id=%s
+                ORDER BY
+                    CASE WHEN status IN ('unpaid', 'pending') THEN 0 WHEN status='paid' THEN 1 ELSE 2 END,
+                    fine_id ASC
+                """,
+                (loan_id,),
+            )
+            rows = list(cur.fetchall() or [])
+            if len(rows) <= 1:
+                continue
+
+            keeper = rows[0]
+            merge_rows = [row for row in rows if row.get('status') in ('unpaid', 'pending')]
+            if merge_rows:
+                keeper = merge_rows[0]
+                merged_amount = round(sum(float(row.get('amount') or 0) for row in merge_rows), 2)
+                cur.execute(
+                    """
+                    UPDATE fines
+                    SET amount=%s, status='unpaid', paid_date=NULL
+                    WHERE fine_id=%s
+                    """,
+                    (merged_amount, keeper['fine_id']),
+                )
+
+            duplicate_ids = [row['fine_id'] for row in rows if row['fine_id'] != keeper['fine_id']]
+            if duplicate_ids:
+                placeholders = ', '.join(['%s'] * len(duplicate_ids))
+                cur.execute(f"DELETE FROM fines WHERE fine_id IN ({placeholders})", tuple(duplicate_ids))
+
+    def _sync_overdue_fine_for_loan(self, cur, loan_id: int, effective_at=None):
+        effective_at = effective_at or datetime.now()
+        cur.execute(
+            """
+            SELECT borrow_id, student_id, due_date, return_date, status
+            FROM borrow_records
+            WHERE borrow_id=%s
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (loan_id,),
+        )
+        loan = cur.fetchone()
+        if not loan:
+            return None
+
+        effective_end = loan.get('return_date') or effective_at
+        fine_amount = self._compute_fine(loan.get('due_date'), effective_end)
+        days_overdue = self._compute_days_overdue(loan.get('due_date'), effective_end)
+
+        if loan.get('return_date') is None:
+            next_status = 'overdue' if days_overdue > 0 else 'active'
+            if loan.get('status') in ACTIVE_LOAN_STATUSES and loan.get('status') != next_status:
+                cur.execute(
+                    """
+                    UPDATE borrow_records
+                    SET status=%s
+                    WHERE borrow_id=%s
+                      AND return_date IS NULL
+                      AND status IN ('active', 'borrowed', 'overdue')
+                    """,
+                    (next_status, loan_id),
+                )
+
+        if fine_amount > 0 and loan.get('student_id'):
+            cur.execute(
+                """
+                SELECT fine_id, status
+                FROM fines
+                WHERE borrow_id=%s
+                LIMIT 1
+                FOR UPDATE
+                """,
+                (loan_id,),
+            )
+            existing_fine = cur.fetchone()
+            issued_date = effective_end.date() if isinstance(effective_end, datetime) else effective_end
+
+            if not existing_fine:
+                cur.execute(
+                    """
+                    INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date)
+                    VALUES (%s, %s, %s, %s, 'unpaid', %s)
+                    """,
+                    (loan_id, loan['student_id'], fine_amount, 'Overdue book fine', issued_date),
+                )
+            elif existing_fine.get('status') in ('unpaid', 'pending'):
+                cur.execute(
+                    """
+                    UPDATE fines
+                    SET amount=%s, status='unpaid'
+                    WHERE fine_id=%s
+                    """,
+                    (fine_amount, existing_fine['fine_id']),
+                )
+
+        return {
+            'loan_id': loan_id,
+            'student_id': loan.get('student_id'),
+            'fine_amount': fine_amount,
+            'days_overdue': days_overdue,
+        }
+
+    def sync_overdue_fines_for_loan(self, loan_id: int):
+        if not loan_id:
+            return None
+
+        with get_connection() as conn:
+            try:
+                self._ensure_fine_constraints(conn)
+                with conn.cursor() as cur:
+                    synced = self._sync_overdue_fine_for_loan(cur, int(loan_id), datetime.now())
+                conn.commit()
+                return synced
+            except Exception:
+                conn.rollback()
+                raise
+
     def sync_overdue_fines_for_student(self, student_id: int):
         """Persist overdue status and one current unpaid fine for each overdue active loan."""
         if not student_id:
             return []
 
         synced = []
-        now = datetime.utcnow()
-        today = now.date()
+        now = datetime.now()
 
         with get_connection() as conn:
             try:
@@ -67,69 +250,9 @@ class LoanRepositoryImpl(LoanRepository):
                     overdue_loans = list(cur.fetchall() or [])
 
                     for loan in overdue_loans:
-                        loan_id = loan['borrow_id']
-                        fine_amount = self._compute_fine(loan.get('due_date'), today)
-                        days_overdue = self._compute_days_overdue(loan.get('due_date'), today)
-                        if fine_amount <= 0:
-                            continue
-
-                        if loan.get('status') != 'overdue':
-                            cur.execute(
-                                """
-                                UPDATE borrow_records
-                                SET status='overdue'
-                                WHERE borrow_id=%s
-                                  AND return_date IS NULL
-                                  AND status IN ('active', 'borrowed')
-                                """,
-                                (loan_id,),
-                            )
-
-                        cur.execute(
-                            """
-                            SELECT fine_id, status, amount
-                            FROM fines
-                            WHERE borrow_id=%s
-                            LIMIT 1
-                            FOR UPDATE
-                            """,
-                            (loan_id,),
-                        )
-                        existing_fine = cur.fetchone()
-
-                        if not existing_fine:
-                            try:
-                                cur.execute(
-                                    """
-                                    INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date)
-                                    VALUES (%s, %s, %s, %s, 'unpaid', %s)
-                                    """,
-                                    (loan_id, student_id, fine_amount, 'Overdue book fine', today),
-                                )
-                            except pymysql.err.IntegrityError:
-                                cur.execute(
-                                    """
-                                    UPDATE fines
-                                    SET amount=%s, status='unpaid'
-                                    WHERE borrow_id=%s AND status='unpaid'
-                                    """,
-                                    (fine_amount, loan_id),
-                                )
-                        elif existing_fine.get('status') == 'unpaid':
-                            cur.execute(
-                                """
-                                UPDATE fines
-                                SET amount=%s
-                                WHERE fine_id=%s
-                                """,
-                                (fine_amount, existing_fine['fine_id']),
-                            )
-
-                        synced.append({
-                            'loan_id': loan_id,
-                            'fine_amount': fine_amount,
-                            'days_overdue': days_overdue,
-                        })
+                        synced_fine = self._sync_overdue_fine_for_loan(cur, loan['borrow_id'], now)
+                        if synced_fine and synced_fine.get('fine_amount', 0) > 0:
+                            synced.append(synced_fine)
 
                 conn.commit()
                 return synced
@@ -160,6 +283,8 @@ class LoanRepositoryImpl(LoanRepository):
     def find_all_fines(self):
         self.sync_overdue_fines_for_all_students()
         with get_connection() as conn:
+            self._ensure_fine_constraints(conn)
+            conn.commit()
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -174,6 +299,12 @@ class LoanRepositoryImpl(LoanRepository):
                         f.amount,
                         f.reason,
                         f.status,
+                        f.payment_method,
+                        f.payment_status,
+                        f.payment_reference,
+                        f.payment_requested_at,
+                        f.payment_verified_at,
+                        f.payment_rejected_at,
                         f.issued_date,
                         f.paid_date,
                         br.book_id,
@@ -200,13 +331,14 @@ class LoanRepositoryImpl(LoanRepository):
                     amount = fine.get('amount')
                     fine['amount'] = round(float(amount or 0), 2)
                     fine['fine_amount'] = fine['amount']
+                    self._normalize_fine_payment_state(fine)
                     fine['days_overdue'] = self._compute_days_overdue(
                         fine.get('due_date'),
-                        fine.get('return_date') or fine.get('paid_date') or datetime.utcnow(),
+                        fine.get('return_date') or fine.get('paid_date') or datetime.now(),
                     )
                     fine['is_paid'] = fine.get('status') == 'paid'
                     fine['is_unpaid'] = fine.get('status') == 'unpaid'
-                    self._convert_dates(fine, ['issued_date', 'paid_date', 'issue_date', 'due_date', 'return_date'])
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
                 return fines
 
     def update_fine_status(self, fine_id: int, status: str):
@@ -244,6 +376,12 @@ class LoanRepositoryImpl(LoanRepository):
                             f.amount,
                             f.reason,
                             f.status,
+                            f.payment_method,
+                            f.payment_status,
+                            f.payment_reference,
+                            f.payment_requested_at,
+                            f.payment_verified_at,
+                            f.payment_rejected_at,
                             f.issued_date,
                             f.paid_date,
                             br.book_id,
@@ -270,13 +408,14 @@ class LoanRepositoryImpl(LoanRepository):
                 if fine:
                     fine['amount'] = round(float(fine.get('amount') or 0), 2)
                     fine['fine_amount'] = fine['amount']
+                    self._normalize_fine_payment_state(fine)
                     fine['days_overdue'] = self._compute_days_overdue(
                         fine.get('due_date'),
-                        fine.get('return_date') or fine.get('paid_date') or datetime.utcnow(),
+                        fine.get('return_date') or fine.get('paid_date') or datetime.now(),
                     )
                     fine['is_paid'] = fine.get('status') == 'paid'
                     fine['is_unpaid'] = fine.get('status') == 'unpaid'
-                    self._convert_dates(fine, ['issued_date', 'paid_date', 'issue_date', 'due_date', 'return_date'])
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
                 return fine
             except Exception:
                 conn.rollback()
@@ -477,7 +616,7 @@ class LoanRepositoryImpl(LoanRepository):
         elif isinstance(due_date, datetime):
             due_date = due_date.date()
 
-        today = datetime.utcnow().date()
+        today = datetime.now().date()
         if due_date < today:
             raise ValueError('Due date cannot be in the past')
 
@@ -688,25 +827,17 @@ class LoanRepositoryImpl(LoanRepository):
                         "UPDATE borrow_records SET return_date=%s, status='returned' WHERE borrow_id=%s",
                         (returned_at, loan_id),
                     )
+                    assigned_reservation = None
                     if loan.get('copy_id'):
-                        cur.execute(
-                            "UPDATE book_copies SET status='available' WHERE copy_id=%s",
-                            (loan['copy_id'],),
+                        assigned_reservation = ReservationRepositoryImpl().assign_next_on_return(
+                            conn,
+                            loan['book_id'],
+                            loan['copy_id'],
                         )
 
                     due_date = loan.get('due_date')
-                    fine_amount = self._compute_fine(due_date, returned_at)
-                    if fine_amount > 0 and loan.get('student_id'):
-                        issued_date = returned_at.date() if isinstance(returned_at, datetime) else returned_at
-                        cur.execute("SELECT 1 FROM fines WHERE borrow_id=%s LIMIT 1", (loan_id,))
-                        if not cur.fetchone():
-                            cur.execute(
-                                """
-                                INSERT INTO fines (borrow_id, student_id, amount, reason, status, issued_date)
-                                VALUES (%s, %s, %s, %s, 'unpaid', %s)
-                                """,
-                                (loan_id, loan['student_id'], fine_amount, 'Overdue book return', issued_date),
-                            )
+                    synced_fine = self._sync_overdue_fine_for_loan(cur, loan_id, returned_at)
+                    fine_amount = synced_fine.get('fine_amount', 0.0) if synced_fine else 0.0
 
                     conn.commit()
                     cur.execute("SELECT * FROM borrow_records WHERE borrow_id=%s", (loan_id,))
@@ -714,6 +845,13 @@ class LoanRepositoryImpl(LoanRepository):
                     if returned_loan:
                         returned_loan['fine_amount'] = fine_amount
                         returned_loan['days_overdue'] = self._compute_days_overdue(due_date, returned_at)
+                        if assigned_reservation:
+                            returned_loan['reservation'] = {
+                                'reservation_id': assigned_reservation.get('reservation_id'),
+                                'student_id': assigned_reservation.get('student_id'),
+                                'status': 'ready',
+                                'message': 'Returned copy is reserved for the next student in queue.'
+                            }
                     return returned_loan
             except Exception:
                 conn.rollback()
@@ -812,9 +950,9 @@ class LoanRepositoryImpl(LoanRepository):
                                 cur,
                                 loan['loan_id'],
                                 due_date,
-                                return_date or datetime.utcnow(),
+                                return_date or datetime.now(),
                             )
-                            loan['days_overdue'] = self._compute_days_overdue(due_date, return_date or datetime.utcnow())
+                            loan['days_overdue'] = self._compute_days_overdue(due_date, return_date or datetime.now())
 
                             for field_name in ['issue_date', 'due_date', 'return_date']:
                                 self._convert_dates(loan, [field_name])
@@ -860,9 +998,28 @@ class LoanRepositoryImpl(LoanRepository):
             if field in row and row[field] is not None and hasattr(row[field], 'isoformat'):
                 row[field] = row[field].isoformat()
 
+    def _normalize_fine_payment_state(self, fine):
+        payment_status = (fine.get('payment_status') or '').strip().lower()
+        status = (fine.get('status') or '').strip().lower()
+        if not payment_status:
+            payment_status = 'paid' if status == 'paid' else 'pending' if status == 'pending' else 'unpaid'
+            fine['payment_status'] = payment_status
+        fine['payment_method_label'] = {'cash': 'Cash', 'online': 'Online Payment'}.get(fine.get('payment_method'), '')
+        fine['payment_status_label'] = {
+            'unpaid': 'Unpaid',
+            'pending': 'Pending',
+            'pending_verification': 'Pending Verification',
+            'paid': 'Paid',
+            'failed': 'Failed',
+        }.get(payment_status, payment_status.title() if payment_status else 'Unpaid')
+        fine['has_pending_payment'] = payment_status in ('pending', 'pending_verification')
+        return fine
+
     def find_fines_by_student_id(self, student_id: int):
         self.sync_overdue_fines_for_student(student_id)
         with get_connection() as conn:
+            self._ensure_fine_constraints(conn)
+            conn.commit()
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -874,6 +1031,13 @@ class LoanRepositoryImpl(LoanRepository):
                         f.amount,
                         f.reason,
                         f.status,
+                        f.payment_method,
+                        f.payment_status,
+                        f.payment_reference,
+                        f.payment_qr_payload,
+                        f.payment_requested_at,
+                        f.payment_verified_at,
+                        f.payment_rejected_at,
                         f.issued_date,
                         f.paid_date,
                         br.book_id,
@@ -898,19 +1062,30 @@ class LoanRepositoryImpl(LoanRepository):
                     amount = fine.get('amount')
                     fine['amount'] = round(float(amount or 0), 2)
                     fine['fine_amount'] = fine['amount']
+                    self._normalize_fine_payment_state(fine)
+                    fine['qr_code_data_url'] = self._qr_data_url(fine.get('payment_qr_payload')) if fine.get('payment_qr_payload') else None
                     fine['days_overdue'] = self._compute_days_overdue(
                         fine.get('due_date'),
-                        fine.get('return_date') or fine.get('paid_date') or datetime.utcnow(),
+                        fine.get('return_date') or fine.get('paid_date') or datetime.now(),
                     )
                     fine['is_paid'] = fine.get('status') == 'paid'
                     fine['is_unpaid'] = fine.get('status') in ('unpaid', 'pending')
                     fine['source'] = 'recorded'
-                    self._convert_dates(fine, ['issued_date', 'paid_date', 'issue_date', 'due_date', 'return_date'])
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
 
                 return fines
 
     def get_fine_state_for_loan(self, loan_id: int):
         with get_connection() as conn:
+            try:
+                self._ensure_fine_constraints(conn)
+                with conn.cursor() as cur:
+                    self._sync_overdue_fine_for_loan(cur, loan_id, datetime.now())
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -941,7 +1116,7 @@ class LoanRepositoryImpl(LoanRepository):
                 summary = cur.fetchone() or {}
                 fine_count = int(summary.get('fine_count') or 0)
                 unpaid_amount = round(float(summary.get('unpaid_amount') or 0), 2)
-                end_date = loan.get('return_date') or datetime.utcnow()
+                end_date = loan.get('return_date') or datetime.now()
                 computed_amount = self._compute_fine(loan.get('due_date'), end_date)
                 days_overdue = self._compute_days_overdue(loan.get('due_date'), end_date)
 
@@ -972,6 +1147,7 @@ class LoanRepositoryImpl(LoanRepository):
                 }
 
     def calculate_fine(self, loan_id: int):
+        self.sync_overdue_fines_for_loan(loan_id)
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT due_date, return_date FROM borrow_records WHERE borrow_id=%s LIMIT 1", (loan_id,))
@@ -982,27 +1158,75 @@ class LoanRepositoryImpl(LoanRepository):
                     cur,
                     loan_id,
                     record.get('due_date'),
-                    record.get('return_date') or datetime.utcnow(),
+                    record.get('return_date') or datetime.now(),
                 )
 
     def pay_fine(self, loan_id: int):
+        return self.create_fine_payment(loan_id, 'online')
+
+    def _qr_data_url(self, payload):
+        if not payload:
+            return None
+        image = qrcode.make(payload)
+        buffer = io.BytesIO()
+        image.save(buffer)
+        return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
+
+    def _fine_select_sql(self):
+        return """
+            SELECT
+                f.fine_id, f.borrow_id AS loan_id, f.borrow_id, f.student_id,
+                s.full_name AS student_name, s.student_number, s.email AS student_email,
+                f.amount, f.reason, f.status, f.payment_method, f.payment_status,
+                f.payment_reference, f.payment_qr_payload, f.payment_requested_at,
+                f.payment_verified_at, f.payment_rejected_at, f.issued_date, f.paid_date,
+                br.book_id, br.due_date, br.return_date, b.title AS book_title
+            FROM fines f
+            LEFT JOIN borrow_records br ON f.borrow_id = br.borrow_id
+            LEFT JOIN students s ON f.student_id = s.student_id
+            LEFT JOIN books b ON br.book_id = b.book_id
+        """
+
+    def _hydrate_payment_fine(self, fine):
+        if not fine:
+            return fine
+        fine['amount'] = round(float(fine.get('amount') or 0), 2)
+        fine['fine_amount'] = fine['amount']
+        self._normalize_fine_payment_state(fine)
+        fine['qr_code_data_url'] = self._qr_data_url(fine.get('payment_qr_payload')) if fine.get('payment_qr_payload') else None
+        fine['days_overdue'] = self._compute_days_overdue(
+            fine.get('due_date'),
+            fine.get('return_date') or fine.get('paid_date') or datetime.now(),
+        )
+        self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'due_date', 'return_date'])
+        return fine
+
+    def create_fine_payment(self, loan_id: int, payment_method: str):
+        method = (payment_method or '').strip().lower()
+        if method not in ('cash', 'online'):
+            raise ValueError('Payment method must be cash or online')
+
         with get_connection() as conn:
             try:
+                self._ensure_fine_constraints(conn)
                 with conn.cursor() as cur:
+                    self._sync_overdue_fine_for_loan(cur, loan_id, datetime.now())
                     cur.execute(
                         """
-                        SELECT fine_id, borrow_id, student_id, amount, reason, status, issued_date, paid_date
+                        SELECT fine_id, borrow_id, student_id, amount, reason, status, payment_status,
+                               payment_reference, issued_date, paid_date
                         FROM fines
                         WHERE borrow_id=%s
                           AND status IN ('unpaid', 'pending')
                         ORDER BY issued_date ASC, fine_id ASC
+                        LIMIT 1
                         FOR UPDATE
                         """,
                         (loan_id,),
                     )
-                    fines = list(cur.fetchall() or [])
-                    if not fines:
-                        cur.execute("SELECT COUNT(*) AS fine_count FROM fines WHERE borrow_id=%s", (loan_id,))
+                    fine = cur.fetchone()
+                    if not fine:
+                        cur.execute("SELECT COUNT(*) AS fine_count FROM fines WHERE borrow_id=%s AND status IN ('paid', 'waived')", (loan_id,))
                         if int((cur.fetchone() or {}).get('fine_count') or 0) > 0:
                             conn.rollback()
                             return None
@@ -1022,7 +1246,7 @@ class LoanRepositoryImpl(LoanRepository):
                             conn.rollback()
                             return None
 
-                        paid_at = datetime.utcnow()
+                        paid_at = datetime.now()
                         fine_amount = self._compute_fine(loan.get('due_date'), loan.get('return_date') or paid_at)
                         if fine_amount <= 0:
                             conn.rollback()
@@ -1031,72 +1255,140 @@ class LoanRepositoryImpl(LoanRepository):
                         cur.execute(
                             """
                             INSERT INTO fines
-                                (borrow_id, student_id, amount, reason, status, issued_date, paid_date)
-                            VALUES (%s, %s, %s, %s, 'paid', %s, %s)
+                                (borrow_id, student_id, amount, reason, status, payment_status, issued_date)
+                            VALUES (%s, %s, %s, %s, 'unpaid', 'unpaid', %s)
                             """,
-                            (
-                                loan_id,
-                                loan['student_id'],
-                                fine_amount,
-                                'Overdue book fine',
-                                paid_at,
-                                paid_at,
-                            ),
+                            (loan_id, loan['student_id'], fine_amount, 'Overdue book fine', paid_at),
                         )
                         fine_id = cur.lastrowid
                         cur.execute(
                             """
-                            SELECT fine_id, borrow_id, student_id, amount, reason, status, issued_date, paid_date
+                            SELECT fine_id, borrow_id, student_id, amount, reason, status, payment_status, issued_date, paid_date
                             FROM fines
                             WHERE fine_id=%s
                             """,
                             (fine_id,),
                         )
-                        paid_fines = [cur.fetchone()]
-                        total_paid = fine_amount
-                        conn.commit()
+                        fine = cur.fetchone()
 
-                        for fine in paid_fines:
-                            fine['amount'] = round(float(fine.get('amount') or 0), 2)
-                            self._convert_dates(fine, ['issued_date', 'paid_date'])
-                        return {
+                    if fine.get('payment_status') in ('pending', 'pending_verification'):
+                        conn.rollback()
+                        raise ValueError('A payment is already pending for this fine')
+
+                    reference = fine.get('payment_reference') or f"FINE-{fine['fine_id']}-{uuid.uuid4().hex[:8].upper()}"
+                    payment_status = 'pending' if method == 'cash' else 'pending_verification'
+                    qr_payload = None
+                    if method == 'online':
+                        cur.execute(
+                            """
+                            SELECT s.full_name, s.student_number, s.email
+                            FROM students s
+                            WHERE s.student_id=%s
+                            LIMIT 1
+                            """,
+                            (fine['student_id'],),
+                        )
+                        student = cur.fetchone() or {}
+                        qr_payload = json.dumps({
+                            'merchant': 'LIBRASYS',
+                            'provider_hint': 'GCash/PayMaya',
+                            'type': 'fine_payment',
+                            'reference': reference,
+                            'fine_id': fine['fine_id'],
                             'loan_id': loan_id,
-                            'total_paid': total_paid,
-                            'fines': paid_fines,
-                        }
+                            'student_id': fine['student_id'],
+                            'student_number': student.get('student_number'),
+                            'student_name': student.get('full_name'),
+                            'amount': round(float(fine.get('amount') or 0), 2),
+                            'currency': 'PHP',
+                        }, separators=(',', ':'))
 
-                    fine_ids = [fine['fine_id'] for fine in fines]
-                    placeholders = ', '.join(['%s'] * len(fine_ids))
                     cur.execute(
-                        f"""
+                        """
                         UPDATE fines
-                        SET status='paid',
-                            paid_date=NOW()
-                        WHERE fine_id IN ({placeholders})
+                        SET status='unpaid',
+                            payment_method=%s,
+                            payment_status=%s,
+                            payment_reference=%s,
+                            payment_qr_payload=%s,
+                            payment_requested_at=NOW(),
+                            payment_verified_at=NULL,
+                            payment_rejected_at=NULL
+                        WHERE fine_id=%s
                         """,
-                        tuple(fine_ids),
+                        (method, payment_status, reference, qr_payload, fine['fine_id']),
                     )
-                    cur.execute(
-                        f"""
-                        SELECT fine_id, borrow_id, student_id, amount, reason, status, issued_date, paid_date
-                        FROM fines
-                        WHERE fine_id IN ({placeholders})
-                        ORDER BY issued_date ASC, fine_id ASC
-                        """,
-                        tuple(fine_ids),
-                    )
-                    paid_fines = list(cur.fetchall() or [])
-                    total_paid = round(sum(float(fine.get('amount') or 0) for fine in paid_fines), 2)
+                    cur.execute(f"{self._fine_select_sql()} WHERE f.fine_id=%s LIMIT 1", (fine['fine_id'],))
+                    payment_fine = self._hydrate_payment_fine(cur.fetchone())
                 conn.commit()
-
-                for fine in paid_fines:
-                    fine['amount'] = round(float(fine.get('amount') or 0), 2)
-                    self._convert_dates(fine, ['issued_date', 'paid_date'])
                 return {
                     'loan_id': loan_id,
-                    'total_paid': total_paid,
-                    'fines': paid_fines,
+                    'fine_id': payment_fine.get('fine_id'),
+                    'amount': payment_fine.get('amount'),
+                    'payment_method': method,
+                    'payment_status': payment_status,
+                    'payment_reference': reference,
+                    'qr_code_data_url': payment_fine.get('qr_code_data_url'),
+                    'fine': payment_fine,
                 }
+            except Exception:
+                conn.rollback()
+                raise
+
+    def review_fine_payment(self, fine_id: int, action: str, reviewer=None):
+        normalized_action = (action or '').strip().lower()
+        if normalized_action not in ('approve', 'reject'):
+            raise ValueError('Payment action must be approve or reject')
+
+        with get_connection() as conn:
+            try:
+                self._ensure_fine_constraints(conn)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT fine_id, payment_status
+                        FROM fines
+                        WHERE fine_id=%s
+                        LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (fine_id,),
+                    )
+                    fine = cur.fetchone()
+                    if not fine:
+                        conn.rollback()
+                        return None
+                    if fine.get('payment_status') not in ('pending', 'pending_verification'):
+                        raise ValueError('Only pending payments can be reviewed')
+
+                    if normalized_action == 'approve':
+                        cur.execute(
+                            """
+                            UPDATE fines
+                            SET status='paid',
+                                payment_status='paid',
+                                paid_date=NOW(),
+                                payment_verified_at=NOW()
+                            WHERE fine_id=%s
+                            """,
+                            (fine_id,),
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            UPDATE fines
+                            SET status='unpaid',
+                                payment_status='failed',
+                                payment_rejected_at=NOW()
+                            WHERE fine_id=%s
+                            """,
+                            (fine_id,),
+                        )
+
+                    cur.execute(f"{self._fine_select_sql()} WHERE f.fine_id=%s LIMIT 1", (fine_id,))
+                    reviewed_fine = self._hydrate_payment_fine(cur.fetchone())
+                conn.commit()
+                return reviewed_fine
             except Exception:
                 conn.rollback()
                 raise
@@ -1111,8 +1403,11 @@ class LoanRepositoryImpl(LoanRepository):
 
         if returned_at > due_date:
             days_late = (returned_at - due_date).days
-            return round(max(0.0, days_late * FINE_RATE_PER_DAY), 2)
+            return round(max(0.0, days_late * self._fine_rate()), 2)
         return 0.0
+
+    def _fine_rate(self):
+        return float(getattr(Config, 'FINE_DAILY_RATE', FINE_RATE_PER_DAY) or FINE_RATE_PER_DAY)
 
     def _get_outstanding_fine(self, cur, loan_id: int, due_date, returned_at):
         cur.execute(
@@ -1221,7 +1516,7 @@ class LoanRepositoryImpl(LoanRepository):
                           AND br.status IN ('active', 'borrowed', 'overdue')
                         ORDER BY br.due_date ASC
                         """,
-                        (FINE_RATE_PER_DAY,),
+                        (self._fine_rate(),),
                     )
                     return cur.fetchall()
         except Exception:

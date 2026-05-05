@@ -1,7 +1,26 @@
+from threading import Lock
+
 ACTIVE_LOAN_STATUSES = ("active", "borrowed", "overdue")
+
+_schema_lock = Lock()
+_schema_ready = False
 
 
 def ensure_inventory_schema(conn):
+    """Ensure copy-level inventory exists once per server process."""
+    global _schema_ready
+    if _schema_ready:
+        return
+
+    with _schema_lock:
+        if _schema_ready:
+            return
+        _ensure_inventory_schema_uncached(conn)
+        conn.commit()
+        _schema_ready = True
+
+
+def _ensure_inventory_schema_uncached(conn):
     """Ensure copy-level inventory exists for borrow/return operations."""
     with conn.cursor() as cur:
         cur.execute(
@@ -12,7 +31,7 @@ def ensure_inventory_schema(conn):
                 copy_code VARCHAR(60) NOT NULL UNIQUE,
                 barcode_value VARCHAR(80) UNIQUE,
                 qr_token VARCHAR(120) UNIQUE,
-                status ENUM('available', 'borrowed', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
+                status ENUM('available', 'borrowed', 'reserved', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
                 location VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -24,6 +43,7 @@ def ensure_inventory_schema(conn):
         )
 
         _ensure_book_copy_metadata_columns(cur)
+        _ensure_book_copy_status_values(cur)
         _ensure_ebook_tables(cur)
         _ensure_ebook_metadata_columns(cur)
         _ensure_qr_code_columns(cur)
@@ -50,6 +70,26 @@ def _ensure_book_copy_metadata_columns(cur):
         cur.execute("ALTER TABLE book_copies ADD INDEX idx_barcode_value (barcode_value)")
     if not _index_exists(cur, "book_copies", "idx_qr_token"):
         cur.execute("ALTER TABLE book_copies ADD INDEX idx_qr_token (qr_token)")
+
+
+def _ensure_book_copy_status_values(cur):
+    cur.execute(
+        """
+        SELECT COLUMN_TYPE AS column_type
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'book_copies'
+          AND column_name = 'status'
+        """
+    )
+    row = cur.fetchone()
+    if row and "'reserved'" not in row.get("column_type", ""):
+        cur.execute(
+            """
+            ALTER TABLE book_copies
+            MODIFY COLUMN status ENUM('available', 'borrowed', 'reserved', 'lost', 'maintenance') NOT NULL DEFAULT 'available'
+            """
+        )
 
 
 def _ensure_ebook_tables(cur):

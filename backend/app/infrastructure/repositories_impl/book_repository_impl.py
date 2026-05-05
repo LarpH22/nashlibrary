@@ -136,7 +136,7 @@ class BookRepositoryImpl(BookRepository):
                     having_clauses.append("available_copies <= 0")
                 elif normalized_availability in ['borrowed', 'checked-out', 'checked_out']:
                     having_clauses.append("borrowed_copies > 0")
-                elif normalized_availability in ['lost', 'maintenance']:
+                elif normalized_availability in ['reserved', 'lost', 'maintenance']:
                     having_clauses.append(
                         "SUM(CASE WHEN all_bc.status = %s THEN 1 ELSE 0 END) > 0"
                     )
@@ -197,7 +197,9 @@ class BookRepositoryImpl(BookRepository):
                 total = int(count_row.get('total') or 0)
 
                 normalized_limit = max(1, min(int(limit or 0), 100)) if limit else None
-                normalized_page = max(1, int(page or 1))
+                requested_page = max(1, int(page or 1))
+                total_pages = max(1, (total + normalized_limit - 1) // normalized_limit) if normalized_limit else 1
+                normalized_page = min(requested_page, total_pages)
 
                 if normalized_limit:
                     offset = (normalized_page - 1) * normalized_limit
@@ -212,7 +214,6 @@ class BookRepositoryImpl(BookRepository):
                 if not normalized_limit:
                     return books
 
-                total_pages = max(1, (total + normalized_limit - 1) // normalized_limit)
                 return {
                     'books': books,
                     'pagination': {
@@ -239,6 +240,7 @@ class BookRepositoryImpl(BookRepository):
                         b.total_copies,
                         COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) AS available_copies,
                         COUNT(DISTINCT CASE WHEN all_bc.status = 'borrowed' THEN all_bc.copy_id END) AS borrowed_copies,
+                        COUNT(DISTINCT CASE WHEN all_bc.status = 'reserved' THEN all_bc.copy_id END) AS reserved_copies,
                         COUNT(DISTINCT all_bc.copy_id) AS copy_count,
                         COALESCE(GROUP_CONCAT(DISTINCT all_bc.status ORDER BY all_bc.status SEPARATOR ', '), '') AS copy_statuses,
                         COUNT(DISTINCT br.borrow_id) AS borrow_count,
@@ -251,12 +253,11 @@ class BookRepositoryImpl(BookRepository):
                             THEN br.borrow_id
                         END) AS returned_borrow_count,
                         CASE
-                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) > 0 THEN 'available'
-                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'borrowed' THEN all_bc.copy_id END) > 0 THEN 'borrowed'
                             WHEN COUNT(DISTINCT all_bc.copy_id) = 0 THEN 'unavailable'
                             WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'maintenance' THEN all_bc.copy_id END) > 0 THEN 'maintenance'
                             WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'lost' THEN all_bc.copy_id END) > 0 THEN 'lost'
-                            ELSE 'borrowed'
+                            WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) > 0 THEN 'available'
+                            ELSE 'out_of_stock'
                         END AS status
                     FROM books b
                     LEFT JOIN book_authors ba ON b.book_id = ba.book_id
@@ -389,7 +390,7 @@ class BookRepositoryImpl(BookRepository):
                 conn.rollback()
                 raise
 
-    def list_ebooks(self, book_id: int | None = None):
+    def list_ebooks(self, book_id: int | None = None, limit: int | None = None, offset: int | None = None, search: str | None = None):
         with get_connection() as conn:
             try:
                 ensure_inventory_schema(conn)
@@ -401,10 +402,19 @@ class BookRepositoryImpl(BookRepository):
 
             with conn.cursor() as cur:
                 params = []
-                where_clause = ""
+                where_clauses = []
                 if book_id is not None:
-                    where_clause = "WHERE e.book_id=%s"
+                    where_clauses.append("e.book_id=%s")
                     params.append(book_id)
+                if search:
+                    search_term = f"%{search}%"
+                    where_clauses.append("(e.title LIKE %s OR e.original_filename LIKE %s OR b.title LIKE %s)")
+                    params.extend([search_term, search_term, search_term])
+                where_clause = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+                limit_clause = ""
+                if limit is not None and offset is not None:
+                    limit_clause = " LIMIT %s OFFSET %s"
+                    params.extend([limit, offset])
                 cur.execute(
                     f"""
                     SELECT
@@ -432,7 +442,7 @@ class BookRepositoryImpl(BookRepository):
                     LEFT JOIN categories c ON bc.category_id = c.category_id
                     {where_clause}
                     GROUP BY e.ebook_id, e.book_id, e.title, e.original_filename, e.stored_filename, e.file_path, e.author, e.category, e.file_type, e.file_size, e.uploaded_at, e.qr_code_path, b.title, b.isbn
-                    ORDER BY e.uploaded_at DESC
+                    ORDER BY e.uploaded_at DESC{limit_clause}
                     """,
                     tuple(params),
                 )
@@ -673,6 +683,7 @@ class BookRepositoryImpl(BookRepository):
                 b.total_copies,
                 COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) AS available_copies,
                 COUNT(DISTINCT CASE WHEN all_bc.status = 'borrowed' THEN all_bc.copy_id END) AS borrowed_copies,
+                COUNT(DISTINCT CASE WHEN all_bc.status = 'reserved' THEN all_bc.copy_id END) AS reserved_copies,
                 COUNT(DISTINCT all_bc.copy_id) AS copy_count,
                 COALESCE(GROUP_CONCAT(DISTINCT all_bc.status ORDER BY all_bc.status SEPARATOR ', '), '') AS copy_statuses,
                 COUNT(DISTINCT CASE
@@ -684,12 +695,11 @@ class BookRepositoryImpl(BookRepository):
                     THEN br.borrow_id
                 END) AS returned_borrow_count,
                 CASE
-                    WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) > 0 THEN 'available'
-                    WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'borrowed' THEN all_bc.copy_id END) > 0 THEN 'borrowed'
                     WHEN COUNT(DISTINCT all_bc.copy_id) = 0 THEN 'unavailable'
                     WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'maintenance' THEN all_bc.copy_id END) > 0 THEN 'maintenance'
                     WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'lost' THEN all_bc.copy_id END) > 0 THEN 'lost'
-                    ELSE 'borrowed'
+                    WHEN COUNT(DISTINCT CASE WHEN all_bc.status = 'available' THEN all_bc.copy_id END) > 0 THEN 'available'
+                    ELSE 'out_of_stock'
                 END AS status
             FROM books b
             LEFT JOIN book_authors ba ON b.book_id = ba.book_id

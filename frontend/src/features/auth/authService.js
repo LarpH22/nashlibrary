@@ -24,11 +24,15 @@ export async function registerUser(data) {
   if (!data.email || !data.password || !data.full_name || !data.registration_document) {
     throw new Error('Full name, email, password, and registration document are required')
   }
+  if (!data.confirm_password) {
+    throw new Error('Confirm password is required')
+  }
 
   const formData = new FormData()
   formData.append('email', data.email)
   formData.append('full_name', data.full_name)
   formData.append('password', data.password)
+  formData.append('confirm_password', data.confirm_password || '')
   formData.append('student_id', data.student_id || '')
   formData.append('department', data.department || '')
   formData.append('year_level', data.year_level || '')
@@ -70,7 +74,8 @@ export async function resetPassword(data) {
   try {
     const response = await api.post('/api/auth/reset-password', {
       token: data.token,
-      new_password: data.new_password
+      new_password: data.new_password,
+      confirm_password: data.confirm_password || ''
     })
     return response.data
   } catch (error) {

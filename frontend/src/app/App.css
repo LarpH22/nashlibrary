@@ -900,3 +900,261 @@
     margin: -28px -22px 24px;
   }
 }
+
+/* Clean auth screens */
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 20px;
+  background: linear-gradient(180deg, #0f1117 0%, #151924 100%);
+}
+
+.auth-card {
+  width: min(100%, 500px);
+  max-width: 500px;
+  margin: 0;
+  padding: 34px 36px;
+  border: 1px solid #2a2f45;
+  border-radius: 14px;
+  background: #232840;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.3);
+}
+
+.auth-card::before {
+  display: none;
+}
+
+.auth-card h2 {
+  margin: 0 0 8px;
+  color: #2ecc8a;
+  font-family: 'Playfair Display', serif;
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.auth-card-subtitle {
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9aa0b8;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.auth-form,
+.auth-card form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 7px;
+  color: #aeb4cc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-card input,
+.auth-card select {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #303650;
+  border-radius: 8px;
+  background: #1d2232;
+  color: #e8e4d9;
+  font-size: 14px;
+}
+
+.auth-card input[type="file"] {
+  padding: 9px 12px;
+}
+
+.auth-card input:focus,
+.auth-card select:focus,
+.auth-input:focus {
+  border-color: #2ecc8a;
+  box-shadow: 0 0 0 3px rgba(46, 204, 138, 0.14);
+}
+
+.auth-button,
+.auth-card button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.auth-button-primary,
+.auth-card button[type="submit"] {
+  width: 100%;
+  background: #2ecc8a;
+  color: #0f1117;
+}
+
+.auth-button-primary:hover,
+.auth-card button[type="submit"]:hover {
+  background: #27bd7f;
+  box-shadow: none;
+  transform: none;
+}
+
+.auth-button-secondary,
+.auth-button-outline {
+  background: transparent;
+  border: 1px solid #303650;
+  color: #e8e4d9;
+}
+
+.auth-button-secondary:hover,
+.auth-button-outline:hover {
+  border-color: #2ecc8a;
+  color: #2ecc8a;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.auth-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+  color: #9aa0b8;
+}
+
+.auth-card-actions {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.auth-card-link-row {
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.auth-link,
+.forgot-password-link {
+  min-height: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #2ecc8a;
+  text-decoration: none;
+}
+
+.auth-link:hover,
+.forgot-password-link:hover {
+  color: #78e0b3;
+  box-shadow: none;
+  transform: none;
+}
+
+.auth-status,
+.message {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.message p {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.validation-message {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.validation-message.neutral {
+  color: #7a7f99;
+  background: transparent;
+  border: 0;
+}
+
+.validation-message.success {
+  color: #2ecc8a;
+  background: transparent;
+  border: 0;
+}
+
+.validation-message.error {
+  color: #e05b5b;
+  background: transparent;
+  border: 0;
+}
+
+.input-valid {
+  background: #1d2232 !important;
+}
+
+.input-invalid {
+  background: #1d2232 !important;
+}
+
+.file-name {
+  margin-top: 0;
+  color: #9aa0b8;
+  font-size: 12px;
+}
+
+.register-card {
+  width: min(100%, 760px);
+  max-width: 760px;
+}
+
+.register-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.register-footer {
+  justify-content: center;
+}
+
+.auth-modal {
+  width: min(92vw, 440px);
+  padding: 24px;
+}
+
+@media (max-width: 720px) {
+  .auth-page {
+    align-items: start;
+    padding: 24px 16px;
+  }
+
+  .auth-card,
+  .register-card {
+    width: 100%;
+    max-width: none;
+    padding: 26px 20px;
+  }
+
+  .register-form {
+    grid-template-columns: 1fr;
+  }
+
+  .form-span-2 {
+    grid-column: auto;
+  }
+
+  .auth-card-actions {
+    grid-template-columns: 1fr;
+  }
+}

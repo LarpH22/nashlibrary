@@ -10,6 +10,7 @@ from .fine_routes import fine_bp
 from .admin_routes import admin_bp
 from .seed_routes import seed_bp
 from .reminder_routes import reminder_bp
+from .reservation_routes import reservation_bp
 
 
 def register_blueprints(app):
@@ -40,3 +41,5 @@ def register_blueprints(app):
     app.register_blueprint(fine_bp, url_prefix='/api/fines', name='fine_api')
     # Reminder routes: /reminders/*
     app.register_blueprint(reminder_bp, url_prefix='/api/reminders')
+    # Reservation queue routes: /api/reservations/*
+    app.register_blueprint(reservation_bp, url_prefix='/api/reservations')

@@ -1,5 +1,5 @@
 export function formatCurrency(amount) {
-  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' })
+  return Number(amount || 0).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })
 }
 
 export function formatDate(dateString) {

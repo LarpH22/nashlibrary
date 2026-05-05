@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Book, Search, Calendar, ShieldCheck, ArrowRight, Zap } from 'lucide-react'
+import heroLibraryImage from '../assets/librasys-hero-library.png'
 import './LibrxLanding.css'
 
 const LibrxLanding = () => {
@@ -24,7 +25,7 @@ const LibrxLanding = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <header className="hero">
+      <header className="hero" style={{ '--hero-image': `url(${heroLibraryImage})` }}>
         <div className="hero-content">
           <div className="badge"><Zap size={14} /> The Future of Reading</div>
           <h1>Your Entire Library, <br /> <span className="gradient-text">In One Dashboard.</span></h1>
@@ -34,29 +35,6 @@ const LibrxLanding = () => {
               Open My Library <ArrowRight size={18} />
             </button>
             <button className="secondary-cta">Browse Catalog</button>
-          </div>
-        </div>
-        
-        {/* DASHBOARD PREVIEW MOCKUP */}
-        <div className="hero-preview">
-          <div className="mockup-container">
-             <div className="mockup-top-bar">
-                <div className="dots"><span></span><span></span><span></span></div>
-             </div>
-             <div className="mockup-screen">
-               <div className="screen-header">
-                 <span></span>
-                 <span></span>
-               </div>
-               <div className="screen-body">
-                 <div className="screen-card"></div>
-                 <div className="screen-card small"></div>
-                 <div className="screen-row">
-                   <div className="screen-block"></div>
-                   <div className="screen-block"></div>
-                 </div>
-               </div>
-             </div>
           </div>
         </div>
       </header>

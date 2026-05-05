@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { reserveBook } from '../reservations/reservationService.js'
 import { borrowBook, searchBooks } from './bookService.js'
 
 const availabilityOptions = [
   { value: '', label: 'All' },
   { value: 'available', label: 'Available' },
   { value: 'borrowed', label: 'Borrowed' },
+  { value: 'reserved', label: 'Reserved' },
   { value: 'unavailable', label: 'Out of Stock' },
   { value: 'maintenance', label: 'Maintenance' },
   { value: 'lost', label: 'Lost' }
@@ -57,7 +59,7 @@ const buildPageItems = (currentPage, totalPages) => {
   }, [])
 }
 
-export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrowed }) {
+export function BookSearch({ initialKeyword = '', borrowedBookIds = [], reservedBookIds = [], onBorrowed, onReserved }) {
   const [title, setTitle] = useState(initialKeyword)
   const [author, setAuthor] = useState('')
   const [category, setCategory] = useState('')
@@ -67,6 +69,7 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
   const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(false)
   const [borrowingId, setBorrowingId] = useState(null)
+  const [reservingId, setReservingId] = useState(null)
   const [error, setError] = useState('')
   const [pagination, setPagination] = useState({
     page: 1,
@@ -75,6 +78,44 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
     total_pages: 1
   })
   const activeBorrowedIds = useMemo(() => new Set(borrowedBookIds.map((id) => Number(id))), [borrowedBookIds])
+  const activeReservedIds = useMemo(() => new Set(reservedBookIds.map((id) => Number(id))), [reservedBookIds])
+
+  // Initialize filters from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const urlAvailability = urlParams.get('availability')
+    const urlTitle = urlParams.get('title')
+    const urlAuthor = urlParams.get('author')
+    const urlCategory = urlParams.get('category')
+    const urlIsbn = urlParams.get('isbn')
+    const urlHistory = urlParams.get('history')
+
+    if (urlAvailability && urlAvailability !== availability) {
+      setAvailability(urlAvailability)
+    }
+    if (urlTitle && urlTitle !== title) {
+      setTitle(urlTitle)
+    }
+    if (urlAuthor && urlAuthor !== author) {
+      setAuthor(urlAuthor)
+    }
+    if (urlCategory && urlCategory !== category) {
+      setCategory(urlCategory)
+    }
+    if (urlIsbn && urlIsbn !== isbn) {
+      setIsbn(urlIsbn)
+    }
+    if (urlHistory && urlHistory !== history) {
+      setHistory(urlHistory)
+    }
+  }, []) // Empty dependency array - run once on mount
+
+  // Load books when filters change (including from URL)
+  useEffect(() => {
+    if (availability || title || author || category || isbn || history) {
+      loadBooks()
+    }
+  }, [availability, title, author, category, isbn, history])
 
   const categories = useMemo(() => {
     const setValues = new Set(books.map((book) => book.category).filter(Boolean))
@@ -140,16 +181,34 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
     setBorrowingId(book.book_id)
     try {
       await borrowBook({ book_id: book.book_id })
-      await loadBooks(currentFilters(), pagination.page)
       if (onBorrowed) {
         await onBorrowed(book)
       }
+      await loadBooks(currentFilters(), pagination.page)
     } catch (err) {
       const message = err?.response?.data?.message || 'Unable to request this book. Please try again.'
       await loadBooks(currentFilters(), pagination.page)
       setError(message)
     } finally {
       setBorrowingId(null)
+    }
+  }
+
+  const handleReserve = async (book) => {
+    setError('')
+    setReservingId(book.book_id)
+    try {
+      const response = await reserveBook(book.book_id)
+      if (onReserved) {
+        await onReserved(book, response)
+      }
+      await loadBooks(currentFilters(), pagination.page)
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Unable to request this book. Please try again.'
+      await loadBooks(currentFilters(), pagination.page)
+      setError(message)
+    } finally {
+      setReservingId(null)
     }
   }
 
@@ -231,17 +290,23 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
                 <tr><td colSpan="6" style={{ color: 'var(--muted)', padding: '18px', textAlign: 'center' }}>No books found. Update the filters and try again.</td></tr>
               ) : (
                 books.map((book) => {
-                  const unavailable = book.status !== 'available' || Number(book.available_copies || 0) === 0
+                  const availableCopies = Number(book.available_copies || 0)
+                  const unavailable = availableCopies <= 0
                   const alreadyBorrowed = activeBorrowedIds.has(Number(book.book_id))
-                  const availabilityLabel = book.status === 'available'
+                  const alreadyReserved = activeReservedIds.has(Number(book.book_id))
+                  const availabilityLabel = availableCopies <= 0
+                    ? 'Out of Stock'
+                    : book.status === 'available'
                     ? 'Available'
                     : book.status === 'borrowed'
                       ? 'Borrowed'
-                      : book.status === 'maintenance'
-                        ? 'Maintenance'
-                        : book.status === 'lost'
-                          ? 'Lost'
-                          : 'Out of Stock'
+                      : book.status === 'reserved'
+                        ? 'Reserved'
+                        : book.status === 'maintenance'
+                          ? 'Maintenance'
+                          : book.status === 'lost'
+                            ? 'Lost'
+                            : 'Out of Stock'
                   return (
                     <tr key={book.book_id || book.id}>
                       <td>{book.title}</td>
@@ -252,14 +317,24 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], onBorrow
                         {availabilityLabel}
                       </td>
                       <td>
-                        <button
-                          className="btn btn-green btn-sm"
-                          type="button"
-                          disabled={loading || alreadyBorrowed || borrowingId === book.book_id}
-                          onClick={() => handleBorrow(book)}
-                        >
-                          {alreadyBorrowed ? 'Requested' : borrowingId === book.book_id ? 'Requesting...' : unavailable ? 'Reserve' : 'Request'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn btn-green btn-sm"
+                            type="button"
+                            disabled={loading || unavailable || alreadyBorrowed || borrowingId === book.book_id}
+                            onClick={() => handleBorrow(book)}
+                          >
+                            {alreadyBorrowed ? 'Requested' : borrowingId === book.book_id ? 'Requesting...' : 'Request'}
+                          </button>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            type="button"
+                            disabled={loading || alreadyBorrowed || alreadyReserved || reservingId === book.book_id}
+                            onClick={() => handleReserve(book)}
+                          >
+                            {alreadyReserved ? 'Reserved' : reservingId === book.book_id ? 'Reserving...' : 'Reserve'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

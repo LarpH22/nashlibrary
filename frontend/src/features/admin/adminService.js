@@ -1,7 +1,7 @@
 import api from '../../shared/api.js'
 
-export async function fetchRegistrationRequests() {
-  const response = await api.get('/api/admin/registration-requests')
+export async function fetchRegistrationRequests({ page, limit } = {}) {
+  const response = await api.get('/api/admin/registration-requests', { params: { page, limit } })
   return response.data
 }
 
@@ -20,8 +20,8 @@ export async function rejectRegistration(requestId) {
   return response.data
 }
 
-export async function fetchCategories() {
-  const response = await api.get('/api/admin/categories')
+export async function fetchCategories({ page, limit, search } = {}) {
+  const response = await api.get('/api/admin/categories', { params: { page, limit, search } })
   return response.data
 }
 
@@ -35,8 +35,8 @@ export async function deleteCategory(categoryId) {
   return response.data
 }
 
-export async function fetchAuthors() {
-  const response = await api.get('/api/admin/authors')
+export async function fetchAuthors({ page, limit, search } = {}) {
+  const response = await api.get('/api/admin/authors', { params: { page, limit, search } })
   return response.data
 }
 
@@ -75,8 +75,8 @@ export async function fetchStudent(studentId) {
   return response.data
 }
 
-export async function fetchStudents() {
-  const response = await api.get('/api/admin/students')
+export async function fetchStudents({ page, limit } = {}) {
+  const response = await api.get('/api/admin/students', { params: { page, limit } })
   return response.data
 }
 
@@ -85,18 +85,18 @@ export async function updateStudent(studentId, student) {
   return response.data
 }
 
-export async function resetStudentPassword(studentId, newPassword) {
-  const response = await api.post(`/api/admin/students/${encodeURIComponent(studentId)}/reset-password`, { new_password: newPassword })
+export async function resetStudentPassword(studentId, newPassword, confirmPassword) {
+  const response = await api.post(`/api/admin/students/${encodeURIComponent(studentId)}/reset-password`, { new_password: newPassword, confirm_password: confirmPassword })
   return response.data
 }
 
-export async function fetchLoans() {
-  const response = await api.get('/api/admin/loans')
+export async function fetchLoans({ page, limit, status, search } = {}) {
+  const response = await api.get('/api/admin/loans', { params: { page, limit, status, search } })
   return response.data
 }
 
-export async function fetchAdminFines() {
-  const response = await api.get('/api/fines/admin')
+export async function fetchAdminFines({ page, limit } = {}) {
+  const response = await api.get('/api/fines/admin', { params: { page, limit } })
   return response.data
 }
 
@@ -105,7 +105,12 @@ export async function updateFineStatus(fineId, status) {
   return response.data
 }
 
-export async function changePassword(oldPassword, newPassword) {
-  const response = await api.post('/api/admin/password', { old_password: oldPassword, new_password: newPassword })
+export async function reviewFinePayment(fineId, action) {
+  const response = await api.patch(`/api/fines/${fineId}/payment`, { action })
+  return response.data
+}
+
+export async function changePassword(oldPassword, newPassword, confirmPassword) {
+  const response = await api.post('/api/admin/password', { old_password: oldPassword, new_password: newPassword, confirm_password: confirmPassword })
   return response.data
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { resetPassword } from './authService.js'
+import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
 import '../../index.css'
 
 export default function ResetPassword() {
@@ -24,19 +25,15 @@ export default function ResetPassword() {
     e.preventDefault()
     setError('')
 
-    // Validation
-    if (!password || !confirmPassword) {
-      setError('Both fields are required')
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.message)
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
+    const confirmationValidation = validatePasswordConfirmation(password, confirmPassword)
+    if (!confirmationValidation.isValid) {
+      setError(confirmationValidation.message)
       return
     }
 
@@ -44,7 +41,8 @@ export default function ResetPassword() {
     try {
       await resetPassword({
         token,
-        new_password: password
+        new_password: password,
+        confirm_password: confirmPassword
       })
       setSuccess(true)
       setTimeout(() => {
@@ -99,7 +97,7 @@ export default function ResetPassword() {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter new password (min 6 characters)"
+              placeholder={passwordRequirementText}
               disabled={loading}
             />
           </div>

@@ -27,3 +27,22 @@ export async function fetchMostBorrowedBooks(limit = 5) {
   const response = await api.get('/api/books/most-borrowed', { params: { limit } })
   return response.data
 }
+
+export async function fetchEbooks({ page = 1, limit = 10, search = '' } = {}) {
+  const params = { page, limit }
+  if (search.trim()) {
+    params.search = search.trim()
+  }
+  const response = await api.get('/books/ebooks', { params })
+  return response.data
+}
+
+export async function downloadEbook(ebookId) {
+  const response = await api.get(`/books/ebooks/${ebookId}/download`, { responseType: 'blob' })
+  return response.data
+}
+
+export async function openEbook(ebookId) {
+  const response = await api.get(`/books/ebooks/${ebookId}/detail`)
+  return response.data
+}

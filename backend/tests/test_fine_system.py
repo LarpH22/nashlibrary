@@ -176,16 +176,31 @@ class FakeCursor:
                 'due_date': date.today() - timedelta(days=4),
                 'return_date': None,
             }
+        if 'WHERE f.fine_id=%s' in query:
+            return {
+                'fine_id': 22,
+                'borrow_id': 3,
+                'student_id': 9,
+                'amount': 400.0,
+                'reason': 'Overdue book fine',
+                'status': 'unpaid',
+                'payment_status': 'pending_verification',
+                'payment_method': 'online',
+                'payment_reference': 'FINE-22-TEST',
+                'issued_date': date.today(),
+                'paid_date': None,
+            }
         if 'WHERE fine_id=%s' in query:
             return {
                 'fine_id': 22,
                 'borrow_id': 3,
                 'student_id': 9,
-                'amount': 4.0,
+                'amount': 400.0,
                 'reason': 'Overdue book fine',
-                'status': 'paid',
+                'status': 'unpaid',
+                'payment_status': 'unpaid',
                 'issued_date': date.today(),
-                'paid_date': date.today(),
+                'paid_date': None,
             }
         return None
 
@@ -258,28 +273,31 @@ class LoanRepositoryFineLogicTest(unittest.TestCase):
         repo = LoanRepositoryImpl()
         due_date = date(2026, 5, 1)
         returned_at = datetime(2026, 5, 4, 9, 0)
-        self.assertEqual(repo._compute_fine(due_date, returned_at), 3.0)
+        self.assertEqual(repo._compute_fine(due_date, returned_at), 300.0)
         self.assertEqual(repo._compute_days_overdue(due_date, returned_at), 3)
 
-    def test_pay_fine_creates_paid_record_for_computed_overdue_fine(self):
+    def test_pay_fine_creates_online_payment_for_computed_overdue_fine(self):
         fake_conn = FakeConnection()
         with patch('backend.app.infrastructure.repositories_impl.loan_repository_impl.get_connection', return_value=fake_conn):
             result = LoanRepositoryImpl().pay_fine(3)
 
         self.assertTrue(fake_conn.committed)
         self.assertEqual(result['loan_id'], 3)
-        self.assertEqual(result['total_paid'], 4.0)
+        self.assertEqual(result['amount'], 400.0)
+        self.assertEqual(result['payment_status'], 'pending_verification')
         joined_queries = '\n'.join(query for query, _ in fake_conn.cursor_instance.queries)
         self.assertIn('INSERT INTO fines', joined_queries)
 
     def test_close_loan_generates_unpaid_fine_for_overdue_return(self):
         fake_conn = FakeCloseLoanConnection()
         with patch('backend.app.infrastructure.repositories_impl.loan_repository_impl.get_connection', return_value=fake_conn), \
-             patch('backend.app.infrastructure.repositories_impl.loan_repository_impl.ensure_inventory_schema'):
+             patch('backend.app.infrastructure.repositories_impl.loan_repository_impl.ensure_inventory_schema'), \
+             patch('backend.app.infrastructure.repositories_impl.loan_repository_impl.ReservationRepositoryImpl') as reservation_repo:
+            reservation_repo.return_value.assign_next_on_return.return_value = None
             result = LoanRepositoryImpl().close_loan(10, datetime(2026, 5, 5, 8, 30), student_id=4)
 
         self.assertTrue(fake_conn.committed)
-        self.assertEqual(result['fine_amount'], 4.0)
+        self.assertEqual(result['fine_amount'], 400.0)
         joined_queries = '\n'.join(query for query, _ in fake_conn.cursor_instance.queries)
         self.assertIn("VALUES (%s, %s, %s, %s, 'unpaid', %s)", joined_queries)
 

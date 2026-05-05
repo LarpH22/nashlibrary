@@ -87,6 +87,13 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .admin-table-container td{padding:12px;border-bottom:1px solid var(--border);color:var(--text)}
 .admin-table-container tbody tr:hover{background:var(--bg3)}
 .empty-cell{color:var(--muted)!important;padding:18px!important;text-align:center}
+.subtext{font-size:12px;color:var(--muted);margin-top:4px}
+.muted-line{font-size:11px;color:var(--muted);margin-top:3px}
+.fine-pill{display:inline-flex;align-items:center;justify-content:center;min-width:70px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase}
+.fine-pill.paid{background:rgba(46,204,138,0.14);color:var(--green)}
+.fine-pill.unpaid{background:rgba(224,91,91,0.14);color:var(--red)}
+.fine-pill.pending,.fine-pill.pending_verification{background:rgba(91,138,224,0.16);color:#9db8f4}
+.fine-pill.failed{background:rgba(224,91,91,0.14);color:#f09a9a}
 .table-date-input{height:34px;min-width:132px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-family:'DM Sans',sans-serif}
 .table-date-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 8px rgba(91,138,224,0.2)}
 .row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -165,3 +172,43 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .page-button.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
 .page-button:disabled,.pagination-bar .btn:disabled{opacity:.5;cursor:not-allowed}
 .pagination-summary{font-size:12px;color:var(--muted);margin-left:auto}
+
+/* Admin-aligned visual system */
+.librarian-dashboard-app .logo-icon{color:var(--gold);border-color:rgba(201,168,76,0.35);background:rgba(201,168,76,0.08)}
+.librarian-dashboard-app .logo-title,
+.librarian-dashboard-app .page-title{color:var(--gold)}
+.librarian-dashboard-app .nav-item.active{background:var(--gold);color:#0f1117;font-weight:500}
+.librarian-dashboard-app .avatar{background:var(--gold);color:#0f1117}
+.librarian-dashboard-app .search-input:focus,
+.librarian-dashboard-app .fgroup input:focus,
+.librarian-dashboard-app .fgroup textarea:focus,
+.librarian-dashboard-app .fgroup select:focus,
+.librarian-dashboard-app .table-date-input:focus,
+.librarian-dashboard-app .inline-return-form input:focus{border-color:var(--gold);box-shadow:none}
+.librarian-dashboard-app .content>*+*{margin-top:0}
+.librarian-dashboard-app .card{border-radius:16px;padding:18px;margin-bottom:18px}
+.librarian-dashboard-app .card-hdr{margin-bottom:16px;padding-bottom:0;border-bottom:0}
+.librarian-dashboard-app .card-title{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;color:var(--text)}
+.librarian-dashboard-app .grid2,
+.librarian-dashboard-app .grid4{gap:16px;margin-bottom:20px}
+.librarian-dashboard-app .grid4{grid-template-columns:repeat(4,1fr)}
+.librarian-dashboard-app .stat{border-radius:14px;padding:18px}
+.librarian-dashboard-app .stat::before{height:4px;background:var(--gold)}
+.librarian-dashboard-app .stat-label{font-size:10px}
+.librarian-dashboard-app .stat-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:500;margin:0 0 4px}
+.librarian-dashboard-app .stat-icon{right:16px;top:16px;bottom:auto;font-size:22px;opacity:.2}
+.librarian-dashboard-app .btn{border-radius:10px;font-size:12px;font-weight:700}
+.librarian-dashboard-app .btn-blue,
+.librarian-dashboard-app .btn-green{background:var(--gold);color:#0f1117}
+.librarian-dashboard-app .btn-blue:hover,
+.librarian-dashboard-app .btn-green:hover{background:var(--gold2);box-shadow:none}
+.librarian-dashboard-app .btn-outline:hover{background:transparent;border-color:var(--gold);color:var(--gold)}
+.librarian-dashboard-app .admin-table-container thead{background:transparent;border-bottom:1px solid var(--border)}
+.librarian-dashboard-app .admin-table-container th{padding:12px 14px;font-size:10px}
+.librarian-dashboard-app .admin-table-container td{padding:12px 14px}
+.librarian-dashboard-app .admin-table-container tbody tr:hover{background:transparent}
+.librarian-dashboard-app .admin-table-container tbody tr:hover td{background:rgba(255,255,255,0.03)}
+.librarian-dashboard-app .page-button:hover{border-color:var(--gold);color:var(--gold)}
+.librarian-dashboard-app .page-button.active{background:var(--gold);border-color:var(--gold);color:#0f1117}
+.librarian-dashboard-app .link-button{color:var(--gold)}
+.librarian-dashboard-app .ebook-qr-tile:hover{border-color:var(--gold)}

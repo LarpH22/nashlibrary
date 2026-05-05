@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { registerUser } from './authService.js'
+import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
 
 export function Register() {
   const navigate = useNavigate()
@@ -8,6 +9,7 @@ export function Register() {
     full_name: '',
     email: '',
     password: '',
+    confirm_password: '',
     student_id: '',
     department: '',
     year_level: '',
@@ -16,7 +18,8 @@ export function Register() {
   const [validation, setValidation] = useState({
     full_name: { isValid: null, message: 'Full name is required' },
     email: { isValid: null, message: 'Email is required (only Gmail or .edu.ph domains allowed)' },
-    password: { isValid: null, message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' },
+    password: { isValid: null, message: passwordRequirementText },
+    confirm_password: { isValid: null, message: 'Confirm password is required' },
     student_id: { isValid: null, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' },
     department: { isValid: null, message: 'Department / Program is required' },
     year_level: { isValid: null, message: 'Year level is required' },
@@ -95,28 +98,6 @@ export function Register() {
     }
 
     return { isValid: true, message: 'Valid email address for verification' }
-  }
-
-  const validatePassword = (value) => {
-    if (!value) {
-      return { isValid: false, message: 'Password is required' }
-    }
-    if (value.length < 8) {
-      return { isValid: false, message: 'Password must be at least 8 characters long' }
-    }
-    if (!/[A-Z]/.test(value)) {
-      return { isValid: false, message: 'Password must contain at least one uppercase letter' }
-    }
-    if (!/[a-z]/.test(value)) {
-      return { isValid: false, message: 'Password must contain at least one lowercase letter' }
-    }
-    if (!/\d/.test(value)) {
-      return { isValid: false, message: 'Password must contain at least one number' }
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) {
-      return { isValid: false, message: 'Password must contain at least one special character' }
-    }
-    return { isValid: true, message: 'Strong password!' }
   }
 
   const validateStudentId = (value) => {
@@ -201,6 +182,14 @@ export function Register() {
         break
       case 'password':
         validationResult = validatePassword(value)
+        setValidation((current) => ({
+          ...current,
+          password: validationResult,
+          confirm_password: form.confirm_password ? validatePasswordConfirmation(value, form.confirm_password) : current.confirm_password
+        }))
+        return
+      case 'confirm_password':
+        validationResult = validatePasswordConfirmation(form.password, value)
         break
       case 'student_id':
         validationResult = validateStudentId(value)
@@ -227,6 +216,7 @@ export function Register() {
       full_name: validateFullName(form.full_name),
       email: validateEmail(form.email),
       password: validatePassword(form.password),
+      confirm_password: validatePasswordConfirmation(form.password, form.confirm_password),
       student_id: validateStudentId(form.student_id),
       department: validateDepartment(form.department),
       year_level: validateYearLevel(form.year_level),
@@ -272,6 +262,7 @@ export function Register() {
         full_name: '',
         email: '',
         password: '',
+        confirm_password: '',
         student_id: '',
         department: '',
         year_level: '',
@@ -282,7 +273,8 @@ export function Register() {
       setValidation({
         full_name: { isValid: null, message: 'Full name is required' },
         email: { isValid: null, message: 'Email is required (only Gmail or .edu.ph domains allowed)' },
-        password: { isValid: null, message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' },
+        password: { isValid: null, message: passwordRequirementText },
+        confirm_password: { isValid: null, message: 'Confirm password is required' },
         student_id: { isValid: null, message: 'Student ID must follow format: 241-0449 (3 digits + dash + 4 digits)' },
         department: { isValid: null, message: 'Department / Program is required' },
         year_level: { isValid: null, message: 'Year level is required' },
@@ -300,10 +292,10 @@ export function Register() {
 
   return (
     <div className="auth-page">
-      <section className="auth-card">
+      <section className="auth-card register-card">
         <h2>Register</h2>
         <p className="auth-card-subtitle">Create your account to start borrowing books and managing your library profile.</p>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form register-form">
           <label>
             Full Name
             <input
@@ -344,6 +336,20 @@ export function Register() {
             />
             <span className={getMessageClass('password')}>
               {validation.password.message}
+            </span>
+          </label>
+          <label>
+            Confirm Password
+            <input
+              type="password"
+              name="confirm_password"
+              value={form.confirm_password}
+              onChange={handleChange}
+              className={getInputClass('confirm_password')}
+              required
+            />
+            <span className={getMessageClass('confirm_password')}>
+              {validation.confirm_password.message}
             </span>
           </label>
           <label>
@@ -394,7 +400,7 @@ export function Register() {
               {validation.year_level.message}
             </span>
           </label>
-          <label>
+          <label className="form-span-2">
             Registration Document
             <input
               key={fileInputKey}
@@ -412,11 +418,11 @@ export function Register() {
               {validation.registration_document.message}
             </span>
           </label>
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Registering...' : 'Submit'}
+          <button type="submit" className="auth-button auth-button-primary form-span-2" disabled={isLoading}>
+            {isLoading ? 'Registering...' : 'Create account'}
           </button>
         </form>
-      <div className="auth-card-footer">
+      <div className="auth-card-footer register-footer">
         <span>Already have an account?</span>
         <button type="button" className="auth-link" onClick={() => navigate('/login')}>Sign in</button>
       </div>

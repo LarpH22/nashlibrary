@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Power, Repeat, ListChecks } from 'lucide-react'
+import { BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Power, Repeat, ListChecks, CreditCard } from 'lucide-react'
 import api, { normalizeApiError } from '../../shared/api.js'
+import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
+import { formatCurrency } from '../../shared/utils/index.js'
+import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
+import { approveReservation, cancelReservation, claimReservation, expireReservations, fetchReservations } from '../reservations/reservationService.js'
 import './LibrarianDashboard.css'
 
 const baseNavSections = [
@@ -11,6 +15,7 @@ const baseNavSections = [
     items: [
       { id: 'overview', icon: BarChart3, title: 'Overview' },
       { id: 'issue-return', icon: BookOpen, title: 'Borrow Approvals' },
+      { id: 'returns', icon: Repeat, title: 'Returns' },
       { id: 'availability', icon: Search, title: 'Book Availability' },
       { id: 'overdue', icon: Clock3, title: 'Overdue Books' }
     ]
@@ -19,6 +24,8 @@ const baseNavSections = [
     section: 'RECORDS',
     items: [
       { id: 'students', icon: Users, title: 'Student Records' },
+      { id: 'reservations', icon: ListChecks, title: 'Reservations' },
+      { id: 'fines', icon: CreditCard, title: 'Fine Payments' },
       { id: 'search', icon: Search, title: 'Search Books' }
     ]
   },
@@ -36,11 +43,15 @@ const pageTitles = {
   availability: 'Book Availability',
   overdue: 'Overdue Books',
   students: 'Student Records',
+  reservations: 'Reservations',
+  fines: 'Fine Payments',
+  returns: 'Returns Platform',
   search: 'Search Books',
   account: 'Change Password'
 }
 
 const ebookLibraryPageSize = 10
+const bookSearchPageSize = 10
 
 function mergeEbooksWithCatalog(ebookRows) {
   return Array.isArray(ebookRows) ? [...ebookRows] : []
@@ -91,19 +102,23 @@ export function LibrarianDashboard() {
   const [ebookPage, setEbookPage] = useState(1)
   const [ebookLoading, setEbookLoading] = useState(false)
   const [availabilityBooks, setAvailabilityBooks] = useState([])
-  const [availabilityFilters, setAvailabilityFilters] = useState({ title: '', author: '', category: '', isbn: '', availability: '' })
+  const [availabilityFilters, setAvailabilityFilters] = useState({ title: '', isbn: '', availability: '' })
   const [availabilityPagination, setAvailabilityPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [loans, setLoans] = useState([])
   const [borrowRequests, setBorrowRequests] = useState([])
+  const [reservations, setReservations] = useState([])
+  const [fines, setFines] = useState([])
+  const [fineSummary, setFineSummary] = useState({ total_count: 0, unpaid_count: 0, pending_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
+  const [reviewingFineId, setReviewingFineId] = useState(null)
+  const [reservationActionId, setReservationActionId] = useState(null)
   const [students, setStudents] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [bookSearchPage, setBookSearchPage] = useState(1)
   const [requestDueDates, setRequestDueDates] = useState({})
   const [scanForm, setScanForm] = useState({ code: '', student_id: '' })
   const [scanResult, setScanResult] = useState(null)
-  const [returnLoanId, setReturnLoanId] = useState('')
-  const [returningLoanId, setReturningLoanId] = useState(null)
-  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
+  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -127,8 +142,12 @@ export function LibrarianDashboard() {
   const safeAvailabilityBooks = useMemo(() => (Array.isArray(availabilityBooks) ? availabilityBooks : []), [availabilityBooks])
   const safeLoans = useMemo(() => (Array.isArray(loans) ? loans : []), [loans])
   const safeBorrowRequests = useMemo(() => (Array.isArray(borrowRequests) ? borrowRequests : []), [borrowRequests])
+  const safeReservations = useMemo(() => (Array.isArray(reservations) ? reservations : []), [reservations])
+  const safeFines = useMemo(() => (Array.isArray(fines) ? fines : []), [fines])
   const safeStudents = useMemo(() => (Array.isArray(students) ? students : []), [students])
   const pendingBorrowRequests = useMemo(() => safeBorrowRequests.filter((request) => request.status === 'pending'), [safeBorrowRequests])
+  const activeReservationCount = useMemo(() => safeReservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).length, [safeReservations])
+  const pendingFinePayments = useMemo(() => safeFines.filter((fine) => ['pending', 'pending_verification'].includes(String(fine.payment_status || '').toLowerCase())), [safeFines])
   const activeLoans = useMemo(() => safeLoans.filter((loan) => !isLoanReturned(loan)), [safeLoans])
   const overdueLoans = useMemo(() => safeLoans.filter(isLoanOverdue), [safeLoans])
   const navigationSections = useMemo(
@@ -146,11 +165,15 @@ export function LibrarianDashboard() {
         items: sectionItems.map((item) => (
           item.id === 'overdue'
             ? { ...item, badge: overdueLoans.length > 0 ? String(overdueLoans.length) : '' }
+            : item.id === 'reservations'
+              ? { ...item, badge: activeReservationCount > 0 ? String(activeReservationCount) : '' }
+            : item.id === 'fines'
+              ? { ...item, badge: pendingFinePayments.length > 0 ? String(pendingFinePayments.length) : '' }
             : item
         ))
       }
     }),
-    [overdueLoans.length]
+    [overdueLoans.length, activeReservationCount, pendingFinePayments.length]
   )
 
   const studentRecords = useMemo(() => {
@@ -234,8 +257,6 @@ export function LibrarianDashboard() {
           page: availabilityPagination.page,
           limit: availabilityPagination.limit,
           title: availabilityFilters.title.trim(),
-          author: availabilityFilters.author.trim(),
-          category: availabilityFilters.category.trim(),
           isbn: availabilityFilters.isbn.trim(),
           availability: availabilityFilters.availability
         }
@@ -279,13 +300,38 @@ export function LibrarianDashboard() {
     }
   }, [])
 
+  const loadReservations = useCallback(async () => {
+    try {
+      const response = await fetchReservations()
+      setReservations(Array.isArray(response?.reservations) ? response.reservations : [])
+    } catch (error) {
+      console.error('Unable to load reservations:', error)
+      setReservations([])
+      addNotification(apiMessage(error, 'Unable to load reservations.'))
+    }
+  }, [])
+
+  const loadFines = useCallback(async () => {
+    try {
+      const response = await api.get('/api/fines/admin')
+      setFines(Array.isArray(response.data?.fines) ? response.data.fines : [])
+      setFineSummary(response.data?.summary || { total_count: 0, unpaid_count: 0, pending_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
+    } catch (error) {
+      console.error('Unable to load fines:', error)
+      setFines([])
+      addNotification(apiMessage(error, 'Unable to load fine payments.'))
+    }
+  }, [])
+
   useEffect(() => {
     loadBooks()
     loadEbooks()
     loadLoans()
     loadBorrowRequests()
+    loadReservations()
+    loadFines()
     loadStudents()
-  }, [loadBooks, loadEbooks, loadLoans, loadBorrowRequests, loadStudents])
+  }, [loadBooks, loadEbooks, loadLoans, loadBorrowRequests, loadReservations, loadFines, loadStudents])
 
   useEffect(() => {
     loadAvailabilityBooks()
@@ -301,12 +347,27 @@ export function LibrarianDashboard() {
     () => [
       { label: 'Books', value: safeBooks.length, type: 'blue', icon: BookOpen },
       { label: 'Pending Requests', value: pendingBorrowRequests.length, type: 'gold', icon: ListChecks },
+      { label: 'Reservations', value: activeReservationCount, type: 'gold', icon: ListChecks },
       { label: 'Active Loans', value: activeLoans.length, type: 'green', icon: Repeat },
       { label: 'Overdue', value: overdueLoans.length, type: 'red', icon: Clock3 },
+      { label: 'Fine Reviews', value: pendingFinePayments.length, type: 'gold', icon: CreditCard },
       { label: 'Students', value: studentList.length, type: 'purple', icon: Users }
     ],
-    [safeBooks, pendingBorrowRequests, activeLoans.length, overdueLoans.length, studentList]
+    [safeBooks, pendingBorrowRequests, activeReservationCount, activeLoans.length, overdueLoans.length, pendingFinePayments.length, studentList]
   )
+
+  async function handleFinePaymentReview(fineId, action) {
+    setReviewingFineId(fineId)
+    try {
+      const response = await api.patch(`/api/fines/${fineId}/payment`, { action })
+      await loadFines()
+      addNotification(response.data?.message || `Payment ${action === 'approve' ? 'approved' : 'rejected'}.`)
+    } catch (error) {
+      addNotification(apiMessage(error, 'Unable to review payment.'))
+    } finally {
+      setReviewingFineId(null)
+    }
+  }
 
   async function handleApproveRequest(requestId) {
     const dueDate = requestDueDates[requestId]
@@ -324,11 +385,11 @@ export function LibrarianDashboard() {
         delete next[requestId]
         return next
       })
-      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks()])
+      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
       addNotification('Borrow request approved.')
     } catch (error) {
       console.error('Error approving request:', error)
-      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks()])
+      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
       addNotification(error?.response?.data?.message || 'Failed to approve request.')
     }
   }
@@ -345,35 +406,6 @@ export function LibrarianDashboard() {
       await loadBorrowRequests()
       addNotification(error?.response?.data?.message || 'Failed to reject request.')
     }
-  }
-
-  async function returnLoanById(loanId, { clearManualInput = false } = {}) {
-    const numericLoanId = Number(loanId)
-    if (!numericLoanId || Number.isNaN(numericLoanId) || numericLoanId <= 0) {
-      addNotification('Choose a valid loan before returning a book.')
-      return
-    }
-
-    setReturningLoanId(numericLoanId)
-    try {
-      await api.post('/books/return', { loan_id: numericLoanId })
-      if (clearManualInput) {
-        setReturnLoanId('')
-      }
-      await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks()])
-      addNotification('Book return recorded.')
-    } catch (error) {
-      console.error('Error returning book:', error)
-      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
-      addNotification(apiMessage(error, 'Failed to return book.'))
-    } finally {
-      setReturningLoanId(null)
-    }
-  }
-
-  async function handleReturnBook(event) {
-    event.preventDefault()
-    await returnLoanById(returnLoanId, { clearManualInput: true })
   }
 
   async function handleLookupScan(event) {
@@ -404,28 +436,42 @@ export function LibrarianDashboard() {
       })
       setScanForm({ code: '', student_id: '' })
       setScanResult(null)
-      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
       addNotification('Book issued from scan.')
     } catch (error) {
-      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
+      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
       addNotification(error?.response?.data?.message || 'Failed to issue scanned copy.')
     }
   }
 
-  async function handleReturnByScan() {
-    if (!scanForm.code.trim()) {
-      addNotification('Scan or enter a barcode/QR value first.')
-      return
-    }
+  async function handleReservationAction(reservationId, action) {
+    setReservationActionId(reservationId)
     try {
-      await api.post('/books/return-by-scan', { code: scanForm.code.trim() })
-      setScanForm({ code: '', student_id: '' })
-      setScanResult(null)
-      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
-      addNotification('Book returned from scan.')
+      let response
+      if (action === 'approve') {
+        response = await approveReservation(reservationId)
+      } else if (action === 'claim') {
+        response = await claimReservation(reservationId)
+      } else {
+        response = await cancelReservation(reservationId)
+      }
+      await Promise.allSettled([loadReservations(), loadLoans(), loadBooks(), loadAvailabilityBooks()])
+      addNotification(response?.message || 'Reservation updated.')
     } catch (error) {
-      await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks()])
-      addNotification(error?.response?.data?.message || 'Failed to return scanned copy.')
+      await loadReservations()
+      addNotification(apiMessage(error, 'Unable to update reservation.'))
+    } finally {
+      setReservationActionId(null)
+    }
+  }
+
+  async function handleExpireReservations() {
+    try {
+      const response = await expireReservations()
+      await Promise.allSettled([loadReservations(), loadBooks(), loadAvailabilityBooks()])
+      addNotification(response?.message || 'Expired reservations removed.')
+    } catch (error) {
+      addNotification(apiMessage(error, 'Unable to remove expired reservations.'))
     }
   }
 
@@ -504,12 +550,18 @@ export function LibrarianDashboard() {
 
     // Validate fields
     if (!passwordForm.old_password || !passwordForm.new_password) {
-      setPasswordError('Both password fields are required.')
+      setPasswordError('Current password and new password are required.')
       return
     }
 
-    if (passwordForm.new_password.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.')
+    const passwordValidation = validatePassword(passwordForm.new_password, 'New password')
+    if (!passwordValidation.isValid) {
+      setPasswordError(passwordValidation.message)
+      return
+    }
+    const confirmationValidation = validatePasswordConfirmation(passwordForm.new_password, passwordForm.confirm_password)
+    if (!confirmationValidation.isValid) {
+      setPasswordError(confirmationValidation.message)
       return
     }
 
@@ -518,7 +570,7 @@ export function LibrarianDashboard() {
       console.log('Password change response:', response.status, response.data)
       const successMessage = response.data?.message
       if (response.status === 200 && successMessage && successMessage.toLowerCase().includes('updated successfully')) {
-        setPasswordForm({ old_password: '', new_password: '' })
+        setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
         setPasswordError('')
         setShowPasswordModal(true)
       } else {
@@ -578,6 +630,23 @@ export function LibrarianDashboard() {
     return pages
   }
 
+  function setSearchBookPage(page, totalPages) {
+    setBookSearchPage(Math.min(Math.max(1, page), Math.max(1, totalPages || 1)))
+  }
+
+  function searchBookPageNumbers(totalPages, currentPage) {
+    const normalizedTotal = Math.max(1, totalPages || 1)
+    const normalizedCurrent = Math.min(Math.max(1, currentPage || 1), normalizedTotal)
+    const start = Math.max(1, normalizedCurrent - 2)
+    const end = Math.min(normalizedTotal, start + 4)
+    const normalizedStart = Math.max(1, end - 4)
+    const pages = []
+    for (let page = normalizedStart; page <= end; page += 1) {
+      pages.push(page)
+    }
+    return pages
+  }
+
   function availabilityStatusLabel(book) {
     const statuses = String(book.copy_statuses || '').trim()
     if (statuses) return statuses
@@ -601,12 +670,12 @@ export function LibrarianDashboard() {
           <div className="grid2">
             <div className="card">
               <div className="card-hdr"><div className="card-title">Overview</div></div>
-              <p>Welcome to the Librarian Dashboard. You can issue and return books, check availability, and manage student records.</p>
+              <p>Welcome to the Librarian Dashboard. You can review borrow requests, check availability, and manage student records.</p>
             </div>
             <div className="card">
               <div className="card-hdr"><div className="card-title">Quick Actions</div></div>
               <div style={{ display: 'grid', gap: '10px' }}>
-                <button className="btn btn-blue" type="button" onClick={() => setActivePage('issue-return')}>Review Requests</button>
+                <button className="btn btn-gold" type="button" onClick={() => setActivePage('issue-return')}>Review Requests</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('overdue')}>View Overdue</button>
                 <button className="btn btn-outline" type="button" onClick={() => setActivePage('students')}>Student Records</button>
               </div>
@@ -658,54 +727,6 @@ export function LibrarianDashboard() {
             </div>
           </div>
           <div className="card">
-            <div className="card-hdr">
-              <div className="card-title">Active Loans ({activeLoans.length})</div>
-              <form className="inline-return-form" onSubmit={handleReturnBook}>
-                <input value={returnLoanId} onChange={(event) => setReturnLoanId(event.target.value)} placeholder="Loan ID" />
-                <button className="btn btn-blue btn-sm" type="submit" disabled={returningLoanId !== null}>Return</button>
-              </form>
-            </div>
-            <div className="admin-table-container">
-              <table>
-                <thead>
-                  <tr><th>Loan</th><th>Book</th><th>Copy</th><th>Student</th><th>Borrowed</th><th>Due</th><th>Status</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  {activeLoans.length === 0 ? (
-                    <tr><td colSpan="8" className="empty-cell">No active loans.</td></tr>
-                  ) : (
-                    activeLoans.map((loan) => (
-                      <tr key={loan.loan_id}>
-                        <td>{loan.loan_id}</td>
-                        <td>{loan.book_title || loan.book_id}</td>
-                        <td>{loan.copy_code || loan.barcode_value || '-'}</td>
-                        <td>
-                          <div className="loan-student-cell">
-                            <strong>{loan.student_name || loan.student_number || loan.user_id}</strong>
-                            {loan.student_email && <span>{loan.student_email}</span>}
-                          </div>
-                        </td>
-                        <td>{formatLoanDate(loan.borrowed_at || loan.issue_date)}</td>
-                        <td>{formatLoanDate(loan.due_date)}</td>
-                        <td><span className={`loan-status ${loanStatusLabel(loan).toLowerCase()}`}>{loanStatusLabel(loan)}</span></td>
-                        <td>
-                          <button
-                            className="btn btn-gold btn-sm"
-                            type="button"
-                            disabled={returningLoanId === Number(loan.loan_id)}
-                            onClick={() => returnLoanById(loan.loan_id)}
-                          >
-                            {returningLoanId === Number(loan.loan_id) ? 'Returning...' : 'Return'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="card">
             <div className="card-hdr"><div className="card-title">Barcode / QR Scanner</div></div>
             <form className="admin-form scan-form" onSubmit={handleLookupScan}>
               <div className="frow scan-grid">
@@ -721,7 +742,6 @@ export function LibrarianDashboard() {
               <div className="scan-actions">
                 <button className="btn btn-outline" type="submit">Lookup</button>
                 <button className="btn btn-blue" type="button" onClick={handleIssueByScan}>Issue</button>
-                <button className="btn btn-gold" type="button" onClick={handleReturnByScan}>Return</button>
               </div>
             </form>
             {scanResult && (
@@ -732,6 +752,14 @@ export function LibrarianDashboard() {
             )}
           </div>
         </>
+      )
+    }
+
+    if (activePage === 'returns') {
+      return (
+        <ReturnPlatform onLoanReturned={async () => {
+          await Promise.allSettled([loadBorrowRequests(), loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
+        }} />
       )
     }
 
@@ -751,14 +779,6 @@ export function LibrarianDashboard() {
               <input value={availabilityFilters.title} onChange={(event) => updateAvailabilityFilter('title', event.target.value)} placeholder="Search title" />
             </div>
             <div className="fgroup">
-              <label>Author</label>
-              <input value={availabilityFilters.author} onChange={(event) => updateAvailabilityFilter('author', event.target.value)} placeholder="Search author" />
-            </div>
-            <div className="fgroup">
-              <label>Category</label>
-              <input value={availabilityFilters.category} onChange={(event) => updateAvailabilityFilter('category', event.target.value)} placeholder="Search category" />
-            </div>
-            <div className="fgroup">
               <label>ISBN</label>
               <input value={availabilityFilters.isbn} onChange={(event) => updateAvailabilityFilter('isbn', event.target.value)} placeholder="Search ISBN" />
             </div>
@@ -768,6 +788,7 @@ export function LibrarianDashboard() {
                 <option value="">All</option>
                 <option value="available">Available</option>
                 <option value="borrowed">Borrowed</option>
+                <option value="reserved">Reserved</option>
                 <option value="lost">Lost</option>
                 <option value="maintenance">Maintenance</option>
               </select>
@@ -839,11 +860,11 @@ export function LibrarianDashboard() {
           <div className="admin-table-container">
             <table>
               <thead>
-                <tr><th>Loan ID</th><th>Book</th><th>Copy</th><th>Student</th><th>Due Date</th><th>Days Overdue</th><th>Action</th></tr>
+                <tr><th>Loan ID</th><th>Book</th><th>Copy</th><th>Student</th><th>Due Date</th><th>Days Overdue</th></tr>
               </thead>
               <tbody>
                 {overdueLoans.length === 0 ? (
-                  <tr><td colSpan="7" className="empty-cell">No overdue loans.</td></tr>
+                  <tr><td colSpan="6" className="empty-cell">No overdue loans.</td></tr>
                 ) : (
                   overdueLoans.map((loan) => {
                     const daysOverdue = Math.max(0, Number(loan.days_overdue || Math.floor((new Date() - new Date(loan.due_date)) / (1000 * 60 * 60 * 24))))
@@ -855,15 +876,74 @@ export function LibrarianDashboard() {
                         <td>{loan.student_name || loan.user_id}</td>
                         <td>{formatLoanDate(loan.due_date)}</td>
                         <td style={{ color: 'var(--red)', fontWeight: 'bold' }}>{daysOverdue} days</td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
+    if (activePage === 'reservations') {
+      const statusLabel = (status) => {
+        const normalized = String(status || '').toLowerCase()
+        if (normalized === 'ready') return 'Ready for pickup'
+        if (normalized === 'active') return 'Queued'
+        if (normalized === 'claimed') return 'Claimed'
+        if (normalized === 'cancelled') return 'Cancelled'
+        if (normalized === 'expired') return 'Expired'
+        return status || '-'
+      }
+
+      return (
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">Reservation Queue ({safeReservations.length})</div>
+            <button className="btn btn-outline btn-sm" type="button" onClick={handleExpireReservations}>Remove Expired</button>
+          </div>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>Book</th><th>Student</th><th>Queue</th><th>Status</th><th>Expires</th><th>Copy</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                {safeReservations.length === 0 ? (
+                  <tr><td colSpan="7" className="empty-cell">No reservations found.</td></tr>
+                ) : (
+                  safeReservations.map((reservation) => {
+                    const status = String(reservation.status || '').toLowerCase()
+                    const busy = reservationActionId === reservation.reservation_id
+                    return (
+                      <tr key={reservation.reservation_id}>
+                        <td>{reservation.book_title || reservation.book_id}</td>
+                        <td>{reservation.student_name || reservation.student_email || reservation.student_id}</td>
+                        <td>{reservation.queue_position || '-'}</td>
+                        <td style={{ color: status === 'ready' ? 'var(--green)' : status === 'active' ? 'var(--gold)' : 'var(--muted)' }}>{statusLabel(status)}</td>
+                        <td>{formatLoanDate(reservation.expiration_date)}</td>
+                        <td>{reservation.copy_code || reservation.barcode_value || '-'}</td>
                         <td>
-                          <button
-                            className="btn btn-gold btn-sm"
-                            type="button"
-                            disabled={returningLoanId === Number(loan.loan_id)}
-                            onClick={() => returnLoanById(loan.loan_id)}
-                          >
-                            {returningLoanId === Number(loan.loan_id) ? 'Returning...' : 'Return'}
-                          </button>
+                          <div className="table-actions">
+                            {status === 'active' && (
+                              <button className="btn btn-blue btn-sm" type="button" disabled={busy} onClick={() => handleReservationAction(reservation.reservation_id, 'approve')}>
+                                Approve
+                              </button>
+                            )}
+                            {status === 'ready' && (
+                              <button className="btn btn-green btn-sm" type="button" disabled={busy} onClick={() => handleReservationAction(reservation.reservation_id, 'claim')}>
+                                Claim
+                              </button>
+                            )}
+                            {['active', 'ready'].includes(status) ? (
+                              <button className="btn btn-outline btn-sm" type="button" disabled={busy} onClick={() => handleReservationAction(reservation.reservation_id, 'cancel')}>
+                                Cancel
+                              </button>
+                            ) : (
+                              <span style={{ color: 'var(--muted)' }}>Closed</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
@@ -1030,14 +1110,27 @@ export function LibrarianDashboard() {
         b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (b.author && b.author.toLowerCase().includes(searchQuery.toLowerCase()))
       )
+      const totalPages = Math.max(1, Math.ceil(filtered.length / bookSearchPageSize))
+      const currentPage = Math.min(Math.max(1, bookSearchPage || 1), totalPages)
+      const firstResult = filtered.length === 0 ? 0 : ((currentPage - 1) * bookSearchPageSize) + 1
+      const lastResult = Math.min(currentPage * bookSearchPageSize, filtered.length)
+      const visibleBooks = filtered.slice((currentPage - 1) * bookSearchPageSize, currentPage * bookSearchPageSize)
       return (
         <div className="card">
-          <div className="card-hdr"><div className="card-title">Search Books</div></div>
+          <div className="card-hdr">
+            <div className="card-title">Search Books</div>
+            <div className="availability-count">
+              {filtered.length > 0 ? `${firstResult}-${lastResult} of ${filtered.length} records` : '0 records'}
+            </div>
+          </div>
           <div style={{ marginBottom: '20px' }}>
             <input
               className="search-input"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value)
+                setBookSearchPage(1)
+              }}
               placeholder="Search by title or author..."
             />
           </div>
@@ -1047,7 +1140,9 @@ export function LibrarianDashboard() {
                 <tr><th>Title</th><th>Author</th><th>ISBN</th><th>Available</th></tr>
               </thead>
               <tbody>
-                {filtered.map((book) => (
+                {visibleBooks.length === 0 ? (
+                  <tr><td colSpan="4" className="empty-cell">No books match the current search.</td></tr>
+                ) : visibleBooks.map((book) => (
                   <tr key={book.book_id}>
                     <td>{book.title}</td>
                     <td>{book.author || '—'}</td>
@@ -1058,7 +1153,121 @@ export function LibrarianDashboard() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="pagination-bar">
+              <button className="btn btn-outline btn-sm" type="button" disabled={currentPage <= 1} onClick={() => setSearchBookPage(currentPage - 1, totalPages)}>Previous</button>
+              <div className="page-buttons">
+                {searchBookPageNumbers(totalPages, currentPage).map((page) => (
+                  <button
+                    key={page}
+                    className={`page-button ${page === currentPage ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => setSearchBookPage(page, totalPages)}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button className="btn btn-outline btn-sm" type="button" disabled={currentPage >= totalPages} onClick={() => setSearchBookPage(currentPage + 1, totalPages)}>Next</button>
+              <span className="pagination-summary">Page {currentPage} of {totalPages}</span>
+            </div>
+          )}
         </div>
+      )
+    }
+
+    if (activePage === 'fines') {
+      const paymentStatusLabel = (fine) => {
+        const paymentStatus = String(fine.payment_status || '').toLowerCase()
+        if (paymentStatus === 'pending') return 'Cash Pending'
+        if (paymentStatus === 'pending_verification') return 'Pending Verification'
+        if (paymentStatus === 'failed') return 'Rejected'
+        if (paymentStatus === 'paid') return 'Paid'
+        return fine.status === 'paid' ? 'Paid' : 'Unpaid'
+      }
+
+      return (
+        <>
+          <div className="grid4">
+            <div className="stat red">
+              <div className="stat-label">Unpaid</div>
+              <div className="stat-num">{fineSummary.unpaid_count || 0}</div>
+              <div className="stat-sub">{formatCurrency(fineSummary.total_unpaid)}</div>
+            </div>
+            <div className="stat gold">
+              <div className="stat-label">Pending Review</div>
+              <div className="stat-num">{fineSummary.pending_count || pendingFinePayments.length}</div>
+              <div className="stat-sub">Cash or online</div>
+            </div>
+            <div className="stat green">
+              <div className="stat-label">Paid</div>
+              <div className="stat-num">{fineSummary.paid_count || 0}</div>
+              <div className="stat-sub">{formatCurrency(fineSummary.total_paid)}</div>
+            </div>
+            <div className="stat blue">
+              <div className="stat-label">Total</div>
+              <div className="stat-num">{fineSummary.total_count || safeFines.length}</div>
+              <div className="stat-sub">Fine records</div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-hdr">
+              <div>
+                <div className="card-title">Fine Payment Reviews ({safeFines.length})</div>
+                <div className="subtext">Approve cash payments after collection and verify online payments after checking the reference.</div>
+              </div>
+              <button className="btn btn-outline btn-sm" type="button" onClick={loadFines}>Refresh</button>
+            </div>
+            <div className="admin-table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fine ID</th>
+                    <th>Student</th>
+                    <th>Book</th>
+                    <th>Amount</th>
+                    <th>Payment</th>
+                    <th>Reference</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {safeFines.length === 0 ? (
+                    <tr><td colSpan="7" className="empty-cell">No fines found.</td></tr>
+                  ) : safeFines.map((fine) => {
+                    const paymentStatus = String(fine.payment_status || '').toLowerCase()
+                    const isPendingReview = ['pending', 'pending_verification'].includes(paymentStatus)
+                    const isReviewing = reviewingFineId === fine.fine_id
+                    return (
+                      <tr key={fine.fine_id}>
+                        <td>{fine.fine_id}</td>
+                        <td>
+                          <strong>{fine.student_name || 'Unknown student'}</strong>
+                          <div className="muted-line">{fine.student_number || fine.student_email || `Student ${fine.student_id}`}</div>
+                        </td>
+                        <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
+                        <td>{formatCurrency(fine.amount)}</td>
+                        <td>
+                          <span className={`fine-pill ${paymentStatus || 'unpaid'}`}>{paymentStatusLabel(fine)}</span>
+                          {fine.payment_method && <div className="muted-line">{fine.payment_method}</div>}
+                        </td>
+                        <td>
+                          {fine.payment_reference || '-'}
+                          {fine.payment_requested_at && <div className="muted-line">{new Date(fine.payment_requested_at).toLocaleString()}</div>}
+                        </td>
+                        <td>
+                          <button className="btn btn-green btn-sm" type="button" disabled={isReviewing || !isPendingReview} onClick={() => handleFinePaymentReview(fine.fine_id, 'approve')}>Approve</button>
+                          <button className="btn btn-red btn-sm" type="button" disabled={isReviewing || !isPendingReview} onClick={() => handleFinePaymentReview(fine.fine_id, 'reject')}>Reject</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )
     }
 
@@ -1070,7 +1279,8 @@ export function LibrarianDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
               <div className="frow">
                 <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => { setPasswordForm({ ...passwordForm, old_password: event.target.value }); setPasswordError(''); }} placeholder="Current password" /></div>
-                <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError(''); }} placeholder="New password" /></div>
+                <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError(''); }} placeholder={passwordRequirementText} /></div>
+                <div className="fgroup"><label>Confirm new password</label><input type="password" value={passwordForm.confirm_password} onChange={(event) => { setPasswordForm({ ...passwordForm, confirm_password: event.target.value }); setPasswordError(''); }} placeholder="Confirm new password" /></div>
               </div>
               <button className="btn btn-blue" type="submit" style={{ alignSelf: 'flex-start' }}>Save password</button>
               {passwordError && <div className="password-error">{passwordError}</div>}
@@ -1088,8 +1298,10 @@ export function LibrarianDashboard() {
       <div className="sidebar">
         <div className="logo">
           <div className="logo-icon"><BookOpen size={24} strokeWidth={1.9} aria-hidden="true" /></div>
-          <div className="logo-title">LIBRASYS</div>
-          <div className="logo-sub">Librarian</div>
+          <div className="logo-text">
+            <div className="logo-title">LIBRASYS</div>
+            <div className="logo-sub">Librarian</div>
+          </div>
         </div>
         <nav className="nav">
           {navigationSections.map((section) => (
@@ -1105,16 +1317,6 @@ export function LibrarianDashboard() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="avatar">LI</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Librarian</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>librarian@librasys.edu</div>
-            </div>
-            <button type="button" style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)', background: 'transparent', border: 'none', padding: 0 }} title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout"><Power size={16} aria-hidden="true" /></button>
-          </div>
-        </div>
       </div>
       {showLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
@@ -1131,9 +1333,6 @@ export function LibrarianDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || (activePage === 'ebooks' ? 'E-books' : 'Overview')}</div>
-          <div className="search-wrap">
-            <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
-          </div>
           <div style={{ position: 'relative' }}>
             <button type="button" className="icon-button notification-button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
               <Bell size={18} aria-hidden="true" />
@@ -1157,7 +1356,18 @@ export function LibrarianDashboard() {
               </div>
             )}
           </div>
-          <div className="avatar">LI</div>
+          <div className="topbar-user-card">
+            <div className="topbar-user-profile">
+              <div className="avatar">LI</div>
+              <div className="topbar-user-text">
+                <div className="topbar-user-name">Librarian</div>
+                <div className="topbar-user-email">librarian@librasys.edu</div>
+              </div>
+            </div>
+            <button className="topbar-logout-button" type="button" title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout">
+              <Power size={17} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <div className="content">
           {renderPage()}

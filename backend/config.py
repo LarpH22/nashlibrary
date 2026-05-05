@@ -57,3 +57,6 @@ class Config:
     )
     ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}
     ALLOWED_EBOOK_EXTENSIONS = {'pdf', 'epub'}
+
+    # Fine configuration
+    FINE_DAILY_RATE = float(os.environ.get('FINE_DAILY_RATE', '100.00'))

@@ -49,6 +49,16 @@ class AuthController:
         self.forgot_password_use_case = ForgotPasswordUseCase(self.auth_service, self.email_service)
         self.reset_password_use_case = ResetPasswordUseCase(self.auth_service)
 
+    def _validate_new_password(self, new_password, confirm_password=None):
+        valid, message = self.validation_service.validate_password_strength(new_password)
+        if not valid:
+            return message
+        if confirm_password is not None and not confirm_password:
+            return 'Confirm password is required'
+        if confirm_password is not None and new_password != confirm_password:
+            return 'Passwords do not match'
+        return None
+
     def register(self):
         """Register a new user (student, librarian, or admin)"""
         # Check if it's a student registration with file upload
@@ -63,10 +73,15 @@ class AuthController:
             email = request.form.get('email')
             full_name = request.form.get('full_name')
             password = request.form.get('password')
+            confirm_password = request.form.get('confirm_password', '')
             student_id = request.form.get('student_id')
             department = request.form.get('department')
             year_level = request.form.get('year_level')
             registration_document = request.files.get('registration_document')
+
+            password_error = self._validate_new_password(password, confirm_password)
+            if password_error:
+                return jsonify({'message': password_error}), 400
 
             result = self.secure_student_registration_use_case.execute(
                 email=email,
@@ -94,6 +109,7 @@ class AuthController:
         email = data.get('email')
         full_name = data.get('full_name')
         password = data.get('password')
+        confirm_password = data.get('confirm_password', '')
         role = data.get('role', 'student')
         student_number = data.get('student_number')
         employee_id = data.get('employee_id')
@@ -101,6 +117,10 @@ class AuthController:
 
         if not email or not password or not full_name:
             return jsonify({'message': 'Email, full name, and password are required.'}), 400
+
+        password_error = self._validate_new_password(password, confirm_password)
+        if password_error:
+            return jsonify({'message': password_error}), 400
 
         # Only allow librarian and admin registration through this endpoint
         if role not in ['librarian', 'admin']:
@@ -244,12 +264,14 @@ class AuthController:
             data = request.get_json() or {}
             token = data.get('token')
             new_password = data.get('new_password')
+            confirm_password = data.get('confirm_password', '')
             
             if not token or not new_password:
                 return jsonify({'message': 'Token and new password are required'}), 400
             
-            if len(new_password) < 6:
-                return jsonify({'message': 'Password must be at least 6 characters'}), 400
+            password_error = self._validate_new_password(new_password, confirm_password)
+            if password_error:
+                return jsonify({'message': password_error}), 400
             
             result = self.reset_password_use_case.execute(token, new_password)
             return jsonify(result), 200
@@ -265,12 +287,14 @@ class AuthController:
             data = request.get_json() or {}
             old_password = data.get('old_password')
             new_password = data.get('new_password')
+            confirm_password = data.get('confirm_password', '')
 
             if not old_password or not new_password:
                 return jsonify({'message': 'Old and new passwords are required'}), 400
 
-            if len(new_password) < 6:
-                return jsonify({'message': 'Password must be at least 6 characters'}), 400
+            password_error = self._validate_new_password(new_password, confirm_password)
+            if password_error:
+                return jsonify({'message': password_error}), 400
 
             jwt_claims = get_jwt()
             email = jwt_claims.get('email')

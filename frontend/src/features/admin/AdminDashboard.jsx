@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BookOpen, LogOut, Bell, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -11,13 +11,13 @@ import {
   fetchBooks,
   createBook,
   borrowBook,
-  returnBook,
   fetchStudent,
   fetchStudents,
   updateStudent,
   resetStudentPassword,
   fetchLoans,
   fetchAdminFines,
+  reviewFinePayment,
   updateFineStatus,
   changePassword,
   fetchRegistrationRequests,
@@ -25,7 +25,11 @@ import {
   approveRegistration,
   rejectRegistration
 } from './adminService.js'
+import { approveReservation, cancelReservation, claimReservation, expireReservations, fetchReservations } from '../reservations/reservationService.js'
+import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
+import { formatCurrency } from '../../shared/utils/index.js'
+import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
 import './AdminDashboard.css'
 
 const navSections = [
@@ -35,8 +39,11 @@ const navSections = [
       { id: 'overview', icon: '📊', title: 'Overview' },
       { id: 'registrations', icon: '📝', title: 'Registration Requests' },
       { id: 'books', icon: '📖', title: 'Books' },
-      { id: 'loans', icon: '🔄', title: 'Issue / Return', badge: '3' },
-      { id: 'students', icon: '👥', title: 'Students' }
+      { id: 'loans', icon: '🔄', title: 'Loans', badge: '3' },
+      { id: 'returns', icon: '↩️', title: 'Returns' },
+      { id: 'students', icon: '👥', title: 'Students' },
+      { id: 'fines', icon: '$', title: 'Fines' },
+      { id: 'reservations', icon: 'RQ', title: 'Reservations' }
     ]
   },
   {
@@ -54,14 +61,14 @@ const navSections = [
   }
 ]
 
-navSections[0].items.splice(4, 0, { id: 'fines', icon: '$', title: 'Fines' })
-
 const pageTitles = {
   overview: 'Overview',
   registrations: 'Registration Requests',
   books: 'Books',
-  loans: 'Issue / Return',
+  loans: 'Loans',
+  returns: 'Returns Platform',
   fines: 'Fines Management',
+  reservations: 'Reservations',
   students: 'Students',
   categories: 'Categories',
   authors: 'Authors',
@@ -90,6 +97,8 @@ export function AdminDashboard() {
   const [authors, setAuthors] = useState([])
   const [books, setBooks] = useState([])
   const [loans, setLoans] = useState([])
+  const [reservations, setReservations] = useState([])
+  const [reservationActionId, setReservationActionId] = useState(null)
   const [students, setStudents] = useState([])
   const [fines, setFines] = useState([])
   const [fineSummary, setFineSummary] = useState({ total_count: 0, unpaid_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
@@ -100,7 +109,7 @@ export function AdminDashboard() {
   const [editingStudent, setEditingStudent] = useState(null)
   const [studentForm, setStudentForm] = useState(emptyStudentForm)
   const [studentFormError, setStudentFormError] = useState('')
-  const [studentPasswordForm, setStudentPasswordForm] = useState({ student_id: '', new_password: '' })
+  const [studentPasswordForm, setStudentPasswordForm] = useState({ student_id: '', new_password: '', confirm_password: '' })
   const [studentPasswordMessage, setStudentPasswordMessage] = useState('')
   const [, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
@@ -110,13 +119,14 @@ export function AdminDashboard() {
   const [authorName, setAuthorName] = useState('')
   const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', available_copies: '1', total_copies: '1' })
   const [borrowForm, setBorrowForm] = useState({ book_id: '', user_id: '' })
-  const [returnLoanId, setReturnLoanId] = useState('')
-  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' })
+  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [registrationRequests, setRegistrationRequests] = useState([])
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [bookInventoryPage, setBookInventoryPage] = useState(1)
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
+  const [categoryPagination, setCategoryPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
+  const [authorPagination, setAuthorPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
   const adminEmail = localStorage.getItem('user_email') || 'admin@librasys.edu'
 
   useEffect(() => {
@@ -124,10 +134,19 @@ export function AdminDashboard() {
     loadAuthors()
     loadBooks()
     loadLoans()
+    loadReservations()
     loadStudents()
     loadFines()
     loadRegistrationRequests()
   }, [])
+
+  useEffect(() => {
+    loadCategories()
+  }, [categoryPagination.page])
+
+  useEffect(() => {
+    loadAuthors()
+  }, [authorPagination.page])
 
   const handleLogout = () => {
     clearStoredAuth()
@@ -150,10 +169,11 @@ export function AdminDashboard() {
       { label: 'Authors', value: authors.length, type: 'blue' },
       { label: 'Books', value: books.length, type: 'green' },
       { label: 'Loans', value: loans.length, type: 'purple' },
+      { label: 'Reservations', value: reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).length, type: 'gold' },
       { label: 'Students', value: students.length, type: 'blue' },
-      { label: 'Unpaid Fines', value: `$${Number(fineSummary.total_unpaid || 0).toFixed(2)}`, type: 'red' }
+      { label: 'Unpaid Fines', value: formatCurrency(fineSummary.total_unpaid), type: 'red' }
     ],
-    [categories, authors, books, loans, students, fineSummary.total_unpaid]
+    [categories, authors, books, loans, reservations, students, fineSummary.total_unpaid]
   )
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
@@ -167,10 +187,13 @@ export function AdminDashboard() {
   const filteredRegistrationRequests = registrationRequests.filter((request) =>
     matchesSearch(request.full_name, request.email, request.student_number, request.department, request.year_level)
   )
-  const filteredCategories = categories.filter((category) => matchesSearch(category.name))
-  const filteredAuthors = authors.filter((author) => matchesSearch(author.name))
+  const filteredCategories = categories
+  const filteredAuthors = authors
   const filteredBooks = books.filter((book) => matchesSearch(book.title, book.author, book.isbn))
   const filteredLoans = loans.filter((loan) => matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.status))
+  const filteredReservations = reservations.filter((reservation) =>
+    matchesSearch(reservation.reservation_id, reservation.book_title, reservation.student_name, reservation.student_email, reservation.status)
+  )
   const filteredStudents = students.filter((studentRow) =>
     matchesSearch(studentRow.full_name, studentRow.email, studentRow.student_number, studentRow.status, studentRow.department)
   )
@@ -188,7 +211,22 @@ export function AdminDashboard() {
 
   async function loadCategories() {
     try {
-      setCategories(await fetchCategories())
+      const response = await fetchCategories({
+        page: categoryPagination.page,
+        limit: categoryPagination.limit
+      })
+      if (response.categories) {
+        setCategories(response.categories)
+        setCategoryPagination(prev => ({
+          ...prev,
+          total: response.pagination?.total || 0,
+          total_pages: response.pagination?.total_pages || 1
+        }))
+      } else {
+        // Fallback for non-paginated response
+        setCategories(response)
+        setCategoryPagination(prev => ({ ...prev, total: response.length, total_pages: 1 }))
+      }
     } catch {
       setMessage('Unable to load categories.')
     }
@@ -196,7 +234,22 @@ export function AdminDashboard() {
 
   async function loadAuthors() {
     try {
-      setAuthors(await fetchAuthors())
+      const response = await fetchAuthors({
+        page: authorPagination.page,
+        limit: authorPagination.limit
+      })
+      if (response.authors) {
+        setAuthors(response.authors)
+        setAuthorPagination(prev => ({
+          ...prev,
+          total: response.pagination?.total || 0,
+          total_pages: response.pagination?.total_pages || 1
+        }))
+      } else {
+        // Fallback for non-paginated response
+        setAuthors(response)
+        setAuthorPagination(prev => ({ ...prev, total: response.length, total_pages: 1 }))
+      }
     } catch {
       setMessage('Unable to load authors.')
     }
@@ -217,6 +270,19 @@ export function AdminDashboard() {
       setMessage('Unable to load loans.')
     }
   }
+
+  async function loadReservations() {
+    try {
+      const data = await fetchReservations()
+      setReservations(Array.isArray(data?.reservations) ? data.reservations : [])
+    } catch {
+      setMessage('Unable to load reservations.')
+    }
+  }
+
+  const refreshAfterReturn = useCallback(async () => {
+    await Promise.allSettled([loadBooks(), loadLoans(), loadReservations()])
+  }, [loadBooks, loadLoans, loadReservations])
 
   async function loadStudents() {
     try {
@@ -245,6 +311,20 @@ export function AdminDashboard() {
       setFineStatusMessage(`Fine marked as ${status}.`)
     } catch (error) {
       setFineStatusMessage(error?.response?.data?.message || 'Unable to update fine status.')
+    } finally {
+      setUpdatingFineId(null)
+    }
+  }
+
+  async function handleFinePaymentReview(fineId, action) {
+    setUpdatingFineId(fineId)
+    setFineStatusMessage('')
+    try {
+      const result = await reviewFinePayment(fineId, action)
+      await loadFines()
+      setFineStatusMessage(result?.message || `Payment ${action === 'approve' ? 'approved' : 'rejected'}.`)
+    } catch (error) {
+      setFineStatusMessage(error?.response?.data?.message || 'Unable to review payment.')
     } finally {
       setUpdatingFineId(null)
     }
@@ -284,6 +364,20 @@ export function AdminDashboard() {
     }
   }
 
+  function setCategoryPage(page) {
+    setCategoryPagination(prev => ({
+      ...prev,
+      page: Math.min(Math.max(1, page), Math.max(1, prev.total_pages || 1))
+    }))
+  }
+
+  function setAuthorPage(page) {
+    setAuthorPagination(prev => ({
+      ...prev,
+      page: Math.min(Math.max(1, page), Math.max(1, prev.total_pages || 1))
+    }))
+  }
+
   async function handleAddBook(event) {
     event.preventDefault()
     try {
@@ -313,16 +407,34 @@ export function AdminDashboard() {
     }
   }
 
-  async function handleReturnBook(event) {
-    event.preventDefault()
+  async function handleReservationAction(reservationId, action) {
+    setReservationActionId(reservationId)
     try {
-      await returnBook(Number(returnLoanId))
-      setReturnLoanId('')
-      await Promise.all([loadBooks(), loadLoans()])
-      setMessage('Book return recorded.')
-    } catch (err) {
-      await Promise.allSettled([loadBooks(), loadLoans()])
-      setMessage(err?.response?.data?.message || 'Failed to return book.')
+      let response
+      if (action === 'approve') {
+        response = await approveReservation(reservationId)
+      } else if (action === 'claim') {
+        response = await claimReservation(reservationId)
+      } else {
+        response = await cancelReservation(reservationId)
+      }
+      await Promise.allSettled([loadReservations(), loadBooks(), loadLoans()])
+      setMessage(response?.message || 'Reservation updated.')
+    } catch (error) {
+      await loadReservations()
+      setMessage(error?.response?.data?.message || 'Unable to update reservation.')
+    } finally {
+      setReservationActionId(null)
+    }
+  }
+
+  async function handleExpireReservations() {
+    try {
+      const response = await expireReservations()
+      await Promise.allSettled([loadReservations(), loadBooks()])
+      setMessage(response?.message || 'Expired reservations removed.')
+    } catch (error) {
+      setMessage(error?.response?.data?.message || 'Unable to remove expired reservations.')
     }
   }
 
@@ -356,7 +468,7 @@ export function AdminDashboard() {
       document_exists: Boolean(studentRow.document_exists)
     })
     setStudentFormError('')
-    setStudentPasswordForm({ student_id: '', new_password: '' })
+    setStudentPasswordForm({ student_id: '', new_password: '', confirm_password: '' })
     setStudentPasswordMessage('')
   }
 
@@ -416,16 +528,22 @@ export function AdminDashboard() {
   async function handleResetStudentPassword(event) {
     event.preventDefault()
     setStudentPasswordMessage('')
-    if (studentPasswordForm.new_password.length < 8) {
-      setStudentPasswordMessage('Password must be at least 8 characters.')
+    const passwordValidation = validatePassword(studentPasswordForm.new_password, 'New password')
+    if (!passwordValidation.isValid) {
+      setStudentPasswordMessage(passwordValidation.message)
+      return
+    }
+    const confirmationValidation = validatePasswordConfirmation(studentPasswordForm.new_password, studentPasswordForm.confirm_password)
+    if (!confirmationValidation.isValid) {
+      setStudentPasswordMessage(confirmationValidation.message)
       return
     }
     if (!window.confirm('Reset this student password now?')) {
       return
     }
     try {
-      await resetStudentPassword(studentPasswordForm.student_id, studentPasswordForm.new_password)
-      setStudentPasswordForm({ student_id: '', new_password: '' })
+      await resetStudentPassword(studentPasswordForm.student_id, studentPasswordForm.new_password, studentPasswordForm.confirm_password)
+      setStudentPasswordForm({ student_id: '', new_password: '', confirm_password: '' })
       setStudentPasswordMessage('Password reset successfully.')
     } catch (error) {
       setStudentPasswordMessage(error?.response?.data?.message || 'Unable to reset password.')
@@ -437,18 +555,24 @@ export function AdminDashboard() {
     setPasswordError('')
 
     if (!passwordForm.old_password || !passwordForm.new_password) {
-      setPasswordError('Both password fields are required.')
+      setPasswordError('Current password and new password are required.')
       return
     }
 
-    if (passwordForm.new_password.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.')
+    const passwordValidation = validatePassword(passwordForm.new_password, 'New password')
+    if (!passwordValidation.isValid) {
+      setPasswordError(passwordValidation.message)
+      return
+    }
+    const confirmationValidation = validatePasswordConfirmation(passwordForm.new_password, passwordForm.confirm_password)
+    if (!confirmationValidation.isValid) {
+      setPasswordError(confirmationValidation.message)
       return
     }
 
     try {
-      await changePassword(passwordForm.old_password, passwordForm.new_password)
-      setPasswordForm({ old_password: '', new_password: '' })
+      await changePassword(passwordForm.old_password, passwordForm.new_password, passwordForm.confirm_password)
+      setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
       setPasswordError('')
       setShowPasswordSuccessModal(true)
     } catch (error) {
@@ -623,7 +747,7 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr">
-            <div className="card-title">Category Management ({filteredCategories.length})</div>
+            <div className="card-title">Category Management ({categoryPagination.total})</div>
           </div>
           <form className="admin-form" onSubmit={handleAddCategory}>
             <div className="fgroup" style={{ flex: 1 }}>
@@ -649,6 +773,23 @@ export function AdminDashboard() {
               </tbody>
             </table>
           </div>
+          <div className="pagination-bar">
+            <button className="btn btn-outline btn-sm" type="button" disabled={categoryPagination.page <= 1} onClick={() => setCategoryPage(categoryPagination.page - 1)}>Previous</button>
+            <div className="page-buttons">
+              {bookInventoryPageNumbers(categoryPagination.total_pages, categoryPagination.page).map((page) => (
+                <button
+                  key={page}
+                  className={`page-button ${page === categoryPagination.page ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setCategoryPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-outline btn-sm" type="button" disabled={categoryPagination.page >= categoryPagination.total_pages} onClick={() => setCategoryPage(categoryPagination.page + 1)}>Next</button>
+            <span className="pagination-summary">Page {categoryPagination.page} of {categoryPagination.total_pages}</span>
+          </div>
         </div>
       )
     }
@@ -657,7 +798,7 @@ export function AdminDashboard() {
       return (
         <div className="card">
           <div className="card-hdr">
-            <div className="card-title">Author Management ({filteredAuthors.length})</div>
+            <div className="card-title">Author Management ({authorPagination.total})</div>
           </div>
           <form className="admin-form" onSubmit={handleAddAuthor}>
             <div className="fgroup" style={{ flex: 1 }}>
@@ -682,6 +823,23 @@ export function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="pagination-bar">
+            <button className="btn btn-outline btn-sm" type="button" disabled={authorPagination.page <= 1} onClick={() => setAuthorPage(authorPagination.page - 1)}>Previous</button>
+            <div className="page-buttons">
+              {bookInventoryPageNumbers(authorPagination.total_pages, authorPagination.page).map((page) => (
+                <button
+                  key={page}
+                  className={`page-button ${page === authorPagination.page ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setAuthorPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-outline btn-sm" type="button" disabled={authorPagination.page >= authorPagination.total_pages} onClick={() => setAuthorPage(authorPagination.page + 1)}>Next</button>
+            <span className="pagination-summary">Page {authorPagination.page} of {authorPagination.total_pages}</span>
           </div>
         </div>
       )
@@ -785,26 +943,15 @@ export function AdminDashboard() {
     if (activePage === 'loans') {
       return (
         <>
-          <div className="grid2">
-            <div className="card">
-              <div className="card-hdr">
-                <div className="card-title">Issue Book</div>
-              </div>
-              <form className="admin-form" onSubmit={handleBorrowBook}>
-                <div className="fgroup"><label>Book ID</label><input value={borrowForm.book_id} onChange={(event) => setBorrowForm((current) => ({ ...current, book_id: event.target.value }))} placeholder="Book ID" /></div>
-                <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm((current) => ({ ...current, user_id: event.target.value }))} placeholder="Student ID" /></div>
-                <button className="btn btn-gold" type="submit">Issue</button>
-              </form>
+          <div className="card">
+            <div className="card-hdr">
+              <div className="card-title">Issue Book</div>
             </div>
-            <div className="card">
-              <div className="card-hdr">
-                <div className="card-title">Return Book</div>
-              </div>
-              <form className="admin-form" onSubmit={handleReturnBook}>
-                <div className="fgroup"><label>Loan ID</label><input value={returnLoanId} onChange={(event) => setReturnLoanId(event.target.value)} placeholder="Loan ID" /></div>
-                <button className="btn btn-gold" type="submit">Return</button>
-              </form>
-            </div>
+            <form className="admin-form" onSubmit={handleBorrowBook}>
+              <div className="fgroup"><label>Book ID</label><input value={borrowForm.book_id} onChange={(event) => setBorrowForm((current) => ({ ...current, book_id: event.target.value }))} placeholder="Book ID" /></div>
+              <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm((current) => ({ ...current, user_id: event.target.value }))} placeholder="Student ID" /></div>
+              <button className="btn btn-gold" type="submit">Issue</button>
+            </form>
           </div>
           <div className="card">
             <div className="card-hdr"><div className="card-title">Current Loans ({filteredLoans.length})</div></div>
@@ -830,9 +977,89 @@ export function AdminDashboard() {
       )
     }
 
+    if (activePage === 'returns') {
+      return (
+        <ReturnPlatform onLoanReturned={refreshAfterReturn} />
+      )
+    }
+
+    if (activePage === 'reservations') {
+      const statusLabel = (status) => {
+        const normalized = String(status || '').toLowerCase()
+        if (normalized === 'ready') return 'Ready for pickup'
+        if (normalized === 'active') return 'Queued'
+        if (normalized === 'claimed') return 'Claimed'
+        if (normalized === 'cancelled') return 'Cancelled'
+        if (normalized === 'expired') return 'Expired'
+        return status || '-'
+      }
+
+      return (
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">Reservation Queue ({filteredReservations.length})</div>
+            <button className="btn btn-outline btn-sm" type="button" onClick={handleExpireReservations}>Remove Expired</button>
+          </div>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Book</th><th>Student</th><th>Queue</th><th>Status</th><th>Expires</th><th>Copy</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {filteredReservations.length === 0 ? (
+                  <tr><td colSpan="8" className="empty-cell">No reservations found.</td></tr>
+                ) : filteredReservations.map((reservation) => {
+                  const status = String(reservation.status || '').toLowerCase()
+                  const busy = reservationActionId === reservation.reservation_id
+                  return (
+                    <tr key={reservation.reservation_id}>
+                      <td>{reservation.reservation_id}</td>
+                      <td>{reservation.book_title || reservation.book_id}</td>
+                      <td>
+                        {reservation.student_name || reservation.student_email || reservation.student_id}
+                        {reservation.student_number && <div className="muted-line">{reservation.student_number}</div>}
+                      </td>
+                      <td>{reservation.queue_position || '-'}</td>
+                      <td style={{ color: status === 'ready' ? 'var(--green)' : status === 'active' ? 'var(--gold)' : 'var(--muted)' }}>{statusLabel(status)}</td>
+                      <td>{reservation.expiration_date ? new Date(reservation.expiration_date).toLocaleDateString() : '-'}</td>
+                      <td>{reservation.copy_code || reservation.barcode_value || '-'}</td>
+                      <td>
+                        <div className="row-actions">
+                          {status === 'active' && (
+                            <button className="btn btn-gold btn-sm" type="button" disabled={busy} onClick={() => handleReservationAction(reservation.reservation_id, 'approve')}>Approve</button>
+                          )}
+                          {status === 'ready' && (
+                            <button className="btn btn-gold btn-sm" type="button" disabled={busy} onClick={() => handleReservationAction(reservation.reservation_id, 'claim')}>Claim</button>
+                          )}
+                          {['active', 'ready'].includes(status) ? (
+                            <button className="btn btn-outline btn-sm" type="button" disabled={busy} onClick={() => handleReservationAction(reservation.reservation_id, 'cancel')}>Cancel</button>
+                          ) : (
+                            <span className="muted-line">Closed</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
     if (activePage === 'fines') {
       const unpaidFines = filteredFines.filter((fine) => fine.status === 'unpaid')
+      const pendingFines = filteredFines.filter((fine) => ['pending', 'pending_verification'].includes(String(fine.payment_status || '').toLowerCase()))
       const paidFines = filteredFines.filter((fine) => fine.status === 'paid')
+      const paymentStatusLabel = (fine) => {
+        const paymentStatus = String(fine.payment_status || '').toLowerCase()
+        if (paymentStatus === 'pending') return 'Cash Pending'
+        if (paymentStatus === 'pending_verification') return 'Pending Verification'
+        if (paymentStatus === 'failed') return 'Rejected'
+        if (paymentStatus === 'paid') return 'Paid'
+        return fine.status === 'paid' ? 'Paid' : 'Unpaid'
+      }
 
       return (
         <>
@@ -840,17 +1067,17 @@ export function AdminDashboard() {
             <div className="stat red">
               <div className="stat-label">Unpaid</div>
               <div className="stat-num">{fineSummary.unpaid_count || 0}</div>
-              <div className="stat-sub">${Number(fineSummary.total_unpaid || 0).toFixed(2)}</div>
+              <div className="stat-sub">{formatCurrency(fineSummary.total_unpaid)}</div>
             </div>
             <div className="stat green">
               <div className="stat-label">Paid</div>
               <div className="stat-num">{fineSummary.paid_count || 0}</div>
-              <div className="stat-sub">${Number(fineSummary.total_paid || 0).toFixed(2)}</div>
+              <div className="stat-sub">{formatCurrency(fineSummary.total_paid)}</div>
             </div>
             <div className="stat blue">
-              <div className="stat-label">Total Fines</div>
-              <div className="stat-num">{fineSummary.total_count || fines.length}</div>
-              <div className="stat-sub">Recorded payments</div>
+              <div className="stat-label">Pending Review</div>
+              <div className="stat-num">{fineSummary.pending_count || pendingFines.length}</div>
+              <div className="stat-sub">Cash or online</div>
             </div>
             <div className="stat gold">
               <div className="stat-label">Visible</div>
@@ -878,16 +1105,19 @@ export function AdminDashboard() {
                     <th>Loan</th>
                     <th>Overdue</th>
                     <th>Amount</th>
-                    <th>Status</th>
+                    <th>Payment</th>
+                    <th>Reference</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredFines.length === 0 ? (
-                    <tr><td colSpan="8" className="empty-cell">No fines found.</td></tr>
+                    <tr><td colSpan="9" className="empty-cell">No fines found.</td></tr>
                   ) : filteredFines.map((fine) => {
                     const isPaid = fine.status === 'paid'
                     const isUpdating = updatingFineId === fine.fine_id
+                    const paymentStatus = String(fine.payment_status || '').toLowerCase()
+                    const isPendingReview = ['pending', 'pending_verification'].includes(paymentStatus)
                     return (
                       <tr key={fine.fine_id}>
                         <td>{fine.fine_id}</td>
@@ -901,13 +1131,40 @@ export function AdminDashboard() {
                         </td>
                         <td>{fine.loan_id}</td>
                         <td>{Number(fine.days_overdue || 0)} day{Number(fine.days_overdue || 0) === 1 ? '' : 's'}</td>
-                        <td>${Number(fine.amount || 0).toFixed(2)}</td>
-                        <td><span className={`fine-pill ${isPaid ? 'paid' : 'unpaid'}`}>{isPaid ? 'Paid' : 'Unpaid'}</span></td>
+                        <td>{formatCurrency(fine.amount)}</td>
                         <td>
+                          <span className={`fine-pill ${paymentStatus || (isPaid ? 'paid' : 'unpaid')}`}>{paymentStatusLabel(fine)}</span>
+                          {fine.payment_method && <div className="muted-line">{fine.payment_method}</div>}
+                        </td>
+                        <td>
+                          {fine.payment_reference || '-'}
+                          {fine.payment_requested_at && <div className="muted-line">{new Date(fine.payment_requested_at).toLocaleString()}</div>}
+                        </td>
+                        <td>
+                          {isPendingReview && (
+                            <>
+                              <button
+                                className="btn btn-green btn-sm"
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() => handleFinePaymentReview(fine.fine_id, 'approve')}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="btn btn-red btn-sm"
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() => handleFinePaymentReview(fine.fine_id, 'reject')}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
                           <button
                             className="btn btn-gold btn-sm"
                             type="button"
-                            disabled={isUpdating || isPaid}
+                            disabled={isUpdating || isPaid || isPendingReview}
                             onClick={() => handleFineStatusChange(fine.fine_id, 'paid')}
                           >
                             Paid
@@ -915,7 +1172,7 @@ export function AdminDashboard() {
                           <button
                             className="btn btn-outline btn-sm"
                             type="button"
-                            disabled={isUpdating || !isPaid}
+                            disabled={isUpdating || !isPaid || isPendingReview}
                             onClick={() => handleFineStatusChange(fine.fine_id, 'unpaid')}
                           >
                             Unpaid
@@ -990,7 +1247,7 @@ export function AdminDashboard() {
                         <div className="row-actions">
                           <button className="btn btn-gold btn-sm" type="button" onClick={() => openEditStudent(studentRow)}>Edit</button>
                           <button className="btn btn-outline btn-sm" type="button" onClick={() => {
-                            setStudentPasswordForm({ student_id: studentRow.student_id || studentRow.user_id || '', new_password: '' })
+                            setStudentPasswordForm({ student_id: studentRow.student_id || studentRow.user_id || '', new_password: '', confirm_password: '' })
                             setStudentPasswordMessage('')
                           }}>Reset Password</button>
                         </div>
@@ -1106,18 +1363,22 @@ export function AdminDashboard() {
                     <div className="modal-title">Reset Student Password</div>
                     <div className="subtext">This immediately updates the student login password.</div>
                   </div>
-                  <button className="icon-button" type="button" onClick={() => setStudentPasswordForm({ student_id: '', new_password: '' })} aria-label="Close reset password">
+                  <button className="icon-button" type="button" onClick={() => setStudentPasswordForm({ student_id: '', new_password: '', confirm_password: '' })} aria-label="Close reset password">
                     <X size={18} aria-hidden="true" />
                   </button>
                 </div>
                 <form onSubmit={handleResetStudentPassword}>
                   <div className="fgroup">
                     <label>New password</label>
-                    <input type="password" value={studentPasswordForm.new_password} onChange={(event) => setStudentPasswordForm({ ...studentPasswordForm, new_password: event.target.value })} placeholder="At least 8 characters" />
+                    <input type="password" value={studentPasswordForm.new_password} onChange={(event) => setStudentPasswordForm({ ...studentPasswordForm, new_password: event.target.value })} placeholder={passwordRequirementText} />
+                  </div>
+                  <div className="fgroup">
+                    <label>Confirm new password</label>
+                    <input type="password" value={studentPasswordForm.confirm_password} onChange={(event) => setStudentPasswordForm({ ...studentPasswordForm, confirm_password: event.target.value })} placeholder="Confirm new password" />
                   </div>
                   {studentPasswordMessage && <div className="form-error">{studentPasswordMessage}</div>}
                   <div className="modal-actions">
-                    <button className="btn btn-outline" type="button" onClick={() => setStudentPasswordForm({ student_id: '', new_password: '' })}>Cancel</button>
+                    <button className="btn btn-outline" type="button" onClick={() => setStudentPasswordForm({ student_id: '', new_password: '', confirm_password: '' })}>Cancel</button>
                     <button className="btn btn-gold" type="submit">Reset Password</button>
                   </div>
                 </form>
@@ -1154,6 +1415,57 @@ export function AdminDashboard() {
       )
     }
 
+    if (activePage === 'authors') {
+      return (
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">Author Management ({authorPagination.total})</div>
+          </div>
+          <form className="admin-form" onSubmit={handleAddAuthor}>
+            <div className="fgroup" style={{ flex: 1 }}>
+              <label>New author</label>
+              <input value={authorName} onChange={(event) => setAuthorName(event.target.value)} placeholder="Author name" />
+            </div>
+            <button className="btn btn-gold" type="submit">Add Author</button>
+          </form>
+          <div className="admin-table-container">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {filteredAuthors.map((author) => (
+                  <tr key={author.author_id}>
+                    <td>{author.name}</td>
+                    <td>
+                      <button className="btn btn-outline btn-sm" type="button" onClick={async () => { await deleteAuthor(author.author_id); await loadAuthors() }}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="pagination-bar">
+            <button className="btn btn-outline btn-sm" type="button" disabled={authorPagination.page <= 1} onClick={() => setAuthorPage(authorPagination.page - 1)}>Previous</button>
+            <div className="page-buttons">
+              {bookInventoryPageNumbers(authorPagination.total_pages, authorPagination.page).map((page) => (
+                <button
+                  key={page}
+                  className={`page-button ${page === authorPagination.page ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setAuthorPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-outline btn-sm" type="button" disabled={authorPagination.page >= authorPagination.total_pages} onClick={() => setAuthorPage(authorPagination.page + 1)}>Next</button>
+            <span className="pagination-summary">Page {authorPagination.page} of {authorPagination.total_pages}</span>
+          </div>
+        </div>
+      )
+    }
+
     if (activePage === 'account') {
       return (
         <div className="card">
@@ -1161,7 +1473,8 @@ export function AdminDashboard() {
           <form className="admin-form" onSubmit={handleChangePassword}>
             <div className="frow">
               <div className="fgroup"><label>Current password</label><input type="password" value={passwordForm.old_password} onChange={(event) => { setPasswordForm({ ...passwordForm, old_password: event.target.value }); setPasswordError('') }} placeholder="Current password" /></div>
-              <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError('') }} placeholder="New password" /></div>
+              <div className="fgroup"><label>New password</label><input type="password" value={passwordForm.new_password} onChange={(event) => { setPasswordForm({ ...passwordForm, new_password: event.target.value }); setPasswordError('') }} placeholder={passwordRequirementText} /></div>
+              <div className="fgroup"><label>Confirm new password</label><input type="password" value={passwordForm.confirm_password} onChange={(event) => { setPasswordForm({ ...passwordForm, confirm_password: event.target.value }); setPasswordError('') }} placeholder="Confirm new password" /></div>
             </div>
             <button className="btn btn-gold" type="submit">Save password</button>
             {passwordError && <div className="password-error">{passwordError}</div>}
@@ -1224,17 +1537,6 @@ export function AdminDashboard() {
       <div className="main">
         <div className="topbar">
           <div className="page-title">{pageTitles[activePage] || 'Overview'}</div>
-          <div className="search-wrap">
-            <input
-              className="search-input"
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value)
-                setBookInventoryPage(1)
-              }}
-              placeholder="Search..."
-            />
-          </div>
           <div style={{ position: 'relative' }}>
             <button className="icon-button notification-button" type="button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
               <Bell size={18} aria-hidden="true" />

@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 
 from ..controllers.book_controller import BookController
+from ...infrastructure.config import Config
 from ...infrastructure.database.db_connection import get_connection
 
 api_bp = Blueprint('api', __name__)
@@ -150,7 +151,7 @@ def list_student_loans():
                         due_date = due_date.date()
                     if effective_date > due_date:
                         days_overdue = (effective_date - due_date).days
-                        fine_amount = round(days_overdue * 1.0, 2)
+                        fine_amount = round(days_overdue * float(getattr(Config, 'FINE_DAILY_RATE', 100.0) or 100.0), 2)
 
                 loan['days_overdue'] = days_overdue
                 loan['fine_amount'] = fine_amount

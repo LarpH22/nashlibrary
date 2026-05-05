@@ -6,6 +6,7 @@ from flask import jsonify, request, send_from_directory, url_for
 from flask_jwt_extended import get_jwt
 
 from ...domain.services.auth_service import AuthService
+from ...domain.services.validation_service import ValidationService
 from ...infrastructure.config import Config
 from ...infrastructure.database.db_connection import get_connection
 from ...infrastructure.repositories_impl.inventory_schema import ensure_inventory_schema
@@ -18,7 +19,18 @@ class AdminController:
         self.admin_repo = AdminAuthRepositoryImpl()
         self.librarian_repo = LibrarianAuthRepositoryImpl()
         self.auth_service = AuthService(self.admin_repo, self.librarian_repo, self.admin_repo)
+        self.validation_service = ValidationService()
         self.loan_repository = LoanRepositoryImpl()
+
+    def _validate_new_password(self, new_password, confirm_password=None):
+        valid, message = self.validation_service.validate_password_strength(new_password)
+        if not valid:
+            return message
+        if confirm_password is not None and not confirm_password:
+            return 'Confirm password is required'
+        if confirm_password is not None and new_password != confirm_password:
+            return 'Passwords do not match'
+        return None
 
     def _require_admin(self):
         jwt_claims = get_jwt()
@@ -46,15 +58,53 @@ class AdminController:
             student['document_url'] = url_for('admin.get_student_document', student_id=student['student_id'])
         return student
 
+    def _parse_pagination_params(self):
+        page = request.args.get('page', type=int)
+        limit = request.args.get('limit', type=int)
+        paginate = page is not None or limit is not None
+        page = page if page and page > 0 else 1
+        limit = limit if limit and limit > 0 else 15
+        offset = (page - 1) * limit
+        return page, limit, offset, paginate
+
     def list_categories(self):
         auth_error = self._require_admin()
         if auth_error:
             return auth_error
 
+        page, limit, offset, paginate = self._parse_pagination_params()
+        search = (request.args.get('search') or '').strip()
+
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('SELECT category_id, name FROM categories ORDER BY name ASC')
-                categories = cur.fetchall()
+                if paginate:
+                    if search:
+                        cur.execute('SELECT COUNT(*) AS total FROM categories WHERE name LIKE %s', (f'%{search}%',))
+                    else:
+                        cur.execute('SELECT COUNT(*) AS total FROM categories')
+                    total = cur.fetchone().get('total', 0)
+
+                    if search:
+                        cur.execute('SELECT category_id, name FROM categories WHERE name LIKE %s ORDER BY name ASC LIMIT %s OFFSET %s', (f'%{search}%', limit, offset))
+                    else:
+                        cur.execute('SELECT category_id, name FROM categories ORDER BY name ASC LIMIT %s OFFSET %s', (limit, offset))
+                    categories = cur.fetchall()
+
+                    return jsonify({
+                        'categories': categories,
+                        'pagination': {
+                            'page': page,
+                            'limit': limit,
+                            'total': total,
+                            'total_pages': max(1, (total + limit - 1) // limit)
+                        }
+                    }), 200
+                else:
+                    if search:
+                        cur.execute('SELECT category_id, name FROM categories WHERE name LIKE %s ORDER BY name ASC', (f'%{search}%',))
+                    else:
+                        cur.execute('SELECT category_id, name FROM categories ORDER BY name ASC')
+                    categories = cur.fetchall()
         return jsonify(categories), 200
 
     def add_category(self):
@@ -98,10 +148,39 @@ class AdminController:
         if auth_error:
             return auth_error
 
+        page, limit, offset, paginate = self._parse_pagination_params()
+        search = (request.args.get('search') or '').strip()
+
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('SELECT author_id, name FROM authors ORDER BY name ASC')
-                authors = cur.fetchall()
+                if paginate:
+                    if search:
+                        cur.execute('SELECT COUNT(*) AS total FROM authors WHERE name LIKE %s', (f'%{search}%',))
+                    else:
+                        cur.execute('SELECT COUNT(*) AS total FROM authors')
+                    total = cur.fetchone().get('total', 0)
+
+                    if search:
+                        cur.execute('SELECT author_id, name FROM authors WHERE name LIKE %s ORDER BY name ASC LIMIT %s OFFSET %s', (f'%{search}%', limit, offset))
+                    else:
+                        cur.execute('SELECT author_id, name FROM authors ORDER BY name ASC LIMIT %s OFFSET %s', (limit, offset))
+                    authors = cur.fetchall()
+
+                    return jsonify({
+                        'authors': authors,
+                        'pagination': {
+                            'page': page,
+                            'limit': limit,
+                            'total': total,
+                            'total_pages': max(1, (total + limit - 1) // limit)
+                        }
+                    }), 200
+                else:
+                    if search:
+                        cur.execute('SELECT author_id, name FROM authors WHERE name LIKE %s ORDER BY name ASC', (f'%{search}%',))
+                    else:
+                        cur.execute('SELECT author_id, name FROM authors ORDER BY name ASC')
+                    authors = cur.fetchall()
         return jsonify(authors), 200
 
     def add_author(self):
@@ -141,7 +220,7 @@ class AdminController:
         return jsonify({'message': 'Author deleted'}), 200
 
     def search_student(self, student_id):
-        auth_error = self._require_admin()
+        auth_error = self._require_admin_or_librarian()
         if auth_error:
             return auth_error
 
@@ -186,35 +265,74 @@ class AdminController:
         return jsonify(student), 200
 
     def list_students(self):
-        auth_error = self._require_admin()
+        auth_error = self._require_admin_or_librarian()
         if auth_error:
             return auth_error
 
+        page, limit, offset, paginate = self._parse_pagination_params()
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT
-                        student_id,
-                        student_id AS user_id,
-                        email,
-                        full_name,
-                        student_number,
-                        department,
-                        year_level,
-                        status,
-                        email_verified,
-                        registration_document,
-                        last_login,
-                        created_at,
-                        updated_at
-                    FROM students
-                    ORDER BY full_name ASC
-                    """
-                )
+                if paginate:
+                    cur.execute('SELECT COUNT(*) AS total FROM students')
+                    total = cur.fetchone().get('total', 0)
+                    cur.execute(
+                        """
+                        SELECT
+                            student_id,
+                            student_id AS user_id,
+                            email,
+                            full_name,
+                            student_number,
+                            department,
+                            year_level,
+                            status,
+                            email_verified,
+                            registration_document,
+                            last_login,
+                            created_at,
+                            updated_at
+                        FROM students
+                        ORDER BY full_name ASC
+                        LIMIT %s OFFSET %s
+                        """,
+                        (limit, offset),
+                    )
+                else:
+                    total = None
+                    cur.execute(
+                        """
+                        SELECT
+                            student_id,
+                            student_id AS user_id,
+                            email,
+                            full_name,
+                            student_number,
+                            department,
+                            year_level,
+                            status,
+                            email_verified,
+                            registration_document,
+                            last_login,
+                            created_at,
+                            updated_at
+                        FROM students
+                        ORDER BY full_name ASC
+                        """
+                    )
                 students = cur.fetchall()
                 for student in students:
                     self._attach_student_document_state(student)
+
+        if paginate:
+            return jsonify({
+                'students': students,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'total_pages': max(1, (total + limit - 1) // limit)
+                }
+            }), 200
 
         return jsonify(students), 200
 
@@ -304,8 +422,10 @@ class AdminController:
 
         data = request.get_json() or {}
         new_password = str(data.get('new_password') or '')
-        if len(new_password) < 8:
-            return jsonify({'message': 'New password must be at least 8 characters'}), 400
+        confirm_password = data.get('confirm_password', '')
+        password_error = self._validate_new_password(new_password, confirm_password)
+        if password_error:
+            return jsonify({'message': password_error}), 400
 
         password_hash = self.auth_service.hash_password(new_password)
         with get_connection() as conn:
@@ -360,8 +480,13 @@ class AdminController:
         data = request.get_json() or {}
         old_password = data.get('old_password')
         new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password', '')
         if not old_password or not new_password:
             return jsonify({'message': 'Old and new passwords are required'}), 400
+
+        password_error = self._validate_new_password(new_password, confirm_password)
+        if password_error:
+            return jsonify({'message': password_error}), 400
 
         jwt_claims = get_jwt()
         email = jwt_claims.get('email')
@@ -395,9 +520,27 @@ class AdminController:
         if auth_error:
             return auth_error
 
+        page, limit, offset, paginate = self._parse_pagination_params()
         loan_filter = (request.args.get('status') or 'active').strip().lower()
         if loan_filter not in ['active', 'borrowed', 'overdue', 'returned', 'all']:
             return jsonify({'message': 'Invalid loan status filter'}), 400
+
+        search_query = (request.args.get('search') or '').strip()
+        search_terms = []
+        if search_query:
+            wildcard_search = f"%{search_query}%"
+            search_terms = [
+                'CAST(br.borrow_id AS CHAR) LIKE %s',
+                'CAST(br.student_id AS CHAR) LIKE %s',
+                'COALESCE(s.full_name, \'\') LIKE %s',
+                'COALESCE(s.student_number, \'\') LIKE %s',
+                'COALESCE(s.email, \'\') LIKE %s',
+                'COALESCE(b.title, \'\') LIKE %s',
+                'COALESCE(b.isbn, \'\') LIKE %s',
+                'COALESCE(bc.copy_code, \'\') LIKE %s',
+                'COALESCE(bc.barcode_value, \'\') LIKE %s',
+                'COALESCE(bc.qr_token, \'\') LIKE %s'
+            ]
 
         where_clauses = []
         if loan_filter == 'active':
@@ -412,14 +555,28 @@ class AdminController:
         elif loan_filter == 'returned':
             where_clauses.append('br.return_date IS NOT NULL')
 
+        if search_terms:
+            where_clauses.append(f"({' OR '.join(search_terms)})")
+
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ''
+        params = tuple([wildcard_search] * len(search_terms)) if search_terms else ()
 
         with get_connection() as conn:
             ensure_inventory_schema(conn)
             conn.commit()
             with conn.cursor() as cur:
-                cur.execute(
-                    f'''
+                if paginate:
+                    cur.execute(
+                        f"SELECT COUNT(*) AS total FROM borrow_records br "
+                        f"LEFT JOIN books b ON br.book_id = b.book_id "
+                        f"LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id AND bc.book_id = br.book_id "
+                        f"LEFT JOIN students s ON br.student_id = s.student_id "
+                        f"{where_sql}",
+                        params,
+                    )
+                    total = cur.fetchone().get('total', 0)
+
+                sql = """
                     SELECT
                         br.borrow_id AS loan_id,
                         br.book_id,
@@ -453,7 +610,7 @@ class AdminController:
                             WHEN br.return_date IS NULL
                              AND br.due_date IS NOT NULL
                              AND DATE(br.due_date) < CURDATE()
-                            THEN ROUND(DATEDIFF(CURDATE(), DATE(br.due_date)) * 1.0, 2)
+                            THEN ROUND(DATEDIFF(CURDATE(), DATE(br.due_date)) * %s, 2)
                             ELSE COALESCE(f.fine_amount, 0)
                         END AS fine_amount
                     FROM borrow_records br
@@ -465,11 +622,31 @@ class AdminController:
                         FROM fines
                         GROUP BY borrow_id
                     ) f ON br.borrow_id = f.borrow_id
-                    {where_sql}
-                    ORDER BY br.borrow_date DESC
-                    '''
+                    """
+                if where_sql:
+                    sql += f"{where_sql}\n"
+                sql += "ORDER BY br.borrow_date DESC"
+                if paginate:
+                    sql += " LIMIT %s OFFSET %s"
+                query_params = [float(getattr(Config, 'FINE_DAILY_RATE', 100.0) or 100.0)]
+                query_params.extend(params)
+                if paginate:
+                    query_params.extend([limit, offset])
+                cur.execute(
+                    sql,
+                    tuple(query_params)
                 )
                 loans = cur.fetchall()
+        if paginate:
+            return jsonify({
+                'loans': loans,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'total_pages': max(1, (total + limit - 1) // limit)
+                }
+            }), 200
         return jsonify(loans), 200
 
     def create_loan(self):
@@ -516,6 +693,7 @@ class AdminController:
         if auth_error:
             return auth_error
 
+        page, limit, offset, paginate = self._parse_pagination_params()
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -568,8 +746,16 @@ class AdminController:
                 if where_clauses:
                     query.append('WHERE ' + ' AND '.join(where_clauses))
 
+                count_query = 'SELECT COUNT(*) AS total FROM registration_requests '
+                if where_clauses:
+                    count_query += 'WHERE ' + ' AND '.join(where_clauses)
+
                 query.append('ORDER BY created_at DESC')
-                cur.execute(' '.join(query))
+                if paginate:
+                    query.append('LIMIT %s OFFSET %s')
+                    cur.execute(count_query)
+                    total = cur.fetchone().get('total', 0)
+                cur.execute(' '.join(query), (limit, offset) if paginate else ())
 
                 requests = cur.fetchall()
                 if has_document:
@@ -578,6 +764,17 @@ class AdminController:
                             'admin.get_registration_request_document',
                             request_id=request_row['request_id']
                         )
+
+        if paginate:
+            return jsonify({
+                'requests': requests,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'total_pages': max(1, (total + limit - 1) // limit)
+                }
+            }), 200
 
         return jsonify(requests), 200
 

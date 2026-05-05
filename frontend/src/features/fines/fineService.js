@@ -5,8 +5,13 @@ export async function calculateFine(loanId) {
   return response.data
 }
 
-export async function payFine(loanId) {
-  const response = await api.post('/api/fines/pay', { loan_id: loanId })
+export async function payFine(loanId, paymentMethod = 'online') {
+  const response = await api.post('/api/fines/pay', { loan_id: loanId, payment_method: paymentMethod })
+  return response.data
+}
+
+export async function reviewFinePayment(fineId, action) {
+  const response = await api.patch(`/api/fines/${fineId}/payment`, { action })
   return response.data
 }
 

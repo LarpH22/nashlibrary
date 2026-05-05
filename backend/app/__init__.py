@@ -1,6 +1,6 @@
 import os
 import socket
-from flask import Flask, jsonify, send_from_directory, redirect, request
+from flask import Flask, jsonify, send_from_directory, redirect, request, Response
 from flask_cors import CORS
 
 from .infrastructure.config import Config
@@ -14,6 +14,7 @@ def create_app(config_object=None):
     dist_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist'))
     frontend_folder = dist_folder if os.path.isdir(dist_folder) else None
     app = Flask(__name__, static_folder=None, static_url_path=None)
+    app.url_map.strict_slashes = False
     app.config.from_object(config_object or Config)
     app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
     app.config['PROPAGATE_EXCEPTIONS'] = True
@@ -70,6 +71,10 @@ def create_app(config_object=None):
         # Allow only same-origin and specific trusted origins
         response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
         response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        if response.content_type and response.content_type.startswith('text/html'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
         return response
 
     # Initialize email service
@@ -99,16 +104,8 @@ def create_app(config_object=None):
 
         return None
 
-    def get_dev_frontend_url(path=''):
-        base_url = find_frontend_url()
-        if not base_url:
-            return None
-        if path:
-            return f"{base_url}/{path.lstrip('/')}"
-        return base_url
-
     # Explicitly register routes AFTER blueprints to ensure they have priority
-    @app.route('/favicon.ico', methods=['GET'])
+    @app.route('/favicon.ico', methods=['GET'], strict_slashes=False)
     def serve_favicon():
         frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
         if frontend_dist:
@@ -134,59 +131,63 @@ def create_app(config_object=None):
             return send_from_directory(frontend_dist, normalized_path)
         return None
 
-    @app.route('/assets/<path:path>', methods=['GET'])
+    @app.route('/assets/<path:path>', methods=['GET'], strict_slashes=False)
     def serve_frontend_asset(path):
         asset_response = frontend_asset_response(path)
         if asset_response:
             return asset_response
+        if path.endswith('.css'):
+            return Response('/* Asset not found. Refresh the page to load the current build. */', status=404, mimetype='text/css')
+        if path.endswith('.js'):
+            return Response('// Asset not found. Refresh the page to load the current build.', status=404, mimetype='application/javascript')
         return jsonify({'message': 'Asset not found', 'status': 404}), 404
 
-    @app.route('/dashboard/api/<path:subpath>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+    @app.route('/dashboard/api/<path:subpath>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], strict_slashes=False)
     def redirect_dashboard_api(subpath):
         """Redirect relative dashboard API paths to the root API path."""
         target = f"/api/{subpath}"
         return redirect(target, code=307)
 
     def serve_spa(path=''):
-        """Serve SPA - always return index.html for frontend routes"""
+        """Serve the React/Vite SPA for frontend routes."""
         frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
-        
+
         if use_dev_frontend:
-            # Get the full URL with query parameters
-            full_url = request.full_path
             dev_base = find_frontend_url()
             if dev_base:
-                # Redirect to dev frontend with full path and query string preserved
-                dev_url = f"{dev_base}{full_url.lstrip('/')}"
+                dev_url = f"{dev_base}{request.full_path.lstrip('/')}"
+                if dev_url.endswith('?'):
+                    dev_url = dev_url[:-1]
                 print(f"Redirecting to dev frontend: {dev_url}")
                 return redirect(dev_url, code=302)
-        
-        # Serve from built frontend
-        if frontend_dist:
-            # Always serve index.html for SPA routing to work
+
+        if frontend_dist and os.path.exists(os.path.join(frontend_dist, 'index.html')):
             return send_from_directory(frontend_dist, 'index.html')
-        
-        return jsonify({'message': 'Backend is running', 'status': 'ok'})
+
+        return jsonify({
+            'message': 'Frontend build not found. Run npm run build in the frontend folder.',
+            'status': 503
+        }), 503
 
     # Register SPA routes - these should be handled by React Router
-    @app.route('/register', methods=['GET'])
-    @app.route('/login', methods=['GET'])
-    @app.route('/verify-email', methods=['GET'])
-    @app.route('/reset-password', methods=['GET'])
+    @app.route('/register', methods=['GET'], strict_slashes=False)
+    @app.route('/login', methods=['GET'], strict_slashes=False)
+    @app.route('/verify-email', methods=['GET'], strict_slashes=False)
+    @app.route('/reset-password', methods=['GET'], strict_slashes=False)
     def serve_auth_pages():
         return serve_spa()
 
-    @app.route('/dashboard', defaults={'subpath': ''}, methods=['GET'])
-    @app.route('/dashboard/', defaults={'subpath': ''}, methods=['GET'])
-    @app.route('/dashboard/<path:subpath>', methods=['GET'])
+    @app.route('/dashboard', methods=['GET'], strict_slashes=False)
+    @app.route('/dashboard/', methods=['GET'], strict_slashes=False)
+    @app.route('/dashboard/<path:subpath>', methods=['GET'], strict_slashes=False)
     def serve_dashboard(subpath=''):
         return serve_spa()
 
-    @app.route('/', defaults={'path': ''}, methods=['GET'])
-    @app.route('/<path:path>', methods=['GET'])
+    @app.route('/', defaults={'path': ''}, methods=['GET'], strict_slashes=False)
+    @app.route('/<path:path>', methods=['GET'], strict_slashes=False)
     def serve_frontend(path=''):
         """Catch-all for frontend routes - only handles GET"""
-        if path.startswith('api/'):
+        if path.startswith(('api/', 'assets/')):
             return jsonify({'message': 'Endpoint not found', 'status': 404}), 404
 
         return serve_spa(path)
