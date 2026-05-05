@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Power, Repeat, ListChecks } from 'lucide-react'
 import api, { normalizeApiError } from '../../shared/api.js'
 import { clearStoredAuth } from '../../shared/authStorage.js'
 import './LibrarianDashboard.css'
@@ -8,23 +9,23 @@ const baseNavSections = [
   {
     section: 'MAIN',
     items: [
-      { id: 'overview', icon: '📊', title: 'Overview' },
-      { id: 'issue-return', icon: '📖', title: 'Borrow Approvals' },
-      { id: 'availability', icon: '🔍', title: 'Book Availability' },
-      { id: 'overdue', icon: '⏰', title: 'Overdue Books' }
+      { id: 'overview', icon: BarChart3, title: 'Overview' },
+      { id: 'issue-return', icon: BookOpen, title: 'Borrow Approvals' },
+      { id: 'availability', icon: Search, title: 'Book Availability' },
+      { id: 'overdue', icon: Clock3, title: 'Overdue Books' }
     ]
   },
   {
     section: 'RECORDS',
     items: [
-      { id: 'students', icon: '👥', title: 'Student Records' },
-      { id: 'search', icon: '🔎', title: 'Search Books' }
+      { id: 'students', icon: Users, title: 'Student Records' },
+      { id: 'search', icon: Search, title: 'Search Books' }
     ]
   },
   {
     section: 'ACCOUNT',
     items: [
-      { id: 'account', icon: '🔑', title: 'Change Password' }
+      { id: 'account', icon: Key, title: 'Change Password' }
     ]
   }
 ]
@@ -135,7 +136,7 @@ export function LibrarianDashboard() {
       const sectionItems = section.section === 'RECORDS'
         ? [
             ...section.items.filter((item) => item.id !== 'search'),
-            { id: 'ebooks', icon: 'EB', title: 'E-books' },
+            { id: 'ebooks', icon: BookOpen, title: 'E-books' },
             ...section.items.filter((item) => item.id === 'search')
           ]
         : section.items
@@ -298,11 +299,11 @@ export function LibrarianDashboard() {
 
   const stats = useMemo(
     () => [
-      { label: 'Books', value: safeBooks.length, type: 'blue' },
-      { label: 'Pending Requests', value: pendingBorrowRequests.length, type: 'gold' },
-      { label: 'Active Loans', value: activeLoans.length, type: 'green' },
-      { label: 'Overdue', value: overdueLoans.length, type: 'red' },
-      { label: 'Students', value: studentList.length, type: 'purple' }
+      { label: 'Books', value: safeBooks.length, type: 'blue', icon: BookOpen },
+      { label: 'Pending Requests', value: pendingBorrowRequests.length, type: 'gold', icon: ListChecks },
+      { label: 'Active Loans', value: activeLoans.length, type: 'green', icon: Repeat },
+      { label: 'Overdue', value: overdueLoans.length, type: 'red', icon: Clock3 },
+      { label: 'Students', value: studentList.length, type: 'purple', icon: Users }
     ],
     [safeBooks, pendingBorrowRequests, activeLoans.length, overdueLoans.length, studentList]
   )
@@ -593,9 +594,7 @@ export function LibrarianDashboard() {
                 <div className="stat-label">{stat.label}</div>
                 <div className="stat-num">{stat.value}</div>
                 <div className="stat-sub">Current</div>
-                <div className="stat-icon">
-                  {stat.label === 'Books' ? '📚' : stat.label === 'Active Loans' ? '🔄' : stat.label === 'Overdue' ? '⏰' : '👥'}
-                </div>
+                <div className="stat-icon"><stat.icon size={20} strokeWidth={1.9} aria-hidden="true" /></div>
               </div>
             ))}
           </div>
@@ -1088,7 +1087,7 @@ export function LibrarianDashboard() {
     <div className="librarian-dashboard-app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-icon">📚</div>
+          <div className="logo-icon"><BookOpen size={24} strokeWidth={1.9} aria-hidden="true" /></div>
           <div className="logo-title">LIBRASYS</div>
           <div className="logo-sub">Librarian</div>
         </div>
@@ -1098,7 +1097,7 @@ export function LibrarianDashboard() {
               <div className="nav-section">{section.section}</div>
               {section.items.map((item) => (
                 <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
-                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-icon"><item.icon size={16} strokeWidth={1.8} aria-hidden="true" /></span>
                   <span>{item.title}</span>
                   {item.badge && <span className="nav-badge">{item.badge}</span>}
                 </div>
@@ -1113,7 +1112,7 @@ export function LibrarianDashboard() {
               <div style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Librarian</div>
               <div style={{ fontSize: '10px', color: 'var(--muted)' }}>librarian@librasys.edu</div>
             </div>
-            <span style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)' }} title="Logout" onClick={() => setShowLogoutConfirm(true)}>⏻</span>
+            <button type="button" style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--red)', background: 'transparent', border: 'none', padding: 0 }} title="Logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Logout"><Power size={16} aria-hidden="true" /></button>
           </div>
         </div>
       </div>
@@ -1136,10 +1135,10 @@ export function LibrarianDashboard() {
             <input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." />
           </div>
           <div style={{ position: 'relative' }}>
-            <span style={{ fontSize: '18px', cursor: 'pointer', position: 'relative' }} onClick={() => setShowNotifications(!showNotifications)}>
-              🔔
+            <button type="button" className="icon-button notification-button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
+              <Bell size={18} aria-hidden="true" />
               {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
-            </span>
+            </button>
             {showNotifications && (
               <div className="notif-panel">
                 <div className="notif-header">Notifications</div>

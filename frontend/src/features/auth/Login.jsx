@@ -72,57 +72,73 @@ export function Login({ onLoginSuccess }) {
 
   return (
     <div className="auth-page">
-      <section className="auth-card">
+      <section className="auth-card login-card">
         <h2>Login</h2>
         <p className="auth-card-subtitle">Access your LIBRASYS account to manage books, loans, and members.</p>
-        <form onSubmit={handleSubmit}>
+
+        <form onSubmit={handleSubmit} className="auth-form">
           <label>
             Email
-            <input 
-              type="email" 
-              name="email" 
-              value={form.email} 
+            <input
+              type="email"
+              name="email"
+              value={form.email}
               onChange={handleChange}
-              required 
+              required
+              placeholder="librarian1@library.com"
             />
           </label>
-        <label>
-          Password
-          <input 
-            type="password" 
-            name="password" 
-            value={form.password} 
-            onChange={handleChange}
-            required 
-          />
-        </label>
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Logging in...' : 'Submit'}
-        </button>
+
+          <label>
+            Password
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              required
+              placeholder="Enter your password"
+            />
+          </label>
+
+          <button type="submit" className="auth-button auth-button-primary" disabled={isLoading}>
+            {isLoading ? 'Logging in...' : 'Submit'}
+          </button>
         </form>
-        <div className="auth-card-footer">
-          <button type="button" className="auth-link" onClick={() => navigate('/')}>Back</button>
-          <span>New to LIBRASYS?</span>
-          <button type="button" className="auth-link" onClick={() => navigate('/register')}>Create an account</button>
+
+        <div className="auth-card-footer auth-card-actions">
+          <button type="button" className="auth-button auth-button-secondary" onClick={() => navigate('/')}>Back</button>
+          <span className="auth-card-note">New to LIBRASYS?</span>
+          <button type="button" className="auth-button auth-button-outline" onClick={() => navigate('/register')}>Create an account</button>
         </div>
-        <div className="auth-card-footer">
-          <button 
-            type="button" 
-            className="auth-link forgot-password-link" 
+
+        <div className="auth-card-footer auth-card-link-row">
+          <button
+            type="button"
+            className="auth-link forgot-password-link"
             onClick={() => setShowForgotPassword(true)}
           >
             Forgot Password?
           </button>
         </div>
-        <p>{message}</p>
+
+        {message && <p className="auth-status">{message}</p>}
       </section>
 
       {showForgotPassword && (
         <div className="auth-modal-overlay" onClick={() => setShowForgotPassword(false)}>
           <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Forgot Password</h3>
-            <p>Enter your email address and we will send you a link to reset your password.</p>
-            <form onSubmit={handleForgotPassword}>
+            <div className="auth-modal-header">
+              <div>
+                <h3>Forgot Password</h3>
+                <p className="auth-modal-description">Enter your email address and we will send you a link to reset your password.</p>
+              </div>
+              <button type="button" className="auth-modal-close" onClick={() => setShowForgotPassword(false)} aria-label="Close password reset modal">
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleForgotPassword} className="auth-modal-form">
               <label>
                 Email
                 <input
@@ -133,16 +149,18 @@ export function Login({ onLoginSuccess }) {
                   placeholder="Enter your email"
                 />
               </label>
-              <button type="submit" disabled={isForgotLoading}>
+              <button type="submit" className="auth-button auth-button-primary" disabled={isForgotLoading}>
                 {isForgotLoading ? 'Sending...' : 'Send Reset Link'}
               </button>
             </form>
-            <p>{forgotMessage}</p>
-            <button 
-              type="button" 
-              className="auth-link" 
-              onClick={() => setShowForgotPassword(false)}
-            >
+
+            {forgotMessage && (
+              <p className={`auth-modal-message ${forgotMessage.startsWith('Error') ? 'error' : 'success'}`}>
+                {forgotMessage}
+              </p>
+            )}
+
+            <button type="button" className="auth-link auth-modal-cancel" onClick={() => setShowForgotPassword(false)}>
               Cancel
             </button>
           </div>
