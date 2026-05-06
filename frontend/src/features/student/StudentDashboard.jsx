@@ -12,6 +12,7 @@ import {
   KeyRound,
   Library,
   LogOut,
+  Menu,
   Search,
   User,
   X
@@ -25,6 +26,7 @@ import { clearStoredAuth, decodeJwtPayload, getStoredAuthToken, getStoredUserRol
 import { formatCurrency } from '../../shared/utils/index.js'
 import { PasswordChangeForm, getPasswordChangeValidation } from '../../shared/components/PasswordChangeForm.jsx'
 import './StudentDashboard.css'
+import '../../shared/MobileDashboard.css'
 
 const navSections = [
   {
@@ -166,6 +168,7 @@ export function StudentDashboard() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [authStatus, setAuthStatus] = useState('pending')
@@ -209,6 +212,11 @@ export function StudentDashboard() {
   const handleLogout = () => {
     clearSession()
     navigate('/login', { replace: true })
+  }
+
+  const handleNavSelect = (pageId) => {
+    setActivePage(pageId)
+    setMobileNavOpen(false)
   }
 
   const authFetch = useCallback(async (url, options = {}) => {
@@ -1350,13 +1358,20 @@ export function StudentDashboard() {
 
   return (
     <div className="student-dashboard-app">
-      <div className="sidebar">
+      <button className="mobile-menu-button" type="button" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation" aria-expanded={mobileNavOpen}>
+        <Menu size={20} aria-hidden="true" />
+      </button>
+      {mobileNavOpen && <button className="mobile-nav-backdrop" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation" />}
+      <div className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
         <div className="logo">
           <div className="logo-icon"><Library size={26} strokeWidth={1.8} aria-hidden="true" /></div>
           <div className="logo-text">
             <div className="logo-title">LIBRASYS</div>
             <div className="logo-sub">Student</div>
           </div>
+          <button className="mobile-sidebar-close" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation">
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
         <nav className="nav">
           {navSections.map((section) => (
@@ -1365,7 +1380,7 @@ export function StudentDashboard() {
               {section.items.map((item) => {
                 const NavIcon = item.icon
                 return (
-                  <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
+                  <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => handleNavSelect(item.id)}>
                     <span className="nav-icon"><NavIcon size={17} strokeWidth={1.9} aria-hidden="true" /></span>
                     <span>{item.title}</span>
                     {item.badge && <span className="nav-badge">{item.badge}</span>}

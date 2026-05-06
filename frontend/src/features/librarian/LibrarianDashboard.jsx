@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, ArrowUpRight, BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Power, Repeat, ListChecks, CreditCard, Sparkles, Zap } from 'lucide-react'
+import { Activity, ArrowUpRight, BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Menu, Power, Repeat, ListChecks, CreditCard, Sparkles, X, Zap } from 'lucide-react'
 import api, { normalizeApiError } from '../../shared/api.js'
 import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
@@ -8,6 +8,7 @@ import { formatCurrency } from '../../shared/utils/index.js'
 import { PasswordChangeForm, getPasswordChangeValidation } from '../../shared/components/PasswordChangeForm.jsx'
 import { approveReservation, cancelReservation, claimReservation, expireReservations, fetchReservations } from '../reservations/reservationService.js'
 import './LibrarianDashboard.css'
+import '../../shared/MobileDashboard.css'
 
 const baseNavSections = [
   {
@@ -117,6 +118,7 @@ export function LibrarianDashboard() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
@@ -207,6 +209,11 @@ export function LibrarianDashboard() {
   const handleLogout = () => {
     clearStoredAuth()
     navigate('/login', { replace: true })
+  }
+
+  const handleNavSelect = (pageId) => {
+    setActivePage(pageId)
+    setMobileNavOpen(false)
   }
 
   const openAccountModal = (tab = 'profile') => {
@@ -1355,20 +1362,27 @@ export function LibrarianDashboard() {
 
   return (
     <div className="librarian-dashboard-app">
-      <div className="sidebar">
+      <button className="mobile-menu-button" type="button" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation" aria-expanded={mobileNavOpen}>
+        <Menu size={20} aria-hidden="true" />
+      </button>
+      {mobileNavOpen && <button className="mobile-nav-backdrop" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation" />}
+      <div className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
         <div className="logo">
           <div className="logo-icon"><BookOpen size={24} strokeWidth={1.9} aria-hidden="true" /></div>
           <div className="logo-text">
             <div className="logo-title">LIBRASYS</div>
             <div className="logo-sub">Librarian</div>
           </div>
+          <button className="mobile-sidebar-close" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation">
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
         <nav className="nav">
           {navigationSections.map((section) => (
             <div key={section.section}>
               <div className="nav-section">{section.section}</div>
               {section.items.map((item) => (
-                <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
+                <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => handleNavSelect(item.id)}>
                   <span className="nav-icon"><item.icon size={16} strokeWidth={1.8} aria-hidden="true" /></span>
                   <span>{item.title}</span>
                   {item.badge && <span className="nav-badge">{item.badge}</span>}
