@@ -68,8 +68,14 @@ class LoanRepositoryImpl(LoanRepository):
             cur.execute("ALTER TABLE fines ADD COLUMN payment_reference VARCHAR(80) NULL AFTER payment_status")
         if not self._column_exists(cur, 'fines', 'payment_qr_payload'):
             cur.execute("ALTER TABLE fines ADD COLUMN payment_qr_payload TEXT NULL AFTER payment_reference")
+        if not self._column_exists(cur, 'fines', 'payment_receipt_path'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_receipt_path VARCHAR(500) NULL AFTER payment_qr_payload")
+        if not self._column_exists(cur, 'fines', 'payment_receipt_filename'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_receipt_filename VARCHAR(255) NULL AFTER payment_receipt_path")
+        if not self._column_exists(cur, 'fines', 'payment_receipt_uploaded_at'):
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_receipt_uploaded_at DATETIME NULL AFTER payment_receipt_filename")
         if not self._column_exists(cur, 'fines', 'payment_requested_at'):
-            cur.execute("ALTER TABLE fines ADD COLUMN payment_requested_at DATETIME NULL AFTER payment_qr_payload")
+            cur.execute("ALTER TABLE fines ADD COLUMN payment_requested_at DATETIME NULL AFTER payment_receipt_uploaded_at")
         if not self._column_exists(cur, 'fines', 'payment_verified_at'):
             cur.execute("ALTER TABLE fines ADD COLUMN payment_verified_at DATETIME NULL AFTER payment_requested_at")
         if not self._column_exists(cur, 'fines', 'payment_rejected_at'):
@@ -302,6 +308,9 @@ class LoanRepositoryImpl(LoanRepository):
                         f.payment_method,
                         f.payment_status,
                         f.payment_reference,
+                        f.payment_receipt_path,
+                        f.payment_receipt_filename,
+                        f.payment_receipt_uploaded_at,
                         f.payment_requested_at,
                         f.payment_verified_at,
                         f.payment_rejected_at,
@@ -338,7 +347,7 @@ class LoanRepositoryImpl(LoanRepository):
                     )
                     fine['is_paid'] = fine.get('status') == 'paid'
                     fine['is_unpaid'] = fine.get('status') == 'unpaid'
-                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_receipt_uploaded_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
                 return fines
 
     def update_fine_status(self, fine_id: int, status: str):
@@ -354,10 +363,11 @@ class LoanRepositoryImpl(LoanRepository):
                         f"""
                         UPDATE fines
                         SET status=%s,
+                            payment_status=CASE WHEN %s='paid' THEN 'paid' ELSE 'unpaid' END,
                             paid_date={paid_date_sql}
                         WHERE fine_id=%s
                         """,
-                        (normalized_status, fine_id),
+                        (normalized_status, normalized_status, fine_id),
                     )
                     if cur.rowcount == 0:
                         conn.rollback()
@@ -379,6 +389,9 @@ class LoanRepositoryImpl(LoanRepository):
                             f.payment_method,
                             f.payment_status,
                             f.payment_reference,
+                            f.payment_receipt_path,
+                            f.payment_receipt_filename,
+                            f.payment_receipt_uploaded_at,
                             f.payment_requested_at,
                             f.payment_verified_at,
                             f.payment_rejected_at,
@@ -415,7 +428,7 @@ class LoanRepositoryImpl(LoanRepository):
                     )
                     fine['is_paid'] = fine.get('status') == 'paid'
                     fine['is_unpaid'] = fine.get('status') == 'unpaid'
-                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_receipt_uploaded_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
                 return fine
             except Exception:
                 conn.rollback()
@@ -1035,6 +1048,9 @@ class LoanRepositoryImpl(LoanRepository):
                         f.payment_status,
                         f.payment_reference,
                         f.payment_qr_payload,
+                        f.payment_receipt_path,
+                        f.payment_receipt_filename,
+                        f.payment_receipt_uploaded_at,
                         f.payment_requested_at,
                         f.payment_verified_at,
                         f.payment_rejected_at,
@@ -1071,7 +1087,7 @@ class LoanRepositoryImpl(LoanRepository):
                     fine['is_paid'] = fine.get('status') == 'paid'
                     fine['is_unpaid'] = fine.get('status') in ('unpaid', 'pending')
                     fine['source'] = 'recorded'
-                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
+                    self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_receipt_uploaded_at', 'payment_verified_at', 'payment_rejected_at', 'issue_date', 'due_date', 'return_date'])
 
                 return fines
 
@@ -1178,7 +1194,8 @@ class LoanRepositoryImpl(LoanRepository):
                 f.fine_id, f.borrow_id AS loan_id, f.borrow_id, f.student_id,
                 s.full_name AS student_name, s.student_number, s.email AS student_email,
                 f.amount, f.reason, f.status, f.payment_method, f.payment_status,
-                f.payment_reference, f.payment_qr_payload, f.payment_requested_at,
+                f.payment_reference, f.payment_qr_payload, f.payment_receipt_path,
+                f.payment_receipt_filename, f.payment_receipt_uploaded_at, f.payment_requested_at,
                 f.payment_verified_at, f.payment_rejected_at, f.issued_date, f.paid_date,
                 br.book_id, br.due_date, br.return_date, b.title AS book_title
             FROM fines f
@@ -1198,7 +1215,7 @@ class LoanRepositoryImpl(LoanRepository):
             fine.get('due_date'),
             fine.get('return_date') or fine.get('paid_date') or datetime.now(),
         )
-        self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_verified_at', 'payment_rejected_at', 'due_date', 'return_date'])
+        self._convert_dates(fine, ['issued_date', 'paid_date', 'payment_requested_at', 'payment_receipt_uploaded_at', 'payment_verified_at', 'payment_rejected_at', 'due_date', 'return_date'])
         return fine
 
     def _build_fine_payment_qr_payload(self, cur, fine, loan_id: int, reference: str):
@@ -1272,10 +1289,12 @@ class LoanRepositoryImpl(LoanRepository):
                     },
                 }
 
-    def create_fine_payment(self, loan_id: int, payment_method: str, payment_reference: str | None = None):
+    def create_fine_payment(self, loan_id: int, payment_method: str, payment_reference: str | None = None, receipt_data: dict | None = None):
         method = (payment_method or '').strip().lower()
         if method not in ('cash', 'online'):
             raise ValueError('Payment method must be cash or online')
+        if method == 'online' and not (receipt_data or {}).get('receipt_path'):
+            raise ValueError('Receipt/proof of payment is required for online payments')
 
         with get_connection() as conn:
             try:
@@ -1363,12 +1382,24 @@ class LoanRepositoryImpl(LoanRepository):
                             payment_status=%s,
                             payment_reference=%s,
                             payment_qr_payload=%s,
+                            payment_receipt_path=%s,
+                            payment_receipt_filename=%s,
+                            payment_receipt_uploaded_at=CASE WHEN %s IS NULL THEN NULL ELSE NOW() END,
                             payment_requested_at=NOW(),
                             payment_verified_at=NULL,
                             payment_rejected_at=NULL
                         WHERE fine_id=%s
                         """,
-                        (method, payment_status, reference, qr_payload, fine['fine_id']),
+                        (
+                            method,
+                            payment_status,
+                            reference,
+                            qr_payload,
+                            (receipt_data or {}).get('receipt_path'),
+                            (receipt_data or {}).get('receipt_filename'),
+                            (receipt_data or {}).get('receipt_path'),
+                            fine['fine_id'],
+                        ),
                     )
                     cur.execute(f"{self._fine_select_sql()} WHERE f.fine_id=%s LIMIT 1", (fine['fine_id'],))
                     payment_fine = self._hydrate_payment_fine(cur.fetchone())
@@ -1388,6 +1419,22 @@ class LoanRepositoryImpl(LoanRepository):
             except Exception:
                 conn.rollback()
                 raise
+
+    def get_fine_receipt(self, fine_id: int):
+        with get_connection() as conn:
+            self._ensure_fine_constraints(conn)
+            conn.commit()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT fine_id, payment_receipt_path, payment_receipt_filename
+                    FROM fines
+                    WHERE fine_id=%s
+                    LIMIT 1
+                    """,
+                    (fine_id,),
+                )
+                return cur.fetchone()
 
     def review_fine_payment(self, fine_id: int, action: str, reviewer=None):
         normalized_action = (action or '').strip().lower()

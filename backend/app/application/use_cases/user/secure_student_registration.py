@@ -2,12 +2,55 @@ import uuid
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+from urllib.parse import urlparse
 
 from ....domain.services.auth_service import AuthService
 from ....domain.services.validation_service import ValidationService
 from ....infrastructure.external.email_service import EmailService
 from ....infrastructure.external.file_storage import FileStorage
 from ....infrastructure.config import Config
+
+LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0'}
+VERIFICATION_EXPIRY_MINUTES = int(getattr(Config, 'EMAIL_VERIFICATION_TOKEN_MINUTES', 60) or 60)
+
+
+def _is_local_url(url: str) -> bool:
+    try:
+        hostname = urlparse(url or '').hostname
+    except ValueError:
+        return True
+    return not hostname or hostname in LOCAL_HOSTS
+
+
+def build_verification_url(token: str, request_base_url: str | None = None) -> str:
+    configured_url = (getattr(Config, 'PUBLIC_FRONTEND_URL', None) or getattr(Config, 'FRONTEND_URL', '') or '').rstrip('/')
+    request_base = (request_base_url or '').rstrip('/')
+
+    if request_base and (_is_local_url(configured_url) and not _is_local_url(request_base)):
+        base_url = request_base
+    else:
+        base_url = configured_url or request_base
+
+    return f"{base_url}/verify-email?token={token}"
+
+
+def verification_expiry_delta():
+    return timedelta(minutes=VERIFICATION_EXPIRY_MINUTES)
+
+
+def verification_expiry_label():
+    if VERIFICATION_EXPIRY_MINUTES % 60 == 0:
+        hours = VERIFICATION_EXPIRY_MINUTES // 60
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+    return f"{VERIFICATION_EXPIRY_MINUTES} minutes"
+
+
+def normalize_token_created_at(created_at):
+    if isinstance(created_at, str):
+        created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+    if created_at and getattr(created_at, 'tzinfo', None):
+        created_at = created_at.replace(tzinfo=None)
+    return created_at
 
 
 class SecureStudentRegistrationUseCase:
@@ -22,7 +65,7 @@ class SecureStudentRegistrationUseCase:
 
     def execute(self, email: str, full_name: str, password: str,
                 student_id: str, registration_document,
-                department: str, year_level) -> dict:
+                department: str, year_level, request_base_url: str | None = None) -> dict:
         """
         Execute secure student registration process
 
@@ -121,16 +164,17 @@ class SecureStudentRegistrationUseCase:
         )
 
         # Send verification email
-        self._send_verification_email(email, full_name, verification_token)
+        self._send_verification_email(email, full_name, verification_token, request_base_url)
 
         return {
             'message': 'Registration request submitted successfully. Please check your email to verify your account.',
             'request_id': request_id
         }
 
-    def _send_verification_email(self, email: str, full_name: str, token: str):
+    def _send_verification_email(self, email: str, full_name: str, token: str, request_base_url: str | None = None):
         """Send email verification link"""
-        verification_url = f"{Config.FRONTEND_URL}/verify-email?token={token}"
+        verification_url = build_verification_url(token, request_base_url)
+        expiry_label = verification_expiry_label()
 
         subject = "Verify Your LIBRASYS Account"
         body = f"""
@@ -142,7 +186,7 @@ To complete your registration and activate your account, please verify your emai
 
 {verification_url}
 
-This verification link will expire in 24 hours for security reasons.
+This verification link will expire in {expiry_label} for security reasons.
 
 If you did not request this registration, please ignore this email.
 
@@ -318,7 +362,7 @@ LIBRASYS
             </div>
 
             <div class="warning">
-                <strong>⏰ Important:</strong> This verification link will expire in 24 hours for security reasons. If the link expires, you'll need to register again.
+                <strong>⏰ Important:</strong> This verification link will expire in {expiry_label} for security reasons. If it expires, request a new verification email.
             </div>
 
             <div class="alternative-link">
@@ -373,16 +417,23 @@ class VerifyEmailUseCase:
         if not request:
             raise ValueError("Invalid or expired verification token")
 
-        # Check if token is expired (24 hours)
-        created_at = request.get('created_at')
-        if isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+        if request.get('email_verified'):
+            return {
+                'message': 'Your email is already verified. Please wait for admin approval.',
+                'email': request.get('email'),
+                'full_name': request.get('full_name'),
+                'already_verified': True
+            }
 
-        if datetime.utcnow() - created_at > timedelta(hours=24):
-            raise ValueError("Verification token has expired")
+        # Check if token is expired
+        created_at = normalize_token_created_at(request.get('created_at'))
+
+        if not created_at or datetime.utcnow() - created_at > verification_expiry_delta():
+            raise ValueError("This verification link has expired. Please request a new verification email.")
 
         # Mark email as verified
-        self.auth_service.student_repo.update_registration_request_verified(token)
+        if not self.auth_service.student_repo.update_registration_request_verified(token):
+            raise ValueError("This verification link has already been used or is no longer valid.")
 
         return {
             'message': 'Email verified successfully. Your account is now pending admin approval.',
@@ -398,7 +449,7 @@ class ResendVerificationEmailUseCase:
         self.auth_service = auth_service
         self.email_service = email_service
 
-    def execute(self, email: str) -> dict:
+    def execute(self, email: str, request_base_url: str | None = None) -> dict:
         """
         Resend verification email for pending registration
 
@@ -416,12 +467,10 @@ class ResendVerificationEmailUseCase:
         if request.get('email_verified'):
             raise ValueError("Email is already verified")
 
-        # Check if token is expired (24 hours)
-        created_at = request.get('created_at')
-        if isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+        # Check if token is expired
+        created_at = normalize_token_created_at(request.get('created_at'))
 
-        if datetime.utcnow() - created_at > timedelta(hours=24):
+        if not created_at or datetime.utcnow() - created_at > verification_expiry_delta():
             # Generate new token for expired requests
             new_token = str(uuid.uuid4())
             self.auth_service.student_repo.update_registration_request_token(email, new_token)
@@ -431,16 +480,17 @@ class ResendVerificationEmailUseCase:
 
         # Send verification email
         full_name = request.get('full_name')
-        self._send_verification_email(email, full_name, verification_token)
+        self._send_verification_email(email, full_name, verification_token, request_base_url)
 
         return {
             'message': 'Verification email sent successfully. Please check your email.',
             'email': email
         }
 
-    def _send_verification_email(self, email: str, full_name: str, token: str):
+    def _send_verification_email(self, email: str, full_name: str, token: str, request_base_url: str | None = None):
         """Send email verification link"""
-        verification_url = f"{Config.FRONTEND_URL}/verify-email?token={token}"
+        verification_url = build_verification_url(token, request_base_url)
+        expiry_label = verification_expiry_label()
 
         subject = "Verify Your LIBRASYS Account"
         body = f"""
@@ -452,7 +502,7 @@ To complete your registration and activate your account, please verify your emai
 
 {verification_url}
 
-This verification link will expire in 24 hours for security reasons.
+This verification link will expire in {expiry_label} for security reasons.
 
 If you did not request this registration, please ignore this email.
 
@@ -628,7 +678,7 @@ LIBRASYS
             </div>
 
             <div class="warning">
-                <strong>⏰ Important:</strong> This verification link will expire in 24 hours for security reasons. If the link expires, you'll need to register again.
+                <strong>⏰ Important:</strong> This verification link will expire in {expiry_label} for security reasons. If it expires, request a new verification email.
             </div>
 
             <div class="alternative-link">

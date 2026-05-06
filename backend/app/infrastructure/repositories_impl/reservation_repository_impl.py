@@ -112,12 +112,18 @@ class ReservationRepositoryImpl:
 
                     cur.execute(
                         """
-                        SELECT borrow_id
-                        FROM borrow_records
-                        WHERE student_id=%s
-                          AND return_date IS NULL
-                          AND status IN ('active', 'borrowed', 'overdue')
-                          AND due_date < NOW()
+                        SELECT br.borrow_id
+                        FROM borrow_records br
+                        WHERE br.student_id=%s
+                          AND br.return_date IS NULL
+                          AND br.status IN ('active', 'borrowed', 'overdue')
+                          AND br.due_date < NOW()
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM fines f
+                              WHERE f.borrow_id = br.borrow_id
+                                AND f.status = 'paid'
+                          )
                         LIMIT 1
                         """,
                         (student_id,),

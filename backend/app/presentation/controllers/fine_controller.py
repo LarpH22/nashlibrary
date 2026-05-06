@@ -1,8 +1,13 @@
-from flask import jsonify, request
+import os
+from uuid import uuid4
+
+from flask import jsonify, request, send_from_directory
+from werkzeug.utils import secure_filename
 
 from ...application.use_cases.fine.calculate_fine import CalculateFineUseCase
 from ...application.use_cases.fine.pay_fine import PayFineUseCase
 from ...domain.services.fine_service import FineService
+from ...infrastructure.config import Config
 from ...infrastructure.repositories_impl.loan_repository_impl import LoanRepositoryImpl
 
 
@@ -33,6 +38,37 @@ class FineController:
             return None, (jsonify({'message': 'loan_id must be greater than zero'}), 400)
         return loan_id, None
 
+    def _validate_receipt_upload(self, receipt):
+        if not receipt or not receipt.filename:
+            return None, 'Receipt/proof of payment is required for online payments'
+
+        filename = secure_filename(receipt.filename)
+        if not filename or '.' not in filename:
+            return None, 'Receipt must be a JPG, PNG, or PDF file'
+
+        extension = filename.rsplit('.', 1)[1].lower()
+        if extension not in {'jpg', 'jpeg', 'png', 'pdf'}:
+            return None, 'Receipt must be a JPG, PNG, or PDF file'
+
+        receipt.stream.seek(0, os.SEEK_END)
+        size = receipt.stream.tell()
+        receipt.stream.seek(0)
+        if size <= 0:
+            return None, 'Receipt file cannot be empty'
+        if size > 5 * 1024 * 1024:
+            return None, 'Receipt file must be 5 MB or smaller'
+
+        receipt_dir = os.path.join(Config.UPLOAD_FOLDER, 'fine_receipts')
+        os.makedirs(receipt_dir, exist_ok=True)
+        stored_name = f"{uuid4().hex}.{extension}"
+        stored_path = os.path.join(receipt_dir, stored_name)
+        receipt.save(stored_path)
+        return {
+            'receipt_path': os.path.join('fine_receipts', stored_name).replace('\\', '/'),
+            'receipt_filename': filename,
+            'receipt_size': size,
+        }, None
+
     def calculate_fine(self):
         loan_id, error_response = self._parse_loan_id(request.args.get('loan_id'))
         if error_response:
@@ -58,7 +94,8 @@ class FineController:
         }), 200
 
     def pay_fine(self):
-        data = request.get_json() or {}
+        is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
+        data = request.form if is_multipart else (request.get_json() or {})
         loan_id, error_response = self._parse_loan_id(data.get('loan_id'))
         if error_response:
             return error_response
@@ -75,11 +112,41 @@ class FineController:
         if fine_state.get('status') != 'unpaid' or fine_state.get('payable_amount', 0) <= 0:
             return jsonify({'message': 'No fine exists for this loan'}), 404
 
+        receipt_data = None
+        if payment_method == 'online':
+            if not is_multipart:
+                return jsonify({'message': 'Receipt/proof of payment is required for online payments'}), 400
+            receipt_data, receipt_error = self._validate_receipt_upload(request.files.get('receipt'))
+            if receipt_error:
+                return jsonify({'message': receipt_error}), 400
+
         try:
-            payment = self.loan_repository.create_fine_payment(loan_id, payment_method, payment_reference or None)
+            payment = self.loan_repository.create_fine_payment(
+                loan_id,
+                payment_method,
+                payment_reference or None,
+                receipt_data,
+            )
         except ValueError as exc:
+            if receipt_data:
+                try:
+                    os.remove(os.path.join(Config.UPLOAD_FOLDER, receipt_data['receipt_path']))
+                except OSError:
+                    pass
             return jsonify({'message': str(exc)}), 409
+        except Exception:
+            if receipt_data:
+                try:
+                    os.remove(os.path.join(Config.UPLOAD_FOLDER, receipt_data['receipt_path']))
+                except OSError:
+                    pass
+            raise
         if not payment:
+            if receipt_data:
+                try:
+                    os.remove(os.path.join(Config.UPLOAD_FOLDER, receipt_data['receipt_path']))
+                except OSError:
+                    pass
             return jsonify({'message': 'No fine exists for this loan'}), 404
         message = 'Cash payment submitted. Please wait for librarian or admin confirmation.'
         if payment_method == 'online':
@@ -163,6 +230,11 @@ class FineController:
 
         page, limit, offset, paginate = self._parse_pagination_params()
         fines = self.loan_repository.find_all_fines()
+        if current_user.get('role') != 'admin':
+            for fine in fines:
+                fine.pop('payment_receipt_path', None)
+                fine.pop('payment_receipt_filename', None)
+                fine.pop('payment_receipt_uploaded_at', None)
         unpaid = [fine for fine in fines if fine.get('status') == 'unpaid']
         pending = [fine for fine in fines if fine.get('payment_status') in ('pending', 'pending_verification')]
         paid = [fine for fine in fines if fine.get('status') == 'paid']
@@ -193,8 +265,8 @@ class FineController:
         return jsonify(result), 200
 
     def update_fine_status(self, fine_id, current_user):
-        if not current_user or current_user.get('role') not in ['admin', 'librarian']:
-            return jsonify({'message': 'Admin or librarian access is required'}), 403
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'message': 'Admin access is required'}), 403
 
         try:
             fine_id = int(fine_id)
@@ -216,8 +288,8 @@ class FineController:
         return jsonify({'message': 'Fine status updated', 'fine': fine}), 200
 
     def review_fine_payment(self, fine_id, current_user):
-        if not current_user or current_user.get('role') not in ['admin', 'librarian']:
-            return jsonify({'message': 'Admin or librarian access is required'}), 403
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'message': 'Admin access is required'}), 403
 
         data = request.get_json() or {}
         action = data.get('action')
@@ -231,3 +303,29 @@ class FineController:
 
         message = 'Payment approved.' if action == 'approve' else 'Payment rejected.'
         return jsonify({'message': message, 'fine': fine}), 200
+
+    def view_fine_receipt(self, fine_id, current_user):
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'message': 'Admin access is required'}), 403
+
+        try:
+            fine_id = int(fine_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'fine_id must be a valid integer'}), 400
+
+        receipt = self.loan_repository.get_fine_receipt(fine_id)
+        receipt_path = (receipt or {}).get('payment_receipt_path')
+        if not receipt_path:
+            return jsonify({'message': 'Receipt not found'}), 404
+        receipt_path = receipt_path.replace('\\', '/').lstrip('/')
+        if receipt_path.startswith('../') or not receipt_path.startswith('fine_receipts/'):
+            return jsonify({'message': 'Receipt path is invalid'}), 404
+
+        receipt_dir = os.path.join(Config.UPLOAD_FOLDER, os.path.dirname(receipt_path))
+        filename = os.path.basename(receipt_path)
+        return send_from_directory(
+            receipt_dir,
+            filename,
+            as_attachment=False,
+            download_name=(receipt or {}).get('payment_receipt_filename') or filename,
+        )

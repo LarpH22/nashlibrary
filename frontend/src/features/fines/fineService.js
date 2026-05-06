@@ -15,7 +15,17 @@ export async function previewFinePayment(loanId, paymentMethod = 'online') {
   return response.data
 }
 
-export async function confirmFinePayment(loanId, paymentMethod = 'online', paymentReference = '') {
+export async function confirmFinePayment(loanId, paymentMethod = 'online', paymentReference = '', receiptFile = null) {
+  if (paymentMethod === 'online') {
+    const formData = new FormData()
+    formData.append('loan_id', loanId)
+    formData.append('payment_method', paymentMethod)
+    formData.append('payment_reference', paymentReference)
+    formData.append('receipt', receiptFile)
+    const response = await api.post('/api/fines/pay', formData)
+    return response.data
+  }
+
   const response = await api.post('/api/fines/pay', {
     loan_id: loanId,
     payment_method: paymentMethod,

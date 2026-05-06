@@ -235,7 +235,12 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE registration_requests SET email_verified=TRUE, verified_at=NOW() WHERE verification_token=%s",
+                    """
+                    UPDATE registration_requests
+                    SET email_verified=TRUE, verified_at=NOW()
+                    WHERE verification_token=%s
+                      AND (email_verified IS NULL OR email_verified=FALSE)
+                    """,
                     (token,)
                 )
                 conn.commit()
@@ -245,7 +250,13 @@ class StudentAuthRepositoryImpl(StudentAuthRepository):
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE registration_requests SET verification_token=%s, created_at=NOW() WHERE email=%s",
+                    """
+                    UPDATE registration_requests
+                    SET verification_token=%s, created_at=NOW()
+                    WHERE email=%s
+                      AND (email_verified IS NULL OR email_verified=FALSE)
+                      AND (status IS NULL OR status='pending')
+                    """,
                     (new_token, email)
                 )
                 conn.commit()

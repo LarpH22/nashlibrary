@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Power, Repeat, ListChecks, CreditCard } from 'lucide-react'
+import { Activity, ArrowUpRight, BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Power, Repeat, ListChecks, CreditCard, Sparkles, Zap } from 'lucide-react'
 import api, { normalizeApiError } from '../../shared/api.js'
 import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
@@ -103,7 +103,7 @@ export function LibrarianDashboard() {
   const [reservations, setReservations] = useState([])
   const [fines, setFines] = useState([])
   const [fineSummary, setFineSummary] = useState({ total_count: 0, unpaid_count: 0, pending_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
-  const [reviewingFineId, setReviewingFineId] = useState(null)
+  const [loadingFines, setLoadingFines] = useState(false)
   const [reservationActionId, setReservationActionId] = useState(null)
   const [students, setStudents] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -124,14 +124,14 @@ export function LibrarianDashboard() {
   const [ebookUploadFile, setEbookUploadFile] = useState(null)
   const [ebookUploading, setEbookUploading] = useState(false)
 
-  const addNotification = (text) => {
+  const addNotification = useCallback((text) => {
     const id = Date.now()
     setNotifications(prev => [...prev, { id, text, timestamp: new Date() }])
-  }
+  }, [])
 
-  const removeNotification = (id) => {
+  const removeNotification = useCallback((id) => {
     setNotifications(prev => prev.filter(n => n.id !== id))
-  }
+  }, [])
 
   const safeBooks = useMemo(() => (Array.isArray(books) ? books : []), [books])
   const safeEbooks = useMemo(() => (Array.isArray(ebooks) ? ebooks : []), [ebooks])
@@ -315,16 +315,18 @@ export function LibrarianDashboard() {
   }, [])
 
   const loadFines = useCallback(async () => {
+    setLoadingFines(true)
     try {
       const response = await api.get('/api/fines/admin')
       setFines(Array.isArray(response.data?.fines) ? response.data.fines : [])
       setFineSummary(response.data?.summary || { total_count: 0, unpaid_count: 0, pending_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
     } catch (error) {
       console.error('Unable to load fines:', error)
-      setFines([])
       addNotification(apiMessage(error, 'Unable to load fine payments.'))
+    } finally {
+      setLoadingFines(false)
     }
-  }, [])
+  }, [addNotification])
 
   useEffect(() => {
     loadBooks()
@@ -358,19 +360,6 @@ export function LibrarianDashboard() {
     ],
     [safeBooks, pendingBorrowRequests, activeReservationCount, activeLoans.length, overdueLoans.length, pendingFinePayments.length, studentList]
   )
-
-  async function handleFinePaymentReview(fineId, action) {
-    setReviewingFineId(fineId)
-    try {
-      const response = await api.patch(`/api/fines/${fineId}/payment`, { action })
-      await loadFines()
-      addNotification(response.data?.message || `Payment ${action === 'approve' ? 'approved' : 'rejected'}.`)
-    } catch (error) {
-      addNotification(apiMessage(error, 'Unable to review payment.'))
-    } finally {
-      setReviewingFineId(null)
-    }
-  }
 
   async function handleApproveRequest(requestId) {
     const dueDate = requestDueDates[requestId]
@@ -656,33 +645,122 @@ export function LibrarianDashboard() {
 
   function renderPage() {
     if (activePage === 'overview') {
+      const requestRate = Math.min(100, Math.round((pendingBorrowRequests.length / Math.max(1, safeBorrowRequests.length || 1)) * 100))
+      const overdueRate = Math.min(100, Math.round((overdueLoans.length / Math.max(1, activeLoans.length || 1)) * 100))
+      const recentTransactions = safeLoans
+        .slice()
+        .sort((a, b) => new Date(b.return_date || b.borrow_date || b.issue_date || 0) - new Date(a.return_date || a.borrow_date || a.issue_date || 0))
+        .slice(0, 5)
+      const reservationPreview = safeReservations
+        .slice()
+        .sort((a, b) => new Date(b.reservation_date || 0) - new Date(a.reservation_date || 0))
+        .slice(0, 4)
+
       return (
-        <>
-          <div className="grid4">
+        <div className="dashboard-shell">
+          <section className="dashboard-hero">
+            <div>
+              <div className="eyebrow"><Sparkles size={14} aria-hidden="true" /> Live circulation desk</div>
+              <h2>Library Operations Overview</h2>
+              <p>Track requests, loans, reservations, overdue activity, and fine reviews from one focused workspace.</p>
+            </div>
+            <div className="hero-actions">
+              <button className="dash-action primary" type="button" onClick={() => setActivePage('issue-return')}>Review Requests <ArrowUpRight size={16} aria-hidden="true" /></button>
+              <button className="dash-action" type="button" onClick={() => setActivePage('returns')}>Process Return</button>
+            </div>
+          </section>
+
+          <section className="metric-grid">
             {stats.map((stat) => (
-              <div key={stat.label} className={`stat ${stat.type}`}>
-                <div className="stat-label">{stat.label}</div>
-                <div className="stat-num">{stat.value}</div>
-                <div className="stat-sub">Current</div>
-                <div className="stat-icon"><stat.icon size={20} strokeWidth={1.9} aria-hidden="true" /></div>
+              <div key={stat.label} className={`metric-card ${stat.type}`}>
+                <div className="metric-top">
+                  <span>{stat.label}</span>
+                  <stat.icon size={20} strokeWidth={1.9} aria-hidden="true" />
+                </div>
+                <div className="metric-value">{stat.value}</div>
+                <div className="metric-foot">Updated with current records</div>
               </div>
             ))}
-          </div>
-          <div className="grid2">
-            <div className="card">
-              <div className="card-hdr"><div className="card-title">Overview</div></div>
-              <p>Welcome to the Librarian Dashboard. You can review borrow requests, check availability, and manage student records.</p>
-            </div>
-            <div className="card">
-              <div className="card-hdr"><div className="card-title">Quick Actions</div></div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <button className="btn btn-gold" type="button" onClick={() => setActivePage('issue-return')}>Review Requests</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('overdue')}>View Overdue</button>
-                <button className="btn btn-outline" type="button" onClick={() => setActivePage('students')}>Student Records</button>
+          </section>
+
+          <section className="dashboard-grid">
+            <div className="insight-card wide">
+              <div className="insight-header">
+                <div>
+                  <div className="card-title">Circulation Analytics</div>
+                  <div className="subtext">A quick read on workload and service pressure.</div>
+                </div>
+                <Activity size={20} aria-hidden="true" />
+              </div>
+              <div className="analytics-bars">
+                <div className="analytics-row">
+                  <div><span>Pending request load</span><strong>{pendingBorrowRequests.length} open</strong></div>
+                  <div className="progress-track"><div className="progress-fill gold" style={{ width: `${requestRate}%` }} /></div>
+                </div>
+                <div className="analytics-row">
+                  <div><span>Overdue pressure</span><strong>{overdueLoans.length} of {activeLoans.length} active loans</strong></div>
+                  <div className="progress-track"><div className="progress-fill red" style={{ width: `${overdueRate}%` }} /></div>
+                </div>
+                <div className="analytics-row">
+                  <div><span>Reservation queue</span><strong>{activeReservationCount} active or ready</strong></div>
+                  <div className="progress-track"><div className="progress-fill blue" style={{ width: `${Math.min(100, activeReservationCount * 18)}%` }} /></div>
+                </div>
               </div>
             </div>
-          </div>
-        </>
+
+            <div className="insight-card">
+              <div className="insight-header">
+                <div>
+                  <div className="card-title">Quick Actions</div>
+                  <div className="subtext">Common circulation tasks.</div>
+                </div>
+                <Zap size={20} aria-hidden="true" />
+              </div>
+              <div className="quick-grid">
+                <button className="quick-tile gold" type="button" onClick={() => setActivePage('issue-return')}><BookOpen size={18} /> Review Requests</button>
+                <button className="quick-tile" type="button" onClick={() => setActivePage('overdue')}><Clock3 size={18} /> View Overdue</button>
+                <button className="quick-tile" type="button" onClick={() => setActivePage('students')}><Users size={18} /> Student Records</button>
+                <button className="quick-tile" type="button" onClick={() => setActivePage('availability')}><Search size={18} /> Availability</button>
+              </div>
+            </div>
+
+            <div className="insight-card">
+              <div className="insight-header"><div><div className="card-title">Latest Borrow / Return</div><div className="subtext">Recent circulation records.</div></div></div>
+              <div className="activity-list">
+                {recentTransactions.length === 0 ? (
+                  <div className="empty-state">No circulation records yet.</div>
+                ) : recentTransactions.map((loan) => (
+                  <div className="activity-item" key={loan.loan_id || loan.borrow_id}>
+                    <div className={`activity-dot ${loan.returned || loan.return_date ? 'green' : isLoanOverdue(loan) ? 'red' : 'gold'}`} />
+                    <div>
+                      <strong>{loan.book_title || loan.book_id || 'Unknown book'}</strong>
+                      <span>{loan.student_name || loan.student_email || `Student ${loan.student_id || ''}`}</span>
+                    </div>
+                    <em>{loan.returned || loan.return_date ? 'Returned' : isLoanOverdue(loan) ? 'Overdue' : 'Borrowed'}</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="insight-card">
+              <div className="insight-header"><div><div className="card-title">Reservation Summary</div><div className="subtext">Latest queue movement.</div></div></div>
+              <div className="activity-list">
+                {reservationPreview.length === 0 ? (
+                  <div className="empty-state">No active reservations.</div>
+                ) : reservationPreview.map((reservation) => (
+                  <div className="activity-item" key={reservation.reservation_id}>
+                    <div className="activity-dot blue" />
+                    <div>
+                      <strong>{reservation.book_title || reservation.book_id}</strong>
+                      <span>Queue #{reservation.queue_position || '-'} - {reservation.status || 'active'}</span>
+                    </div>
+                    <em>{reservation.expiration_date ? formatDate(reservation.expiration_date) : 'Open'}</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
       )
     }
 
@@ -1216,9 +1294,11 @@ export function LibrarianDashboard() {
             <div className="card-hdr">
               <div>
                 <div className="card-title">Fine Payment Reviews ({safeFines.length})</div>
-                <div className="subtext">Approve cash payments after collection and verify online payments after checking the reference.</div>
+                <div className="subtext">View fine payment records. Admin approval is required for payment verification.</div>
               </div>
-              <button className="btn btn-outline btn-sm" type="button" onClick={loadFines}>Refresh</button>
+              <button className="btn btn-outline btn-sm" type="button" disabled={loadingFines} onClick={() => loadFines()}>
+                {loadingFines ? 'Refreshing...' : 'Refresh'}
+              </button>
             </div>
             <div className="admin-table-container">
               <table>
@@ -1230,7 +1310,7 @@ export function LibrarianDashboard() {
                     <th>Amount</th>
                     <th>Payment</th>
                     <th>Reference</th>
-                    <th>Actions</th>
+                    <th>Review</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1239,7 +1319,6 @@ export function LibrarianDashboard() {
                   ) : safeFines.map((fine) => {
                     const paymentStatus = String(fine.payment_status || '').toLowerCase()
                     const isPendingReview = ['pending', 'pending_verification'].includes(paymentStatus)
-                    const isReviewing = reviewingFineId === fine.fine_id
                     return (
                       <tr key={fine.fine_id}>
                         <td>{fine.fine_id}</td>
@@ -1258,8 +1337,7 @@ export function LibrarianDashboard() {
                           {fine.payment_requested_at && <div className="muted-line">{new Date(fine.payment_requested_at).toLocaleString()}</div>}
                         </td>
                         <td>
-                          <button className="btn btn-green btn-sm" type="button" disabled={isReviewing || !isPendingReview} onClick={() => handleFinePaymentReview(fine.fine_id, 'approve')}>Approve</button>
-                          <button className="btn btn-red btn-sm" type="button" disabled={isReviewing || !isPendingReview} onClick={() => handleFinePaymentReview(fine.fine_id, 'reject')}>Reject</button>
+                          <span className="muted-line">{isPendingReview ? 'Waiting for admin' : 'View only'}</span>
                         </td>
                       </tr>
                     )
