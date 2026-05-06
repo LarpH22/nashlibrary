@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from ....domain.services.auth_service import AuthService
 from ....infrastructure.external.email_service import EmailService
+from ....infrastructure.config import Config
 
 
 class ForgotPasswordUseCase:
@@ -36,8 +37,9 @@ class ForgotPasswordUseCase:
             student['student_id'], reset_token, reset_expires
         )
 
-        # Send reset email
-        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+        # Send reset email with device-accessible URL
+        frontend_url = Config.FRONTEND_URL or Config.BACKEND_URL
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
         email_body = f"""Hello {student['full_name']},
 
 You requested a password reset for your library account.

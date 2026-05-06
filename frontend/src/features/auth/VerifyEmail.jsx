@@ -33,15 +33,6 @@ export function VerifyEmail() {
           return false
         }
 
-        // Check if we're in the correct localhost context
-        const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1')
-        const isProduction = process.env.NODE_ENV === 'production'
-
-        if (!isLocalhost && !isProduction) {
-          console.warn('Browser context validation: development mode with non-localhost origin')
-          return true // Allow but log
-        }
-
         return true
       } catch (error) {
         console.error('Context validation error:', error)
