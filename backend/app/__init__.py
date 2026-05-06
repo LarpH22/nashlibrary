@@ -1,5 +1,6 @@
 import os
 import socket
+from urllib.parse import urljoin
 from flask import Flask, jsonify, send_from_directory, redirect, request, Response
 from flask_cors import CORS
 
@@ -119,7 +120,7 @@ def create_app(config_object=None):
         if not use_dev_frontend:
             return None
 
-        candidate_ports = [3000, 3001, 3002, 3003, 3004, 5173]
+        candidate_ports = [3000, 3001, 3002, 3003, 3004, 5173, 5174]
         candidate_hosts = ['127.0.0.1', 'localhost']
         for host in candidate_hosts:
             for port in candidate_ports:
@@ -130,6 +131,12 @@ def create_app(config_object=None):
                     continue
 
         return None
+
+    def frontend_route_url(base_url: str) -> str:
+        route = request.full_path.lstrip('/')
+        if route.endswith('?'):
+            route = route[:-1]
+        return urljoin(f"{base_url.rstrip('/')}/", route)
 
     # Explicitly register routes AFTER blueprints to ensure they have priority
     @app.route('/favicon.ico', methods=['GET'], strict_slashes=False)
@@ -182,17 +189,13 @@ def create_app(config_object=None):
         if use_dev_frontend:
             configured_frontend_url = app.config.get('FRONTEND_URL')
             if configured_frontend_url:
-                dev_url = f"{configured_frontend_url}{request.full_path.lstrip('/')}"
-                if dev_url.endswith('?'):
-                    dev_url = dev_url[:-1]
+                dev_url = frontend_route_url(configured_frontend_url)
                 print(f"Redirecting to dev frontend: {dev_url}")
                 return redirect(dev_url, code=302)
 
             dev_base = find_frontend_url()
             if dev_base:
-                dev_url = f"{dev_base}{request.full_path.lstrip('/')}"
-                if dev_url.endswith('?'):
-                    dev_url = dev_url[:-1]
+                dev_url = frontend_route_url(dev_base)
                 print(f"Redirecting to dev frontend: {dev_url}")
                 return redirect(dev_url, code=302)
 
