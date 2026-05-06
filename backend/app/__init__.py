@@ -80,9 +80,11 @@ def create_app(config_object=None):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://translate.google.com https://translate.googleapis.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' http://localhost:* https://translate.googleapis.com https://*.googleapis.com; frame-ancestors 'none';"
-        # Allow only same-origin and specific trusted origins
-        response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
-        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        # Only set COEP and COOP when not on localhost (for development)
+        backend_url = app.config.get('BACKEND_URL', '')
+        if not (backend_url.startswith('http://localhost') or backend_url.startswith('http://127.0.0.1')):
+            response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+            response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
         if response.content_type and response.content_type.startswith('text/html'):
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'

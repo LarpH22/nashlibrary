@@ -121,6 +121,34 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .notif{position:fixed;top:18px;right:18px;background:var(--green);color:#0f1117;padding:10px 16px;border-radius:12px;font-size:12px;font-weight:700;z-index:200;transform:translateX(150%);transition:transform 0.25s}
 .notif.show{transform:translateX(0)}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,17,23,0.8);display:flex;align-items:center;justify-content:center;z-index:2000}
+.admin-modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:700px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.4);position:relative}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text);font-weight:600;margin:0}
+.modal-subtitle{font-size:12px;color:var(--muted);margin-top:4px}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:4px;line-height:1}
+.modal-close:hover{color:var(--text)}
+.account-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.account-tab-button{padding:12px 24px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s}
+.account-tab-button:hover{color:var(--text)}
+.account-tab-button.active{color:var(--text);border-bottom-color:var(--gold)}
+.account-details{display:grid;gap:16px}
+.account-details .fgroup input{cursor:not-allowed}
+.password-change-form{display:grid;gap:16px}
+.password-field-group{display:grid;gap:8px}
+.password-input-wrap{position:relative;display:flex;align-items:center}
+.password-input-wrap input{flex:1;padding-right:36px}
+.password-toggle{position:absolute;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px}
+.password-toggle:hover{color:var(--text)}
+.password-field-message{display:flex;align-items:center;gap:6px;font-size:12px}
+.password-field-message.valid{color:var(--green)}
+.password-field-message.invalid{color:var(--red)}
+.password-feedback{padding:12px;border-radius:8px;font-size:12px;text-align:center;margin-top:12px}
+.password-feedback.error-message{background:rgba(224,91,91,0.12);color:var(--red)}
+.password-feedback.success-message{background:rgba(46,204,138,0.12);color:var(--green)}
+.password-actions{display:flex;justify-content:center;margin-top:16px}
+.modal-footer{display:flex;justify-content:center;gap:12px;padding-top:16px;border-top:1px solid var(--border)}
+.modal-footer .btn{min-width:120px}
 @media (max-width:768px){
   .topbar{flex-wrap:wrap}
   .topbar-user-card{width:100%;max-width:none;min-width:0;order:5;justify-content:space-between}

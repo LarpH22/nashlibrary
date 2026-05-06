@@ -45,13 +45,6 @@ const navSections = [
     items: [
       { id: 'ebooks', icon: Library, title: 'E-Books' }
     ]
-  },
-  {
-    section: 'ACCOUNT',
-    items: [
-      { id: 'profile', icon: User, title: 'My Profile' },
-      { id: 'password', icon: KeyRound, title: 'Change Password' }
-    ]
   }
 ]
 
@@ -65,8 +58,6 @@ const pageTitles = {
   fines: 'Fine Management',
   reading: 'Reading History',
   history: 'Borrowing History',
-  profile: 'My Profile',
-  password: 'Change Password'
 }
 
 const formatDate = (value) => {
@@ -156,7 +147,7 @@ export function StudentDashboard() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const tabParam = urlParams.get('tab')
-    if (tabParam && ['overview', 'catalog', 'books', 'ebooks', 'reservations', 'reading', 'fines', 'history', 'profile', 'password'].includes(tabParam)) {
+    if (tabParam && ['overview', 'catalog', 'books', 'ebooks', 'reservations', 'reading', 'fines', 'history'].includes(tabParam)) {
       setActivePage(tabParam)
     }
   }, [])
@@ -177,7 +168,8 @@ export function StudentDashboard() {
   const [fetchError, setFetchError] = useState('')
   const [authStatus, setAuthStatus] = useState('pending')
   const [authMessage, setAuthMessage] = useState('')
-  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [showAccountModal, setShowAccountModal] = useState(false)
+  const [accountTab, setAccountTab] = useState('profile')
   const [editProfileForm, setEditProfileForm] = useState({
     full_name: '',
     email: ''
@@ -452,14 +444,23 @@ export function StudentDashboard() {
   const studentEmail = profile?.email || ''
   const studentInitials = getInitials(studentName)
 
-  const openEditProfile = () => {
-    setEditProfileForm({
-      full_name: studentName,
-      email: studentEmail
-    })
-    setEditProfileErrors({})
-    setShowEditProfile(true)
+  const openAccountModal = (tab = 'profile') => {
+    setAccountTab(tab)
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    if (tab === 'profile') {
+      setEditProfileForm({
+        full_name: studentName,
+        email: studentEmail
+      })
+      setEditProfileErrors({})
+    }
+
+    setShowAccountModal(true)
   }
+
+  const openEditProfile = () => openAccountModal('profile')
 
   const validateEditProfile = () => {
     const errors = {}
@@ -506,7 +507,7 @@ export function StudentDashboard() {
       } else {
         await loadProfile()
       }
-      setShowEditProfile(false)
+      setShowAccountModal(false)
       addNotification('Profile updated successfully.')
     } catch (err) {
       console.error('[StudentDashboard] save profile error', err)
@@ -1329,65 +1330,81 @@ export function StudentDashboard() {
           ))}
         </nav>
       </div>
-      {showEditProfile && (
-        <div className="modal-overlay" role="presentation" onClick={() => !savingProfile && setShowEditProfile(false)}>
-          <div className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title" onClick={(event) => event.stopPropagation()}>
+      {showAccountModal && (
+        <div className="modal-overlay" role="presentation" onClick={() => !savingProfile && !passwordSaving && setShowAccountModal(false)}>
+          <div className="profile-modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
-                <div id="edit-profile-title" className="modal-title">Edit Profile</div>
-                <div className="modal-subtitle">Student ID, department / program, and year level come from your approved registration.</div>
+                <div id="account-modal-title" className="modal-title">Account Settings</div>
+                <div className="modal-subtitle">Manage your profile and password from one place.</div>
               </div>
-              <button className="modal-close" type="button" disabled={savingProfile} onClick={() => setShowEditProfile(false)} aria-label="Close edit profile">
+              <button className="modal-close" type="button" disabled={savingProfile || passwordSaving} onClick={() => setShowAccountModal(false)} aria-label="Close account settings">
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
+            <div className="account-tabs">
+              <button type="button" className={`account-tab-button ${accountTab === 'profile' ? 'active' : ''}`} onClick={() => setAccountTab('profile')}>Profile</button>
+              <button type="button" className={`account-tab-button ${accountTab === 'security' ? 'active' : ''}`} onClick={() => setAccountTab('security')}>Security</button>
+            </div>
 
-            <form className="profile-modal-form" onSubmit={handleSaveProfile}>
-              {editProfileErrors.form && <div className="form-error">{editProfileErrors.form}</div>}
-              <div className="frow">
-                <div className="fgroup">
-                  <label>Student ID</label>
-                  <input value={displayValue(studentNumber)} readOnly />
+            {accountTab === 'profile' ? (
+              <form className="profile-modal-form" onSubmit={handleSaveProfile}>
+                {editProfileErrors.form && <div className="form-error">{editProfileErrors.form}</div>}
+                <div className="frow">
+                  <div className="fgroup">
+                    <label>Student ID</label>
+                    <input value={displayValue(studentNumber)} readOnly />
+                  </div>
+                  <div className="fgroup">
+                    <label>Department / Program</label>
+                    <input value={displayValue(profile?.department)} readOnly />
+                  </div>
+                </div>
+                <div className="frow">
+                  <div className="fgroup">
+                    <label>Year Level</label>
+                    <input value={displayValue(profile?.year_level)} readOnly />
+                  </div>
+                  <div className="fgroup">
+                    <label>Last Login</label>
+                    <input value={formatDate(profile?.last_login)} readOnly />
+                  </div>
                 </div>
                 <div className="fgroup">
-                  <label>Department / Program</label>
-                  <input value={displayValue(profile?.department)} readOnly />
+                  <label>Full Name</label>
+                  <input
+                    value={editProfileForm.full_name}
+                    onChange={(event) => setEditProfileForm({ ...editProfileForm, full_name: event.target.value })}
+                    autoComplete="name"
+                  />
+                  {editProfileErrors.full_name && <div className="field-error">{editProfileErrors.full_name}</div>}
                 </div>
-              </div>
-              <div className="frow">
                 <div className="fgroup">
-                  <label>Year Level</label>
-                  <input value={displayValue(profile?.year_level)} readOnly />
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    value={editProfileForm.email}
+                    onChange={(event) => setEditProfileForm({ ...editProfileForm, email: event.target.value })}
+                    autoComplete="email"
+                  />
+                  {editProfileErrors.email && <div className="field-error">{editProfileErrors.email}</div>}
                 </div>
-                <div className="fgroup">
-                  <label>Last Login</label>
-                  <input value={formatDate(profile?.last_login)} readOnly />
+                <div className="modal-actions">
+                  <button className="btn btn-outline" type="button" disabled={savingProfile} onClick={() => setShowAccountModal(false)}>Cancel</button>
+                  <button className="btn btn-green" type="submit" disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
                 </div>
-              </div>
-              <div className="fgroup">
-                <label>Full Name</label>
-                <input
-                  value={editProfileForm.full_name}
-                  onChange={(event) => setEditProfileForm({ ...editProfileForm, full_name: event.target.value })}
-                  autoComplete="name"
-                />
-                {editProfileErrors.full_name && <div className="field-error">{editProfileErrors.full_name}</div>}
-              </div>
-              <div className="fgroup">
-                <label>Email Address</label>
-                <input
-                  type="email"
-                  value={editProfileForm.email}
-                  onChange={(event) => setEditProfileForm({ ...editProfileForm, email: event.target.value })}
-                  autoComplete="email"
-                />
-                {editProfileErrors.email && <div className="field-error">{editProfileErrors.email}</div>}
-              </div>
-              <div className="modal-actions">
-                <button className="btn btn-outline" type="button" disabled={savingProfile} onClick={() => setShowEditProfile(false)}>Cancel</button>
-                <button className="btn btn-green" type="submit" disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
-              </div>
-            </form>
+              </form>
+            ) : (
+              <PasswordChangeForm
+                form={passwordForm}
+                onFieldChange={updatePasswordField}
+                onSubmit={handleChangePassword}
+                error={passwordError}
+                success={passwordSuccess}
+                submitting={passwordSaving}
+                submitLabel="Change Password"
+              />
+            )}
           </div>
         </div>
       )}
@@ -1514,7 +1531,7 @@ export function StudentDashboard() {
             )}
           </div>
           <div className="topbar-user-card">
-            <div className="topbar-user-profile">
+            <div className="topbar-user-profile" role="button" tabIndex="0" onClick={() => openAccountModal('profile')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') openAccountModal('profile') }}>
               <div className="avatar">{studentInitials}</div>
               <div className="topbar-user-text">
                 <div className="topbar-user-name">{studentName || 'Student'}</div>

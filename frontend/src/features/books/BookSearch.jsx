@@ -150,7 +150,7 @@ export function BookSearch({ initialKeyword = '', borrowedBookIds = [], reserved
     const keyword = initialKeyword || ''
     setTitle(keyword)
     loadBooks({ title: keyword, author, category, isbn, availability, history }, 1)
-  }, [initialKeyword, author, category, isbn, availability, history, loadBooks])
+  }, [initialKeyword])
 
   const handleSubmit = async (event) => {
     event.preventDefault()

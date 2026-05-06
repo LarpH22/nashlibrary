@@ -22,7 +22,8 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
 .sidebar-user{display:flex;align-items:center;gap:10px;padding:8px}
 .avatar{width:36px;height:36px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
 .topbar-user-card{display:flex;align-items:center;gap:14px;min-width:0}
-.topbar-user-profile{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar-user-profile{display:flex;align-items:center;gap:12px;min-width:0;cursor:pointer}
+.topbar-user-profile:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .topbar-user-text{min-width:0;flex:1}
 .topbar-user-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar-user-email{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
@@ -127,12 +128,18 @@ body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8e4d9;min-heigh
   .inline-return-form input{width:100%;flex:1}
 }
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,17,23,0.8);display:flex;align-items:center;justify-content:center;z-index:2000}
-.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:760px;width:min(90%,760px);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
 .modal-header{margin-bottom:16px;text-align:center}
 .modal-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text);font-weight:600}
 .modal-body{text-align:center;margin-bottom:20px}
 .modal-message{font-size:14px;color:var(--text)}
 .modal-footer{display:flex;justify-content:center}
+.tabs{display:flex;gap:0;justify-content:center;margin-bottom:18px;border-bottom:1px solid var(--border)}
+.tab{padding:12px 24px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--gold)}
+.account-details{display:grid;gap:16px}
+.account-details .fgroup input{cursor:not-allowed}
 .btn-close{background:var(--green);color:#0f1117;padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer;border:none;font-weight:500}
 .btn-close:hover{background:#26b877}
 .password-error{color:var(--red);font-size:13px;margin-top:12px;text-align:center;font-weight:500}

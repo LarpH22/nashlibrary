@@ -53,12 +53,6 @@ const navSections = [
       { id: 'categories', icon: '🗂', title: 'Categories' },
       { id: 'authors', icon: '✍️', title: 'Authors' }
     ]
-  },
-  {
-    section: 'ACCOUNT',
-    items: [
-      { id: 'account', icon: '🔑', title: 'Change Password' }
-    ]
   }
 ]
 
@@ -72,8 +66,7 @@ const pageTitles = {
   reservations: 'Reservations',
   students: 'Students',
   categories: 'Categories',
-  authors: 'Authors',
-  account: 'Change Password'
+  authors: 'Authors'
 }
 
 const bookInventoryPageSize = 10
@@ -116,6 +109,8 @@ export function AdminDashboard() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
+  const [showAccountModal, setShowAccountModal] = useState(false)
+  const [accountTab, setAccountTab] = useState('profile')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -130,6 +125,13 @@ export function AdminDashboard() {
   const [categoryPagination, setCategoryPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
   const [authorPagination, setAuthorPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
   const adminEmail = localStorage.getItem('user_email') || 'admin@librasys.edu'
+
+  const openAccountModal = (tab = 'profile') => {
+    setAccountTab(tab)
+    setPasswordError('')
+    setPasswordSuccess('')
+    setShowAccountModal(true)
+  }
 
   useEffect(() => {
     loadCategories()
@@ -1469,22 +1471,6 @@ export function AdminDashboard() {
       )
     }
 
-    if (activePage === 'account') {
-      return (
-        <div className="card">
-          <div className="card-hdr"><div className="card-title">Change Password</div></div>
-          <PasswordChangeForm
-            form={passwordForm}
-            onFieldChange={updatePasswordField}
-            onSubmit={handleChangePassword}
-            error={passwordError}
-            success={passwordSuccess}
-            submitting={passwordSaving}
-          />
-        </div>
-      )
-    }
-
     return null
   }
 
@@ -1554,7 +1540,7 @@ export function AdminDashboard() {
             )}
           </div>
           <div className="topbar-user-card">
-            <div className="topbar-user-profile">
+            <div className="topbar-user-profile" role="button" tabIndex="0" onClick={() => openAccountModal('profile')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') openAccountModal('profile') }}>
               <div className="avatar">AD</div>
               <div className="topbar-user-text">
                 <div className="topbar-user-name">Admin User</div>
@@ -1566,6 +1552,47 @@ export function AdminDashboard() {
             </button>
           </div>
         </div>
+        {showAccountModal && (
+          <div className="modal-overlay" role="presentation" onClick={() => !passwordSaving && setShowAccountModal(false)}>
+            <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-account-modal-title" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <div id="admin-account-modal-title" className="modal-title">Account Settings</div>
+                  <div className="modal-subtitle">Manage your account profile and password in one location.</div>
+                </div>
+                <button className="modal-close" type="button" disabled={passwordSaving} onClick={() => setShowAccountModal(false)} aria-label="Close account settings">
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="account-tabs">
+                <button type="button" className={`account-tab-button ${accountTab === 'profile' ? 'active' : ''}`} onClick={() => setAccountTab('profile')}>Profile</button>
+                <button type="button" className={`account-tab-button ${accountTab === 'security' ? 'active' : ''}`} onClick={() => setAccountTab('security')}>Security</button>
+              </div>
+              {accountTab === 'profile' ? (
+                <div className="admin-form" style={{ display: 'grid', gap: '16px' }}>
+                  <div className="fgroup">
+                    <label>Name</label>
+                    <input value="Admin User" readOnly />
+                  </div>
+                  <div className="fgroup">
+                    <label>Email Address</label>
+                    <input value={adminEmail} readOnly />
+                  </div>
+                </div>
+              ) : (
+                <PasswordChangeForm
+                  form={passwordForm}
+                  onFieldChange={updatePasswordField}
+                  onSubmit={handleChangePassword}
+                  error={passwordError}
+                  success={passwordSuccess}
+                  submitting={passwordSaving}
+                  submitLabel="Change Password"
+                />
+              )}
+            </div>
+          </div>
+        )}
         <div className="content">
           {message && (
             <div className={`status-message ${message.toLowerCase().includes('failed') || message.toLowerCase().includes('unable') || message.toLowerCase().includes('not found') ? 'error-message' : ''}`}>

@@ -28,12 +28,6 @@ const baseNavSections = [
       { id: 'fines', icon: CreditCard, title: 'Fine Payments' },
       { id: 'search', icon: Search, title: 'Search Books' }
     ]
-  },
-  {
-    section: 'ACCOUNT',
-    items: [
-      { id: 'account', icon: Key, title: 'Change Password' }
-    ]
   }
 ]
 
@@ -46,8 +40,7 @@ const pageTitles = {
   reservations: 'Reservations',
   fines: 'Fine Payments',
   returns: 'Returns Platform',
-  search: 'Search Books',
-  account: 'Change Password'
+  search: 'Search Books'
 }
 
 const ebookLibraryPageSize = 10
@@ -119,6 +112,8 @@ export function LibrarianDashboard() {
   const [scanForm, setScanForm] = useState({ code: '', student_id: '' })
   const [scanResult, setScanResult] = useState(null)
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
+  const [showAccountModal, setShowAccountModal] = useState(false)
+  const [accountTab, setAccountTab] = useState('profile')
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -212,6 +207,13 @@ export function LibrarianDashboard() {
   const handleLogout = () => {
     clearStoredAuth()
     navigate('/login', { replace: true })
+  }
+
+  const openAccountModal = (tab = 'profile') => {
+    setAccountTab(tab)
+    setPasswordError('')
+    setPasswordSuccess('')
+    setShowAccountModal(true)
   }
 
   const loadBooks = useCallback(async () => {
@@ -1270,22 +1272,6 @@ export function LibrarianDashboard() {
       )
     }
 
-    if (activePage === 'account') {
-      return (
-        <div className="card">
-          <div className="card-hdr"><div className="card-title">Change Password</div></div>
-          <PasswordChangeForm
-            form={passwordForm}
-            onFieldChange={updatePasswordField}
-            onSubmit={handleChangePassword}
-            error={passwordError}
-            success={passwordSuccess}
-            submitting={passwordSaving}
-          />
-        </div>
-      )
-    }
-
     return null
   }
 
@@ -1353,7 +1339,14 @@ export function LibrarianDashboard() {
             )}
           </div>
           <div className="topbar-user-card">
-            <div className="topbar-user-profile">
+            <div
+              className="topbar-user-profile"
+              role="button"
+              tabIndex={0}
+              onClick={() => openAccountModal('profile')}
+              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openAccountModal('profile') } }}
+              aria-label="Open account settings"
+            >
               <div className="avatar">LI</div>
               <div className="topbar-user-text">
                 <div className="topbar-user-name">Librarian</div>
@@ -1365,6 +1358,53 @@ export function LibrarianDashboard() {
             </button>
           </div>
         </div>
+
+        {showAccountModal && (
+          <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+            <div className="modal" role="document">
+              <div className="modal-header">
+                <div id="account-modal-title" className="modal-title">Account Settings</div>
+              </div>
+              <div className="modal-body">
+                <div className="tabs">
+                  <button type="button" className={accountTab === 'profile' ? 'tab active' : 'tab'} onClick={() => setAccountTab('profile')}>
+                    Profile
+                  </button>
+                  <button type="button" className={accountTab === 'security' ? 'tab active' : 'tab'} onClick={() => setAccountTab('security')}>
+                    Security
+                  </button>
+                </div>
+                {accountTab === 'profile' ? (
+                  <div className="account-details">
+                    <div className="fgroup">
+                      <label>Email</label>
+                      <input type="text" value="librarian@librasys.edu" readOnly />
+                    </div>
+                    <div className="fgroup">
+                      <label>Role</label>
+                      <input type="text" value="Librarian" readOnly />
+                    </div>
+                  </div>
+                ) : (
+                  <PasswordChangeForm
+                    form={passwordForm}
+                    onFieldChange={updatePasswordField}
+                    onSubmit={handleChangePassword}
+                    error={passwordError}
+                    success={passwordSuccess}
+                    submitting={passwordSaving}
+                  />
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-close" onClick={() => setShowAccountModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="content">
           {renderPage()}
         </div>
