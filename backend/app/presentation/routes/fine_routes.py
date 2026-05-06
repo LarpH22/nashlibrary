@@ -52,3 +52,10 @@ def update_fine_status(fine_id):
 def review_fine_payment(fine_id):
     current_user = set_current_user()
     return controller.review_fine_payment(fine_id, current_user)
+
+
+@fine_bp.route('/<int:fine_id>/receipt', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def view_fine_receipt(fine_id):
+    current_user = set_current_user()
+    return controller.view_fine_receipt(fine_id, current_user)

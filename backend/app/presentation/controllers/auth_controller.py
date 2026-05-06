@@ -94,7 +94,8 @@ class AuthController:
                 student_id=student_id,
                 registration_document=registration_document,
                 department=department,
-                year_level=year_level
+                year_level=year_level,
+                request_base_url=request.url_root.rstrip('/')
             )
 
             return jsonify(result), 201
@@ -173,7 +174,7 @@ class AuthController:
             if not email:
                 return jsonify({'message': 'Email is required'}), 400
 
-            result = self.resend_verification_use_case.execute(email)
+            result = self.resend_verification_use_case.execute(email, request.url_root.rstrip('/'))
             return jsonify(result), 200
 
         except ValueError as e:

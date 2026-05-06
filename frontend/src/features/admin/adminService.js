@@ -110,6 +110,11 @@ export async function reviewFinePayment(fineId, action) {
   return response.data
 }
 
+export async function fetchFineReceipt(fineId) {
+  const response = await api.get(`/api/fines/${fineId}/receipt`, { responseType: 'blob' })
+  return response.data
+}
+
 export async function changePassword(oldPassword, newPassword, confirmPassword) {
   const response = await api.post('/api/admin/password', { old_password: oldPassword, new_password: newPassword, confirm_password: confirmPassword })
   return response.data

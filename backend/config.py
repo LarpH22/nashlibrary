@@ -1,4 +1,5 @@
 import os
+import socket
 from dotenv import load_dotenv
 
 # Load .env automatically for local development
@@ -6,6 +7,17 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '..', '.env'), override=True)
 load_dotenv(os.path.join(basedir, '.env'), override=True)
 load_dotenv(override=True)
+
+def _local_network_backend_url(port='5000'):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(('8.8.8.8', 80))
+            host = sock.getsockname()[0]
+        if host and not host.startswith('127.'):
+            return f'http://{host}:{port}'
+    except OSError:
+        pass
+    return None
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
@@ -40,6 +52,15 @@ class Config:
         FRONTEND_URL = _configured_frontend_url or BACKEND_URL
         if _configured_frontend_url and _configured_frontend_url.startswith(('http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000')):
             FRONTEND_URL = BACKEND_URL
+    _backend_port = os.environ.get('PORT', '5000')
+    _mobile_frontend_fallback = _local_network_backend_url(_backend_port)
+    PUBLIC_FRONTEND_URL = (
+        os.environ.get('PUBLIC_FRONTEND_URL')
+        or (_configured_frontend_url if _configured_frontend_url and not _configured_frontend_url.startswith(('http://localhost', 'https://localhost', 'http://127.0.0.1', 'https://127.0.0.1')) else None)
+        or _mobile_frontend_fallback
+        or FRONTEND_URL
+    )
+    EMAIL_VERIFICATION_TOKEN_MINUTES = int(os.environ.get('EMAIL_VERIFICATION_TOKEN_MINUTES', '60'))
 
     # Frontend dist folder for serving built static files
     FRONTEND_DIST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dist')

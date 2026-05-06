@@ -156,6 +156,8 @@ export function StudentDashboard() {
   const [paymentStep, setPaymentStep] = useState('options')
   const [paymentPreview, setPaymentPreview] = useState(null)
   const [paymentResult, setPaymentResult] = useState(null)
+  const [paymentReceipt, setPaymentReceipt] = useState(null)
+  const [paymentReceiptError, setPaymentReceiptError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [passwordError, setPasswordError] = useState('')
@@ -569,6 +571,8 @@ export function StudentDashboard() {
     setPaymentStep('options')
     setPaymentPreview(null)
     setPaymentResult(null)
+    setPaymentReceipt(null)
+    setPaymentReceiptError('')
   }
 
   function closePaymentModal() {
@@ -579,6 +583,8 @@ export function StudentDashboard() {
     setPaymentStep('options')
     setPaymentPreview(null)
     setPaymentResult(null)
+    setPaymentReceipt(null)
+    setPaymentReceiptError('')
   }
 
   function goBackToPaymentOptions() {
@@ -588,12 +594,16 @@ export function StudentDashboard() {
     setPaymentStep('options')
     setPaymentPreview(null)
     setPaymentResult(null)
+    setPaymentReceipt(null)
+    setPaymentReceiptError('')
   }
 
   function selectCashPayment() {
     setPaymentStep('cash-confirm')
     setPaymentPreview(null)
     setPaymentResult(null)
+    setPaymentReceipt(null)
+    setPaymentReceiptError('')
   }
 
   async function selectOnlinePayment() {
@@ -608,11 +618,36 @@ export function StudentDashboard() {
       const result = await previewFinePayment(loanId, 'online')
       setPaymentPreview(result?.payment || result)
       setPaymentStep('online-qr')
+      setPaymentReceipt(null)
+      setPaymentReceiptError('')
     } catch (err) {
       addNotification(err?.response?.data?.message || 'Unable to generate payment QR.')
     } finally {
       setPayingFineLoanId(null)
     }
+  }
+
+  function validateReceiptFile(file) {
+    if (!file) {
+      return 'Upload a receipt or proof of online payment before submitting.'
+    }
+    if (file.size <= 0) {
+      return 'The selected receipt file is empty.'
+    }
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    if (!['jpg', 'jpeg', 'png', 'pdf'].includes(extension)) {
+      return 'Receipt must be a JPG, PNG, or PDF file.'
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return 'Receipt file must be 5 MB or smaller.'
+    }
+    return ''
+  }
+
+  function handleReceiptChange(event) {
+    const file = event.target.files?.[0] || null
+    setPaymentReceipt(file)
+    setPaymentReceiptError(file ? validateReceiptFile(file) : '')
   }
 
   async function confirmSelectedPayment(paymentMethod) {
@@ -621,14 +656,25 @@ export function StudentDashboard() {
       addNotification('Unable to identify the loan for this fine.')
       return
     }
+    if (payingFineLoanId) {
+      return
+    }
+
+    const receiptError = paymentMethod === 'online' ? validateReceiptFile(paymentReceipt) : ''
+    if (receiptError) {
+      setPaymentReceiptError(receiptError)
+      return
+    }
 
     setPayingFineLoanId(loanId)
     try {
       const paymentReference = paymentMethod === 'online' ? paymentPreview?.payment_reference : ''
-      const result = await confirmFinePayment(loanId, paymentMethod, paymentReference)
+      const result = await confirmFinePayment(loanId, paymentMethod, paymentReference, paymentReceipt)
       await Promise.allSettled([loadFines(), loadLoans()])
       setPaymentResult(result?.payment || result)
       setPaymentStep('submitted')
+      setPaymentReceipt(null)
+      setPaymentReceiptError('')
       addNotification(result?.message || 'Payment request submitted.')
     } catch (err) {
       addNotification(err?.response?.data?.message || 'Unable to submit this payment.')
@@ -1465,8 +1511,26 @@ export function StudentDashboard() {
                   )}
                   <div className="modal-actions">
                     <button className="btn btn-outline" type="button" disabled={Boolean(payingFineLoanId)} onClick={goBackToPaymentOptions}>Back</button>
+                    <button className="btn btn-green" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => setPaymentStep('online-receipt')}>
+                      Submit Payment
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {paymentStep === 'online-receipt' && paymentPreview && !paymentResult && (
+                <div className="payment-confirm-panel">
+                  <div className="status-message">Upload your receipt or proof of online payment. The fine will only move to pending verification after this final submit succeeds.</div>
+                  <div className="fgroup">
+                    <label>Receipt / proof of payment</label>
+                    <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" disabled={Boolean(payingFineLoanId)} onChange={handleReceiptChange} />
+                    {paymentReceipt && <div className="modal-subtitle">{paymentReceipt.name}</div>}
+                    {paymentReceiptError && <div className="field-error">{paymentReceiptError}</div>}
+                  </div>
+                  <div className="modal-actions">
+                    <button className="btn btn-outline" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => setPaymentStep('online-qr')}>Back</button>
                     <button className="btn btn-green" type="button" disabled={Boolean(payingFineLoanId)} onClick={() => confirmSelectedPayment('online')}>
-                      {payingFineLoanId ? 'Submitting...' : 'I Submitted Online Payment'}
+                      {payingFineLoanId ? 'Submitting...' : 'Submit Receipt'}
                     </button>
                   </div>
                 </div>

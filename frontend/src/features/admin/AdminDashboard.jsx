@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BookOpen, LogOut, Bell, X } from 'lucide-react'
+import { Activity, ArrowUpRight, Bell, BookMarked, BookOpen, CheckCircle2, Clock3, CreditCard, FolderTree, LogOut, PenLine, Repeat, Sparkles, Users, X, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchCategories,
@@ -17,6 +17,7 @@ import {
   resetStudentPassword,
   fetchLoans,
   fetchAdminFines,
+  fetchFineReceipt,
   reviewFinePayment,
   updateFineStatus,
   changePassword,
@@ -98,6 +99,8 @@ export function AdminDashboard() {
   const [fineSummary, setFineSummary] = useState({ total_count: 0, unpaid_count: 0, paid_count: 0, total_unpaid: 0, total_paid: 0 })
   const [fineStatusMessage, setFineStatusMessage] = useState('')
   const [updatingFineId, setUpdatingFineId] = useState(null)
+  const [reviewFine, setReviewFine] = useState(null)
+  const [receiptPreview, setReceiptPreview] = useState({ url: '', type: '', error: '', loading: false })
   const [studentId, setStudentId] = useState('')
   const [student, setStudent] = useState(null)
   const [editingStudent, setEditingStudent] = useState(null)
@@ -152,6 +155,12 @@ export function AdminDashboard() {
     loadAuthors()
   }, [authorPagination.page])
 
+  useEffect(() => () => {
+    if (receiptPreview.url) {
+      URL.revokeObjectURL(receiptPreview.url)
+    }
+  }, [receiptPreview.url])
+
   const handleLogout = () => {
     clearStoredAuth()
     navigate('/login', { replace: true })
@@ -170,13 +179,13 @@ export function AdminDashboard() {
 
   const stats = useMemo(
     () => [
-      { label: 'Categories', value: categories.length, type: 'gold' },
-      { label: 'Authors', value: authors.length, type: 'blue' },
-      { label: 'Books', value: books.length, type: 'green' },
-      { label: 'Loans', value: loans.length, type: 'purple' },
-      { label: 'Reservations', value: reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).length, type: 'gold' },
-      { label: 'Students', value: students.length, type: 'blue' },
-      { label: 'Unpaid Fines', value: formatCurrency(fineSummary.total_unpaid), type: 'red' }
+      { label: 'Categories', value: categories.length, type: 'gold', icon: FolderTree },
+      { label: 'Authors', value: authors.length, type: 'blue', icon: PenLine },
+      { label: 'Books', value: books.length, type: 'green', icon: BookOpen },
+      { label: 'Loans', value: loans.length, type: 'purple', icon: Repeat },
+      { label: 'Reservations', value: reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase())).length, type: 'gold', icon: BookMarked },
+      { label: 'Students', value: students.length, type: 'blue', icon: Users },
+      { label: 'Unpaid Fines', value: formatCurrency(fineSummary.total_unpaid), type: 'red', icon: CreditCard }
     ],
     [categories, authors, books, loans, reservations, students, fineSummary.total_unpaid]
   )
@@ -328,11 +337,51 @@ export function AdminDashboard() {
       const result = await reviewFinePayment(fineId, action)
       await loadFines()
       setFineStatusMessage(result?.message || `Payment ${action === 'approve' ? 'approved' : 'rejected'}.`)
+      closeFineReviewModal()
     } catch (error) {
       setFineStatusMessage(error?.response?.data?.message || 'Unable to review payment.')
     } finally {
       setUpdatingFineId(null)
     }
+  }
+
+  async function openFineReviewModal(fine) {
+    if (receiptPreview.url) {
+      URL.revokeObjectURL(receiptPreview.url)
+    }
+    setReviewFine(fine)
+    setFineStatusMessage('')
+    setReceiptPreview({ url: '', type: '', error: '', loading: false })
+
+    if (String(fine.payment_method || '').toLowerCase() !== 'online') {
+      return
+    }
+    if (!fine.payment_receipt_filename) {
+      setReceiptPreview({ url: '', type: '', error: 'No receipt was uploaded for this payment.', loading: false })
+      return
+    }
+
+    setReceiptPreview({ url: '', type: '', error: '', loading: true })
+    try {
+      const blob = await fetchFineReceipt(fine.fine_id)
+      const url = URL.createObjectURL(blob)
+      setReceiptPreview({ url, type: blob.type || '', error: '', loading: false })
+    } catch (error) {
+      setReceiptPreview({
+        url: '',
+        type: '',
+        error: error?.response?.data?.message || 'Unable to load receipt.',
+        loading: false
+      })
+    }
+  }
+
+  function closeFineReviewModal() {
+    if (receiptPreview.url) {
+      URL.revokeObjectURL(receiptPreview.url)
+    }
+    setReviewFine(null)
+    setReceiptPreview({ url: '', type: '', error: '', loading: false })
   }
 
   async function loadRegistrationRequests() {
@@ -628,6 +677,116 @@ export function AdminDashboard() {
 
   function renderPage() {
     if (activePage === 'overview') {
+      const activeReservations = reservations.filter((reservation) => ['active', 'ready'].includes(String(reservation.status || '').toLowerCase()))
+      const activeLoans = loans.filter((loan) => !loan.returned && !loan.return_date)
+      const overdueLoans = loans.filter((loan) => {
+        const dueDate = loan.due_date ? new Date(loan.due_date) : null
+        return dueDate && !Number.isNaN(dueDate.getTime()) && !loan.returned && !loan.return_date && dueDate < new Date()
+      })
+      const pendingRegistrations = registrationRequests.filter((request) => String(request.status || '').toLowerCase() === 'pending')
+      const latestTransactions = loans
+        .slice()
+        .sort((a, b) => new Date(b.return_date || b.borrow_date || b.issue_date || 0) - new Date(a.return_date || a.borrow_date || a.issue_date || 0))
+        .slice(0, 5)
+      const analytics = [
+        { label: 'Collection utilization', value: `${activeLoans.length} active loans`, percent: Math.min(100, Math.round((activeLoans.length / Math.max(1, books.length)) * 100)), tone: 'gold' },
+        { label: 'Overdue exposure', value: `${overdueLoans.length} overdue`, percent: Math.min(100, Math.round((overdueLoans.length / Math.max(1, activeLoans.length || 1)) * 100)), tone: 'red' },
+        { label: 'Reservation demand', value: `${activeReservations.length} active`, percent: Math.min(100, activeReservations.length * 16), tone: 'blue' }
+      ]
+
+      return (
+        <div className="dashboard-shell">
+          <section className="dashboard-hero admin-hero">
+            <div>
+              <div className="eyebrow"><Sparkles size={14} aria-hidden="true" /> Management command center</div>
+              <h2>System Performance Overview</h2>
+              <p>Monitor catalog health, circulation activity, student growth, payment status, and operational workload.</p>
+            </div>
+            <div className="hero-actions">
+              <button className="dash-action primary" type="button" onClick={() => setActivePage('books')}>Manage Books <ArrowUpRight size={16} aria-hidden="true" /></button>
+              <button className="dash-action" type="button" onClick={() => setActivePage('fines')}>Verify Payments</button>
+            </div>
+          </section>
+
+          <section className="metric-grid">
+            {stats.map((stat) => (
+              <div key={stat.label} className={`metric-card ${stat.type}`}>
+                <div className="metric-top">
+                  <span>{stat.label}</span>
+                  <stat.icon size={20} strokeWidth={1.9} aria-hidden="true" />
+                </div>
+                <div className="metric-value">{stat.value}</div>
+                <div className="metric-foot">Current system total</div>
+              </div>
+            ))}
+          </section>
+
+          <section className="dashboard-grid">
+            <div className="insight-card wide">
+              <div className="insight-header">
+                <div>
+                  <div className="card-title">System Analytics</div>
+                  <div className="subtext">Operational signals across catalog, loans, and queues.</div>
+                </div>
+                <Activity size={20} aria-hidden="true" />
+              </div>
+              <div className="analytics-bars">
+                {analytics.map((item) => (
+                  <div className="analytics-row" key={item.label}>
+                    <div><span>{item.label}</span><strong>{item.value}</strong></div>
+                    <div className="progress-track"><div className={`progress-fill ${item.tone}`} style={{ width: `${item.percent}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="insight-card">
+              <div className="insight-header">
+                <div>
+                  <div className="card-title">Quick Actions</div>
+                  <div className="subtext">High-frequency admin tasks.</div>
+                </div>
+                <Zap size={20} aria-hidden="true" />
+              </div>
+              <div className="quick-grid">
+                <button className="quick-tile gold" type="button" onClick={() => setActivePage('books')}><BookOpen size={18} /> Add / Edit Books</button>
+                <button className="quick-tile" type="button" onClick={() => setActivePage('registrations')}><CheckCircle2 size={18} /> Registration Review</button>
+                <button className="quick-tile" type="button" onClick={() => setActivePage('fines')}><CreditCard size={18} /> Verify Payments</button>
+                <button className="quick-tile" type="button" onClick={() => setActivePage('students')}><Users size={18} /> Manage Students</button>
+              </div>
+            </div>
+
+            <div className="insight-card">
+              <div className="insight-header"><div><div className="card-title">Latest Borrow / Return</div><div className="subtext">Recent transaction trail.</div></div></div>
+              <div className="activity-list">
+                {latestTransactions.length === 0 ? (
+                  <div className="empty-state">No loan transactions yet.</div>
+                ) : latestTransactions.map((loan) => (
+                  <div className="activity-item" key={loan.loan_id || loan.borrow_id}>
+                    <div className={`activity-dot ${loan.returned || loan.return_date ? 'green' : overdueLoans.some((item) => (item.loan_id || item.borrow_id) === (loan.loan_id || loan.borrow_id)) ? 'red' : 'gold'}`} />
+                    <div>
+                      <strong>{loan.book_title || loan.book_id || 'Unknown book'}</strong>
+                      <span>{loan.student_name || loan.student_email || `Student ${loan.student_id || ''}`}</span>
+                    </div>
+                    <em>{loan.returned || loan.return_date ? 'Returned' : 'Borrowed'}</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="insight-card">
+              <div className="insight-header"><div><div className="card-title">Work Queue</div><div className="subtext">Items needing admin attention.</div></div><Clock3 size={20} aria-hidden="true" /></div>
+              <div className="queue-list">
+                <button type="button" onClick={() => setActivePage('registrations')}><span>{pendingRegistrations.length}</span> Pending registrations</button>
+                <button type="button" onClick={() => setActivePage('reservations')}><span>{activeReservations.length}</span> Active reservations</button>
+                <button type="button" onClick={() => setActivePage('fines')}><span>{fineSummary.pending_count || 0}</span> Payment reviews</button>
+                <button type="button" onClick={() => setActivePage('loans')}><span>{overdueLoans.length}</span> Overdue loans</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )
+
       return (
         <>
           <div className="grid4">
@@ -1094,8 +1253,8 @@ export function AdminDashboard() {
           <div className="card">
             <div className="card-hdr">
               <div>
-                <div className="card-title">Walk-in Fine Payments ({filteredFines.length})</div>
-                <div className="subtext">Mark payments after receiving cash or in-person payment from a student.</div>
+                <div className="card-title">Fine Payment Verification ({filteredFines.length})</div>
+                <div className="subtext">Review payment details and uploaded online receipts before approving or rejecting payments.</div>
               </div>
               <button className="btn btn-outline btn-sm" type="button" onClick={loadFines}>Refresh</button>
             </div>
@@ -1112,12 +1271,13 @@ export function AdminDashboard() {
                     <th>Amount</th>
                     <th>Payment</th>
                     <th>Reference</th>
+                    <th>Receipt</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredFines.length === 0 ? (
-                    <tr><td colSpan="9" className="empty-cell">No fines found.</td></tr>
+                    <tr><td colSpan="10" className="empty-cell">No fines found.</td></tr>
                   ) : filteredFines.map((fine) => {
                     const isPaid = fine.status === 'paid'
                     const isUpdating = updatingFineId === fine.fine_id
@@ -1146,25 +1306,22 @@ export function AdminDashboard() {
                           {fine.payment_requested_at && <div className="muted-line">{new Date(fine.payment_requested_at).toLocaleString()}</div>}
                         </td>
                         <td>
+                          {fine.payment_receipt_filename ? (
+                            <button className="btn btn-outline btn-sm" type="button" onClick={() => openFineReviewModal(fine)}>View Receipt</button>
+                          ) : (
+                            <span className="muted-line">No receipt</span>
+                          )}
+                        </td>
+                        <td>
                           {isPendingReview && (
-                            <>
-                              <button
-                                className="btn btn-green btn-sm"
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={() => handleFinePaymentReview(fine.fine_id, 'approve')}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                className="btn btn-red btn-sm"
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={() => handleFinePaymentReview(fine.fine_id, 'reject')}
-                              >
-                                Reject
-                              </button>
-                            </>
+                            <button
+                              className="btn btn-blue btn-sm"
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={() => openFineReviewModal(fine)}
+                            >
+                              Review
+                            </button>
                           )}
                           <button
                             className="btn btn-gold btn-sm"
@@ -1590,6 +1747,59 @@ export function AdminDashboard() {
                   submitLabel="Change Password"
                 />
               )}
+            </div>
+          </div>
+        )}
+        {reviewFine && (
+          <div className="modal-overlay" role="presentation" onClick={() => !updatingFineId && closeFineReviewModal()}>
+            <div className="admin-modal payment-review-modal" role="dialog" aria-modal="true" aria-labelledby="fine-review-title" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <div id="fine-review-title" className="modal-title">Verify Fine Payment</div>
+                  <div className="modal-subtitle">Fine #{reviewFine.fine_id} - {reviewFine.student_name || `Student ${reviewFine.student_id}`}</div>
+                </div>
+                <button className="modal-close" type="button" disabled={Boolean(updatingFineId)} onClick={closeFineReviewModal} aria-label="Close payment review">
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="payment-review-grid">
+                <div><span>Book</span><strong>{reviewFine.book_title || reviewFine.book_id || 'Unknown book'}</strong></div>
+                <div><span>Amount</span><strong>{formatCurrency(reviewFine.amount)}</strong></div>
+                <div><span>Method</span><strong>{reviewFine.payment_method || '-'}</strong></div>
+                <div><span>Status</span><strong>{String(reviewFine.payment_status || reviewFine.status || 'unpaid').replace('_', ' ')}</strong></div>
+                <div><span>Reference</span><strong>{reviewFine.payment_reference || '-'}</strong></div>
+                <div><span>Submitted</span><strong>{reviewFine.payment_requested_at ? new Date(reviewFine.payment_requested_at).toLocaleString() : '-'}</strong></div>
+              </div>
+
+              <div className="receipt-panel">
+                <div className="receipt-panel-title">Uploaded Receipt / Proof</div>
+                {receiptPreview.loading ? (
+                  <div className="receipt-placeholder">Loading receipt...</div>
+                ) : receiptPreview.error ? (
+                  <div className="receipt-placeholder error-message">{receiptPreview.error}</div>
+                ) : receiptPreview.url ? (
+                  String(reviewFine.payment_receipt_filename || '').toLowerCase().endsWith('.pdf') || receiptPreview.type.includes('pdf') ? (
+                    <iframe className="receipt-frame" src={receiptPreview.url} title={`Receipt for fine ${reviewFine.fine_id}`} />
+                  ) : (
+                    <img className="receipt-image" src={receiptPreview.url} alt={`Receipt for fine ${reviewFine.fine_id}`} />
+                  )
+                ) : (
+                  <div className="receipt-placeholder">No uploaded receipt for this payment.</div>
+                )}
+                {reviewFine.payment_receipt_filename && <div className="muted-line">{reviewFine.payment_receipt_filename}</div>}
+              </div>
+
+              {fineStatusMessage && <div className={`status-message ${fineStatusMessage.toLowerCase().includes('unable') ? 'error-message' : ''}`}>{fineStatusMessage}</div>}
+              <div className="modal-actions">
+                <button className="btn btn-outline" type="button" disabled={Boolean(updatingFineId)} onClick={closeFineReviewModal}>Close</button>
+                <button className="btn btn-red" type="button" disabled={Boolean(updatingFineId) || !['pending', 'pending_verification'].includes(String(reviewFine.payment_status || '').toLowerCase())} onClick={() => handleFinePaymentReview(reviewFine.fine_id, 'reject')}>
+                  {updatingFineId === reviewFine.fine_id ? 'Saving...' : 'Reject'}
+                </button>
+                <button className="btn btn-green" type="button" disabled={Boolean(updatingFineId) || !['pending', 'pending_verification'].includes(String(reviewFine.payment_status || '').toLowerCase())} onClick={() => handleFinePaymentReview(reviewFine.fine_id, 'approve')}>
+                  {updatingFineId === reviewFine.fine_id ? 'Saving...' : 'Approve'}
+                </button>
+              </div>
             </div>
           </div>
         )}
