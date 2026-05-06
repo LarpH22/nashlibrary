@@ -21,6 +21,8 @@ def create_app(config_object=None):
     app.config['FRONTEND_DIST_FOLDER'] = frontend_folder
 
     app.logger.info('Frontend static folder: %s', frontend_folder)
+    
+    # CORS configuration - includes both hardcoded localhost and environment-configured URLs
     cors_origins = {
         app.config.get('BACKEND_URL'),
         app.config.get('FRONTEND_URL'),
@@ -29,9 +31,12 @@ def create_app(config_object=None):
         'http://127.0.0.1:5173',
         'http://localhost:5173',
     }
+    # Remove None values
+    cors_origins = {origin for origin in cors_origins if origin}
+    
     CORS(
         app,
-        resources={r"/*": {"origins": [origin for origin in cors_origins if origin]}},
+        resources={r"/*": {"origins": list(cors_origins)}},
         supports_credentials=False,
     )
     jwt_manager.init_app(app)
@@ -79,10 +84,18 @@ def create_app(config_object=None):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://translate.google.com https://translate.googleapis.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' http://localhost:* https://translate.googleapis.com https://*.googleapis.com; frame-ancestors 'none';"
-        # Only set COEP and COOP when not on localhost (for development)
+        
+        # CSP header - allow connections to localhost and configured backend URL
         backend_url = app.config.get('BACKEND_URL', '')
-        if not (backend_url.startswith('http://localhost') or backend_url.startswith('http://127.0.0.1')):
+        # Extract host from backend URL for CSP
+        backend_host = backend_url.replace('http://', '').replace('https://', '').split(':')[0] if backend_url else 'localhost'
+        connect_src = f"'self' http://localhost:* http://{backend_host}:* https://translate.googleapis.com https://*.googleapis.com"
+        
+        response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://translate.google.com https://translate.googleapis.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src {connect_src}; frame-ancestors 'none';"
+        
+        # Only set COEP and COOP when the backend URL is a secure origin
+        # HTTP on a local IP is not considered trustworthy by browsers.
+        if backend_url.startswith('https://'):
             response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
             response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
         if response.content_type and response.content_type.startswith('text/html'):
@@ -167,6 +180,14 @@ def create_app(config_object=None):
         frontend_dist = app.config.get('FRONTEND_DIST_FOLDER')
 
         if use_dev_frontend:
+            configured_frontend_url = app.config.get('FRONTEND_URL')
+            if configured_frontend_url:
+                dev_url = f"{configured_frontend_url}{request.full_path.lstrip('/')}"
+                if dev_url.endswith('?'):
+                    dev_url = dev_url[:-1]
+                print(f"Redirecting to dev frontend: {dev_url}")
+                return redirect(dev_url, code=302)
+
             dev_base = find_frontend_url()
             if dev_base:
                 dev_url = f"{dev_base}{request.full_path.lstrip('/')}"
