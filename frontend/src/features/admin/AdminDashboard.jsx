@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, ArrowUpRight, Bell, BookMarked, BookOpen, CheckCircle2, Clock3, CreditCard, FolderTree, LogOut, PenLine, Repeat, Sparkles, Users, X, Zap } from 'lucide-react'
+import { Activity, ArrowUpRight, Bell, BookMarked, BookOpen, CheckCircle2, Clock3, CreditCard, FolderTree, LogOut, Menu, PenLine, Repeat, Sparkles, Users, X, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchCategories,
@@ -33,6 +33,7 @@ import { formatCurrency } from '../../shared/utils/index.js'
 import { passwordRequirementText, validatePassword, validatePasswordConfirmation } from '../../shared/passwordValidation.js'
 import { PasswordChangeForm, getPasswordChangeValidation } from '../../shared/components/PasswordChangeForm.jsx'
 import './AdminDashboard.css'
+import '../../shared/MobileDashboard.css'
 
 const navSections = [
   {
@@ -122,6 +123,7 @@ export function AdminDashboard() {
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [registrationRequests, setRegistrationRequests] = useState([])
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [bookInventoryPage, setBookInventoryPage] = useState(1)
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
@@ -164,6 +166,11 @@ export function AdminDashboard() {
   const handleLogout = () => {
     clearStoredAuth()
     navigate('/login', { replace: true })
+  }
+
+  const handleNavSelect = (pageId) => {
+    setActivePage(pageId)
+    setMobileNavOpen(false)
   }
 
   const removeNotification = (id) => {
@@ -1633,20 +1640,27 @@ export function AdminDashboard() {
 
   return (
     <div className="admin-dashboard-app">
-      <div className="sidebar">
+      <button className="mobile-menu-button" type="button" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation" aria-expanded={mobileNavOpen}>
+        <Menu size={20} aria-hidden="true" />
+      </button>
+      {mobileNavOpen && <button className="mobile-nav-backdrop" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation" />}
+      <div className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
         <div className="logo">
           <div className="logo-icon"><BookOpen size={27} strokeWidth={1.9} aria-hidden="true" /></div>
           <div className="logo-text">
             <div className="logo-title">LIBRASYS</div>
             <div className="logo-sub">Administrator</div>
           </div>
+          <button className="mobile-sidebar-close" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation">
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
         <nav className="nav">
           {navSections.map((section) => (
             <div key={section.section}>
               <div className="nav-section">{section.section}</div>
               {section.items.map((item) => (
-                <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
+                <div key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => handleNavSelect(item.id)}>
                   <span className="nav-icon">{item.icon}</span>
                   <span>{item.title}</span>
                   {item.badge && <span className="nav-badge">{item.badge}</span>}
