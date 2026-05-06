@@ -761,7 +761,7 @@ export function LibrarianDashboard() {
                       <strong>{reservation.book_title || reservation.book_id}</strong>
                       <span>Queue #{reservation.queue_position || '-'} - {reservation.status || 'active'}</span>
                     </div>
-                    <em>{reservation.expiration_date ? formatDate(reservation.expiration_date) : 'Open'}</em>
+                    <em>{reservation.expiration_date ? formatLoanDate(reservation.expiration_date) : 'Open'}</em>
                   </div>
                 ))}
               </div>
