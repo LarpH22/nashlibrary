@@ -27,6 +27,11 @@ class Config:
 
     DB_HOST = os.environ.get('DB_HOST') or '127.0.0.1'
     DB_PORT = int(os.environ.get('DB_PORT', '3306'))
+    DB_FALLBACK_PORTS = [
+        int(port.strip())
+        for port in os.environ.get('DB_FALLBACK_PORTS', '3306,3307').split(',')
+        if port.strip().isdigit()
+    ]
     DB_USER = os.environ.get('DB_USER') or 'root'
     DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
     DB_NAME = os.environ.get('DB_NAME') or 'library_system_v2'
