@@ -454,16 +454,18 @@ class BookController:
             return jsonify({'message': 'E-book not found'}), 404
 
         file_path = self._resolve_ebook_file_path(deleted_ebook)
+        file_warning = None
         if file_path:
             try:
                 os.remove(file_path)
             except OSError as exc:
-                return jsonify({
-                    'message': 'E-book database record was deleted, but the stored file could not be removed.',
-                    'detail': str(exc),
-                }), 500
+                file_warning = 'The e-book record was deleted, but the stored file could not be removed automatically.'
+                current_app.logger.warning("Unable to remove deleted e-book file %s: %s", file_path, exc)
 
-        return jsonify({'message': 'E-book deleted'}), 200
+        response = {'message': 'E-book deleted'}
+        if file_warning:
+            response['warning'] = file_warning
+        return jsonify(response), 200
 
     def _resolve_ebook_file_path(self, ebook):
         if not ebook:

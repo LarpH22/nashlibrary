@@ -592,22 +592,9 @@ class BookRepositoryImpl(BookRepository):
                     )
                     active_loans = int((cur.fetchone() or {}).get("count") or 0)
 
-                cur.execute(
-                    """
-                    SELECT COUNT(*) AS count
-                    FROM ebook_access_logs
-                    WHERE ebook_id=%s
-                      AND accessed_at >= (NOW() - INTERVAL 15 MINUTE)
-                    """,
-                    (ebook_id,),
-                )
-                recent_accesses = int((cur.fetchone() or {}).get("count") or 0)
-
                 blockers = []
                 if active_loans:
                     blockers.append(f"{active_loans} active loan(s) for the linked book")
-                if recent_accesses:
-                    blockers.append(f"{recent_accesses} recent e-book access event(s)")
 
                 return blockers
 
@@ -625,7 +612,6 @@ class BookRepositoryImpl(BookRepository):
                         """
                         DELETE FROM ebook_access_logs
                         WHERE ebook_id=%s
-                          AND accessed_at < (NOW() - INTERVAL 15 MINUTE)
                         """,
                         (ebook_id,),
                     )

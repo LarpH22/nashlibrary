@@ -1154,7 +1154,7 @@ export function LibrarianDashboard() {
                     <td>{`${Math.ceil((ebook.file_size || 0) / 1024)} KB`}</td>
                     <td>
                       <div className="table-actions">
-                        <a className="btn btn-outline btn-sm" href={`/ebooks/${ebook.ebook_id}`} target="_blank" rel="noreferrer">Open</a>
+                        <a className="btn btn-outline btn-sm" href={`/api/ebooks/${ebook.ebook_id}/public-download?disposition=inline`} target="_blank" rel="noreferrer">Open</a>
                         {ebook.file_available === false && (
                           <span style={{ color: 'var(--error)', fontSize: '12px', marginRight: '8px' }}>File missing</span>
                         )}
