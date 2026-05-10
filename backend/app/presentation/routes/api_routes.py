@@ -34,9 +34,19 @@ def list_loans():
         with conn.cursor() as cur:
             cur.execute(
                 '''
-                SELECT loan_id, book_id, user_id, borrowed_at, due_date, returned_at, status
-                FROM borrow_records
-                ORDER BY borrowed_at DESC
+                SELECT
+                    br.borrow_id AS loan_id,
+                    br.book_id,
+                    br.student_id AS internal_student_id,
+                    s.student_number AS student_id,
+                    s.student_number AS user_id,
+                    br.borrow_date AS borrowed_at,
+                    br.due_date,
+                    br.return_date AS returned_at,
+                    br.status
+                FROM borrow_records br
+                LEFT JOIN students s ON br.student_id=s.student_id
+                ORDER BY br.borrow_date DESC
                 '''
             )
             loans = cur.fetchall()
@@ -54,7 +64,8 @@ def list_students():
         with conn.cursor() as cur:
             cur.execute(
                 '''
-                SELECT student_id, email, full_name, student_number, department, year_level, status
+                SELECT student_id AS internal_student_id, student_number AS student_id, student_number AS user_id,
+                       email, full_name, student_number, department, year_level, status
                 FROM students
                 ORDER BY full_name ASC
                 '''
@@ -181,7 +192,8 @@ def get_student_profile():
         with conn.cursor() as cur:
             cur.execute(
                 '''
-                SELECT student_id, email, full_name, student_number, department,
+                SELECT student_id AS internal_student_id, student_number AS student_id, student_number AS user_id,
+                       email, full_name, student_number, department,
                        year_level, phone, status, email_verified, created_at
                 FROM students
                 WHERE email=%s
@@ -235,7 +247,8 @@ def update_student_profile():
 
             cur.execute(
                 '''
-                SELECT student_id, email, full_name, student_number, department,
+                SELECT student_id AS internal_student_id, student_number AS student_id, student_number AS user_id,
+                       email, full_name, student_number, department,
                        year_level, phone, status, email_verified, created_at
                 FROM students
                 WHERE email=%s

@@ -62,6 +62,31 @@ class AdminController:
             student['document_url'] = url_for('admin.get_student_document', student_id=student['student_id'])
         return student
 
+    def _find_student_by_official_id(self, cur, student_number):
+        official_id = str(student_number or '').strip()
+        if not official_id:
+            return None
+        cur.execute(
+            """
+            SELECT student_id, email, full_name, student_number, department,
+                   year_level, status, email_verified, registration_document,
+                   last_login, created_at, updated_at
+            FROM students
+            WHERE student_number=%s
+            LIMIT 1
+            """,
+            (official_id,),
+        )
+        return cur.fetchone()
+
+    def _student_response(self, student):
+        if not student:
+            return None
+        student['internal_student_id'] = student.get('student_id')
+        student['student_id'] = student.get('student_number')
+        student['user_id'] = student.get('student_number')
+        return student
+
     def _parse_pagination_params(self):
         page = request.args.get('page', type=int)
         limit = request.args.get('limit', type=int)
@@ -230,31 +255,7 @@ class AdminController:
 
         with get_connection() as conn:
             with conn.cursor() as cur:
-                if str(student_id).isdigit():
-                    cur.execute(
-                        """
-                        SELECT student_id, email, full_name, student_number, department,
-                               year_level, status, email_verified, registration_document,
-                               last_login, created_at, updated_at
-                        FROM students
-                        WHERE student_id=%s OR student_number=%s
-                        LIMIT 1
-                        """,
-                        (int(student_id), student_id)
-                    )
-                else:
-                    cur.execute(
-                        """
-                        SELECT student_id, email, full_name, student_number, department,
-                               year_level, status, email_verified, registration_document,
-                               last_login, created_at, updated_at
-                        FROM students
-                        WHERE student_number=%s
-                        LIMIT 1
-                        """,
-                        (student_id,)
-                    )
-                student = cur.fetchone()
+                student = self._find_student_by_official_id(cur, student_id)
                 if not student:
                     return jsonify({'message': 'Student not found'}), 404
 
@@ -266,7 +267,7 @@ class AdminController:
 
         self._attach_student_document_state(student)
         student['loans'] = loans
-        return jsonify(student), 200
+        return jsonify(self._student_response(student)), 200
 
     def list_students(self):
         auth_error = self._require_admin_or_librarian()
@@ -326,6 +327,7 @@ class AdminController:
                 students = cur.fetchall()
                 for student in students:
                     self._attach_student_document_state(student)
+                    self._student_response(student)
 
         if paginate:
             return jsonify({
@@ -344,11 +346,6 @@ class AdminController:
         auth_error = self._require_admin()
         if auth_error:
             return auth_error
-
-        try:
-            student_id = int(student_id)
-        except (TypeError, ValueError):
-            return jsonify({'message': 'Invalid student ID'}), 400
 
         data = request.get_json() or {}
         full_name = str(data.get('full_name') or '').strip()
@@ -383,15 +380,16 @@ class AdminController:
 
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('SELECT student_id FROM students WHERE student_id=%s LIMIT 1', (student_id,))
-                if not cur.fetchone():
+                existing = self._find_student_by_official_id(cur, student_id)
+                if not existing:
                     return jsonify({'message': 'Student not found'}), 404
+                internal_student_id = existing['student_id']
 
-                cur.execute('SELECT student_id FROM students WHERE email=%s AND student_id<>%s LIMIT 1', (email, student_id))
+                cur.execute('SELECT student_id FROM students WHERE email=%s AND student_id<>%s LIMIT 1', (email, internal_student_id))
                 if cur.fetchone():
                     return jsonify({'message': 'Email is already used by another student'}), 409
 
-                cur.execute('SELECT student_id FROM students WHERE student_number=%s AND student_id<>%s LIMIT 1', (student_number, student_id))
+                cur.execute('SELECT student_id FROM students WHERE student_number=%s AND student_id<>%s LIMIT 1', (student_number, internal_student_id))
                 if cur.fetchone():
                     return jsonify({'message': 'Student ID is already used by another student'}), 409
 
@@ -408,21 +406,16 @@ class AdminController:
                         updated_at=NOW()
                     WHERE student_id=%s
                     """,
-                    (full_name, email, student_number, department, year_level, status, email_verified, student_id),
+                    (full_name, email, student_number, department, year_level, status, email_verified, internal_student_id),
                 )
                 conn.commit()
 
-        return self.search_student(str(student_id))
+        return self.search_student(student_number)
 
     def reset_student_password(self, student_id):
         auth_error = self._require_admin()
         if auth_error:
             return auth_error
-
-        try:
-            student_id = int(student_id)
-        except (TypeError, ValueError):
-            return jsonify({'message': 'Invalid student ID'}), 400
 
         data = request.get_json() or {}
         new_password = str(data.get('new_password') or '')
@@ -434,6 +427,9 @@ class AdminController:
         password_hash = self.auth_service.hash_password(new_password)
         with get_connection() as conn:
             with conn.cursor() as cur:
+                student = self._find_student_by_official_id(cur, student_id)
+                if not student:
+                    return jsonify({'message': 'Student not found'}), 404
                 cur.execute(
                     """
                     UPDATE students
@@ -443,7 +439,7 @@ class AdminController:
                         updated_at=NOW()
                     WHERE student_id=%s
                     """,
-                    (password_hash, student_id),
+                    (password_hash, student['student_id']),
                 )
                 conn.commit()
                 if cur.rowcount == 0:
@@ -532,7 +528,6 @@ class AdminController:
             wildcard_search = f"%{search_query}%"
             search_terms = [
                 'CAST(br.borrow_id AS CHAR) LIKE %s',
-                'CAST(br.student_id AS CHAR) LIKE %s',
                 'COALESCE(s.full_name, \'\') LIKE %s',
                 'COALESCE(s.student_number, \'\') LIKE %s',
                 'COALESCE(s.email, \'\') LIKE %s',
@@ -586,8 +581,9 @@ class AdminController:
                         bc.barcode_value,
                         bc.qr_token,
                         b.title AS book_title,
-                        br.student_id,
-                        br.student_id AS user_id,
+                        br.student_id AS internal_student_id,
+                        s.student_number AS student_id,
+                        s.student_number AS user_id,
                         s.full_name AS student_name,
                         s.email AS student_email,
                         s.student_number,
@@ -657,20 +653,19 @@ class AdminController:
 
         data = request.get_json(silent=True) or {}
         book_id = data.get('book_id')
-        student_id = data.get('student_id') or data.get('user_id')
+        student_number = data.get('student_number') or data.get('student_id') or data.get('user_id')
         due_date = data.get('due_date')
 
-        if not book_id or not student_id:
-            return jsonify({'message': 'book_id and student_id are required'}), 400
+        if not book_id or not student_number:
+            return jsonify({'message': 'book_id and official Student ID are required'}), 400
 
         try:
             book_id = int(book_id)
-            student_id = int(student_id)
         except (TypeError, ValueError):
-            return jsonify({'message': 'book_id and student_id must be valid integers'}), 400
+            return jsonify({'message': 'book_id must be a valid integer'}), 400
 
-        if book_id <= 0 or student_id <= 0:
-            return jsonify({'message': 'book_id and student_id must be greater than zero'}), 400
+        if book_id <= 0:
+            return jsonify({'message': 'book_id must be greater than zero'}), 400
 
         borrowed_at = datetime.utcnow()
         if due_date:
@@ -683,11 +678,16 @@ class AdminController:
             due_date = (borrowed_at + timedelta(days=14)).date()
 
         try:
-            loan_id = self.loan_repository.create_loan(book_id, student_id, borrowed_at, due_date)
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    student = self._find_student_by_official_id(cur, student_number)
+            if not student:
+                return jsonify({'message': 'Student ID not found. Use the official format like 241-0449.'}), 404
+            loan_id = self.loan_repository.create_loan(book_id, student['student_id'], borrowed_at, due_date)
         except ValueError as exc:
             return jsonify({'message': str(exc)}), 400
 
-        return jsonify({'message': 'Book issued', 'loan_id': loan_id, 'due_date': due_date.isoformat()}), 201
+        return jsonify({'message': 'Book issued', 'loan_id': loan_id, 'student_number': student.get('student_number'), 'due_date': due_date.isoformat()}), 201
 
     def list_registration_requests(self):
         auth_error = self._require_admin()

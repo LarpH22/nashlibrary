@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, ArrowUpRight, BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Menu, Power, Repeat, ListChecks, CreditCard, Sparkles, X, Zap } from 'lucide-react'
+import { Activity, ArrowUpRight, BarChart3, BookOpen, Search, Clock3, Users, Key, Bell, Camera, Flashlight, FlashlightOff, Menu, Power, Repeat, ListChecks, CreditCard, Sparkles, X, Zap } from 'lucide-react'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 import api, { normalizeApiError } from '../../shared/api.js'
 import { ReturnPlatform } from '../returns/ReturnPlatform.jsx'
 import { clearStoredAuth } from '../../shared/authStorage.js'
@@ -112,6 +113,13 @@ export function LibrarianDashboard() {
   const [requestDueDates, setRequestDueDates] = useState({})
   const [scanForm, setScanForm] = useState({ code: '', student_id: '' })
   const [scanResult, setScanResult] = useState(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannerStatus, setScannerStatus] = useState('Camera scanner is ready.')
+  const [scannerError, setScannerError] = useState('')
+  const [cameraReady, setCameraReady] = useState(false)
+  const [torchSupported, setTorchSupported] = useState(false)
+  const [flashlightOn, setFlashlightOn] = useState(false)
+  const [issueResult, setIssueResult] = useState(null)
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [showAccountModal, setShowAccountModal] = useState(false)
   const [accountTab, setAccountTab] = useState('profile')
@@ -125,6 +133,11 @@ export function LibrarianDashboard() {
   const [ebookUploadTitle, setEbookUploadTitle] = useState('')
   const [ebookUploadFile, setEbookUploadFile] = useState(null)
   const [ebookUploading, setEbookUploading] = useState(false)
+  const scannerVideoRef = useRef(null)
+  const scannerStreamRef = useRef(null)
+  const scannerControlsRef = useRef(null)
+  const lastDetectedCodeRef = useRef('')
+  const scanLookupInFlightRef = useRef(false)
 
   const addNotification = useCallback((text) => {
     const id = Date.now()
@@ -178,11 +191,12 @@ export function LibrarianDashboard() {
     const map = new Map()
 
     safeLoans.forEach((loan) => {
-      const userId = loan.user_id ?? loan.student_id
+      const userId = loan.student_number || loan.user_id || loan.student_id
       if (!userId) return
 
       const existing = map.get(userId) || {
         user_id: userId,
+        student_number: loan.student_number || userId,
         full_name: loan.student_name || loan.full_name || 'Unknown',
         email: loan.student_email || '',
         status: loan.status || 'Active',
@@ -193,7 +207,7 @@ export function LibrarianDashboard() {
     })
 
     safeLoans.forEach((loan) => {
-      const userId = loan.user_id ?? loan.student_id
+      const userId = loan.student_number || loan.user_id || loan.student_id
       if (!userId) return
       const student = map.get(userId)
       if (student && !loan.returned) {
@@ -349,6 +363,26 @@ export function LibrarianDashboard() {
     loadAvailabilityBooks()
   }, [loadAvailabilityBooks])
 
+  const stopCameraScanner = useCallback(() => {
+    if (scannerControlsRef.current) {
+      scannerControlsRef.current.stop()
+      scannerControlsRef.current = null
+    }
+    if (scannerStreamRef.current) {
+      scannerStreamRef.current.getTracks().forEach((track) => track.stop())
+      scannerStreamRef.current = null
+    }
+    if (scannerVideoRef.current) {
+      scannerVideoRef.current.srcObject = null
+    }
+    setCameraReady(false)
+    setTorchSupported(false)
+    setFlashlightOn(false)
+    lastDetectedCodeRef.current = ''
+  }, [])
+
+  useEffect(() => () => stopCameraScanner(), [stopCameraScanner])
+
   useEffect(() => {
     const realEbooks = safeEbooks.filter(e => !e.is_catalog_only)
     const totalPages = Math.max(1, Math.ceil(realEbooks.length / ebookLibraryPageSize))
@@ -407,40 +441,194 @@ export function LibrarianDashboard() {
     }
   }
 
-  async function handleLookupScan(event) {
-    event.preventDefault()
-    if (!scanForm.code.trim()) {
-      addNotification('Scan or enter a barcode/QR value first.')
+  const lookupScanCode = useCallback(async (code) => {
+    const trimmedCode = code.trim()
+    if (!trimmedCode) {
+      addNotification('Scan a book QR code or barcode first.')
+      return
+    }
+    if (scanLookupInFlightRef.current) {
+      return
+    }
+    scanLookupInFlightRef.current = true
+    setScannerError('')
+    setIssueResult(null)
+    setScannerStatus('Code detected. Fetching book information...')
+    try {
+      const response = await api.get('/books/scan', { params: { code: trimmedCode } })
+      const copy = response.data?.copy || null
+      setScanResult(copy)
+      if (copy && String(copy.status || '').toLowerCase() !== 'available') {
+        setScannerError(`This copy is ${copy.status || 'unavailable'} and cannot be issued.`)
+        setScannerStatus('Book found, but this copy is not available.')
+      } else {
+        setScannerStatus('Book found. Confirm the Student ID to issue.')
+      }
+      addNotification('Scanned book copy found.')
+    } catch (error) {
+      setScanResult(null)
+      const message = error?.response?.data?.message || 'Invalid or unreadable code. No matching book copy was found.'
+      setScannerError(message)
+      setScannerStatus('Keep the code inside the frame and try again.')
+      addNotification(message)
+    } finally {
+      scanLookupInFlightRef.current = false
+    }
+  }, [addNotification])
+
+  const handleDetectedScanCode = useCallback((rawCode) => {
+    const code = String(rawCode || '').trim()
+    if (!code || code === lastDetectedCodeRef.current) {
+      return
+    }
+    lastDetectedCodeRef.current = code
+    window.setTimeout(() => {
+      if (lastDetectedCodeRef.current === code) {
+        lastDetectedCodeRef.current = ''
+      }
+    }, 2500)
+    setScanForm((current) => ({ ...current, code }))
+    lookupScanCode(code)
+  }, [lookupScanCode])
+
+  const startCameraScanner = useCallback(async () => {
+    setScannerError('')
+    setScannerStatus('Starting camera...')
+    setCameraReady(false)
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScannerError('Camera access is not available in this browser.')
+      setScannerStatus('Use manual entry or try a browser with camera support.')
       return
     }
     try {
-      const response = await api.get('/books/scan', { params: { code: scanForm.code.trim() } })
-      setScanResult(response.data?.copy || null)
-      addNotification('Book copy found.')
+      const reader = new BrowserMultiFormatReader()
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      }
+      const video = scannerVideoRef.current
+      if (!video) {
+        return
+      }
+      const controls = await reader.decodeFromConstraints(constraints, video, (result, error, scanControls) => {
+        if (scanControls && !scannerControlsRef.current) {
+          scannerControlsRef.current = scanControls
+        }
+        if (result) {
+          handleDetectedScanCode(result.getText())
+        }
+      })
+      scannerControlsRef.current = controls
+      scannerStreamRef.current = video.srcObject
+      const capabilities = typeof controls.streamVideoCapabilitiesGet === 'function'
+        ? controls.streamVideoCapabilitiesGet((tracks) => tracks)
+        : {}
+      setTorchSupported(Boolean(capabilities?.torch || controls.switchTorch))
+      setCameraReady(true)
+      setScannerStatus('Scanning for a QR code or barcode.')
+
     } catch (error) {
-      setScanResult(null)
-      addNotification(error?.response?.data?.message || 'Scanned copy was not found.')
+      console.error('Unable to start scanner:', error)
+      stopCameraScanner()
+      const permissionDenied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError'
+      setScannerError(permissionDenied ? 'Camera permission was denied.' : 'Unable to start the camera scanner.')
+      setScannerStatus(permissionDenied ? 'Allow camera access and try again.' : 'Check that a camera is connected and available.')
+    }
+  }, [handleDetectedScanCode, stopCameraScanner])
+
+  useEffect(() => {
+    if (scannerOpen) {
+      startCameraScanner()
+    } else {
+      stopCameraScanner()
+    }
+  }, [scannerOpen, startCameraScanner, stopCameraScanner])
+
+  async function toggleFlashlight() {
+    const [track] = scannerStreamRef.current?.getVideoTracks() || []
+    if (!torchSupported) {
+      setScannerError('Flashlight is not available on this camera.')
+      return
+    }
+    try {
+      if (scannerControlsRef.current?.switchTorch) {
+        await scannerControlsRef.current.switchTorch(!flashlightOn)
+      } else if (track) {
+        await track.applyConstraints({ advanced: [{ torch: !flashlightOn }] })
+      }
+      setFlashlightOn((current) => !current)
+    } catch (error) {
+      console.error('Unable to toggle flashlight:', error)
+      setScannerError('Unable to toggle the flashlight on this device.')
     }
   }
 
   async function handleIssueByScan() {
-    if (!scanForm.code.trim() || !scanForm.student_id) {
-      addNotification('Barcode/QR value and Student ID are required.')
+    const studentIdValue = String(scanForm.student_id || '').trim()
+    if (!scanResult || !scanForm.code.trim()) {
+      const message = 'Scan a valid book QR code or barcode before issuing.'
+      setScannerError(message)
+      addNotification(message)
+      return
+    }
+    if (String(scanResult.status || '').toLowerCase() !== 'available') {
+      const message = `This copy is ${scanResult.status || 'unavailable'} and cannot be issued.`
+      setScannerError(message)
+      addNotification(message)
+      return
+    }
+    if (!studentIdValue) {
+      const message = 'Student ID is required before issuing this scanned book.'
+      setScannerError(message)
+      addNotification(message)
+      return
+    }
+    if (!/^\d{3}-\d{4}$/.test(studentIdValue)) {
+      const message = 'Student ID must use format 241-0449.'
+      setScannerError(message)
+      addNotification(message)
       return
     }
     try {
-      await api.post('/books/borrow-by-scan', {
+      const response = await api.post('/books/borrow-by-scan', {
         code: scanForm.code.trim(),
-        student_id: Number(scanForm.student_id)
+        student_id: studentIdValue
+      })
+      const issuedAt = response.data?.issue_date ? new Date(response.data.issue_date) : new Date()
+      const dueAt = response.data?.due_date ? new Date(response.data.due_date) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      setIssueResult({
+        book_title: scanResult.book_title,
+        copy_code: scanResult.copy_code,
+        student_id: studentIdValue,
+        issue_date: Number.isNaN(issuedAt.getTime()) ? new Date().toLocaleString() : issuedAt.toLocaleString(),
+        due_date: Number.isNaN(dueAt.getTime()) ? '-' : dueAt.toLocaleDateString()
       })
       setScanForm({ code: '', student_id: '' })
       setScanResult(null)
+      setScannerError('')
+      setScannerStatus('Book issued. Ready to scan the next book.')
       await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
       addNotification('Book issued from scan.')
     } catch (error) {
       await Promise.allSettled([loadLoans(), loadBooks(), loadAvailabilityBooks(), loadReservations()])
-      addNotification(error?.response?.data?.message || 'Failed to issue scanned copy.')
+      const message = error?.response?.data?.message || 'Failed to issue scanned copy.'
+      setScannerError(message)
+      addNotification(message)
     }
+  }
+
+  function retryScan() {
+    setScanResult(null)
+    setIssueResult(null)
+    setScannerError('')
+    setScannerStatus(scannerOpen ? 'Scanning for a QR code or barcode.' : 'Open the camera to scan a book.')
+    setScanForm((current) => ({ ...current, code: '' }))
+    lastDetectedCodeRef.current = ''
   }
 
   async function handleReservationAction(reservationId, action) {
@@ -741,7 +929,7 @@ export function LibrarianDashboard() {
                     <div className={`activity-dot ${loan.returned || loan.return_date ? 'green' : isLoanOverdue(loan) ? 'red' : 'gold'}`} />
                     <div>
                       <strong>{loan.book_title || loan.book_id || 'Unknown book'}</strong>
-                      <span>{loan.student_name || loan.student_email || `Student ${loan.student_id || ''}`}</span>
+                      <span>{loan.student_name || loan.student_email || loan.student_number || ''}</span>
                     </div>
                     <em>{loan.returned || loan.return_date ? 'Returned' : isLoanOverdue(loan) ? 'Overdue' : 'Borrowed'}</em>
                   </div>
@@ -788,7 +976,7 @@ export function LibrarianDashboard() {
                     pendingBorrowRequests.map((request) => (
                       <tr key={request.request_id}>
                         <td>{request.request_id}</td>
-                        <td>{request.student_name || request.student_number || request.student_id}</td>
+                        <td>{request.student_name || request.student_number || 'Unknown student'}</td>
                         <td>{request.book_title || request.book_id}</td>
                         <td>{request.requested_at ? new Date(request.requested_at).toLocaleString() : ''}</td>
                         <td>
@@ -814,26 +1002,72 @@ export function LibrarianDashboard() {
           </div>
           <div className="card">
             <div className="card-hdr"><div className="card-title">Barcode / QR Scanner</div></div>
-            <form className="admin-form scan-form" onSubmit={handleLookupScan}>
-              <div className="frow scan-grid">
-                <div className="fgroup">
-                  <label>Barcode or QR value</label>
-                  <input value={scanForm.code} onChange={(event) => setScanForm({ ...scanForm, code: event.target.value })} placeholder="Scan or paste code" autoComplete="off" />
+            <div className={`camera-scanner ${scannerOpen ? 'active' : ''}`}>
+              <div className="scanner-preview">
+                {scannerOpen ? (
+                  <>
+                    <video ref={scannerVideoRef} muted playsInline aria-label="Live barcode and QR scanner camera preview" />
+                    <div className="scanner-frame" aria-hidden="true">
+                      <span className="scanner-corner top-left" />
+                      <span className="scanner-corner top-right" />
+                      <span className="scanner-corner bottom-left" />
+                      <span className="scanner-corner bottom-right" />
+                      {cameraReady && <span className="scanner-line" />}
+                    </div>
+                  </>
+                ) : (
+                  <div className="scanner-idle">
+                    <Camera size={30} strokeWidth={1.8} aria-hidden="true" />
+                    <strong>Camera scanner</strong>
+                    <span>Ready for book QR codes and barcodes.</span>
+                  </div>
+                )}
+              </div>
+              <div className="scanner-controls">
+                <button className="btn btn-outline" type="button" onClick={() => setScannerOpen((current) => !current)}>
+                  <Camera size={16} aria-hidden="true" />
+                  {scannerOpen ? 'Close Camera' : 'Open Camera'}
+                </button>
+                <button className="btn btn-outline" type="button" onClick={retryScan}>
+                  <Repeat size={16} aria-hidden="true" />
+                  Retry Scan
+                </button>
+                <button className="btn btn-outline" type="button" disabled={!scannerOpen || !torchSupported} onClick={toggleFlashlight}>
+                  {flashlightOn ? <FlashlightOff size={16} aria-hidden="true" /> : <Flashlight size={16} aria-hidden="true" />}
+                  {flashlightOn ? 'Flash Off' : 'Flash On'}
+                </button>
+                <div className="scanner-status" role="status">
+                  {scannerStatus}
+                  {scannerError && <span>{scannerError}</span>}
                 </div>
-                <div className="fgroup">
-                  <label>Student ID</label>
-                  <input value={scanForm.student_id} onChange={(event) => setScanForm({ ...scanForm, student_id: event.target.value })} placeholder="Required for issue" />
-                </div>
+              </div>
+            </div>
+            <div className="scan-issue-panel">
+              <div className="scan-selected-book">
+                <span>Selected book</span>
+                {scanResult ? (
+                  <>
+                    <strong>{scanResult.book_title || 'Untitled book'}</strong>
+                    <div className="muted-line">{scanResult.copy_code || scanResult.barcode_value || 'Copy'} / {scanResult.status || 'unknown'}</div>
+                    {scanResult.isbn && <div className="muted-line">ISBN {scanResult.isbn}</div>}
+                  </>
+                ) : (
+                  <strong>No book scanned yet</strong>
+                )}
+              </div>
+              <div className="fgroup scan-student-field">
+                <label>Student ID</label>
+                <input value={scanForm.student_id} onChange={(event) => setScanForm({ ...scanForm, student_id: event.target.value })} placeholder="241-0449" />
               </div>
               <div className="scan-actions">
-                <button className="btn btn-outline" type="submit">Lookup</button>
-                <button className="btn btn-blue" type="button" onClick={handleIssueByScan}>Issue</button>
+                <button className="btn btn-blue" type="button" disabled={!scanResult || String(scanResult.status || '').toLowerCase() !== 'available'} onClick={handleIssueByScan}>Issue Book</button>
               </div>
-            </form>
-            {scanResult && (
-              <div className="scan-result">
-                <strong>{scanResult.book_title}</strong>
-                <span>{scanResult.copy_code} / {scanResult.status}</span>
+            </div>
+            {issueResult && (
+              <div className="scan-result issued">
+                <strong>{issueResult.book_title}</strong>
+                <span>Issued to {issueResult.student_id} on {issueResult.issue_date}</span>
+                <span>Due {issueResult.due_date}</span>
               </div>
             )}
           </div>
@@ -959,7 +1193,10 @@ export function LibrarianDashboard() {
                         <td>{loan.loan_id}</td>
                         <td>{loan.book_title || loan.book_id}</td>
                         <td>{loan.copy_code || loan.barcode_value || '-'}</td>
-                        <td>{loan.student_name || loan.user_id}</td>
+                        <td>
+                          {loan.student_name || 'Unknown student'}
+                          <div className="muted-line">{loan.student_number || loan.user_id || '-'}</div>
+                        </td>
                         <td>{formatLoanDate(loan.due_date)}</td>
                         <td style={{ color: 'var(--red)', fontWeight: 'bold' }}>{daysOverdue} days</td>
                       </tr>
@@ -1005,7 +1242,7 @@ export function LibrarianDashboard() {
                     return (
                       <tr key={reservation.reservation_id}>
                         <td>{reservation.book_title || reservation.book_id}</td>
-                        <td>{reservation.student_name || reservation.student_email || reservation.student_id}</td>
+                        <td>{reservation.student_name || reservation.student_email || reservation.student_number || 'Unknown student'}</td>
                         <td>{reservation.queue_position || '-'}</td>
                         <td style={{ color: status === 'ready' ? 'var(--green)' : status === 'active' ? 'var(--gold)' : 'var(--muted)' }}>{statusLabel(status)}</td>
                         <td>{formatLoanDate(reservation.expiration_date)}</td>
@@ -1053,10 +1290,10 @@ export function LibrarianDashboard() {
               </thead>
               <tbody>
                 {studentList.map((student) => {
-                  const borrowedCount = safeLoans.filter(l => l.user_id === student.user_id && !l.returned).length
+                  const borrowedCount = safeLoans.filter(l => (l.student_number || l.user_id) === (student.student_number || student.user_id) && !l.returned).length
                   return (
-                    <tr key={student.user_id}>
-                      <td>{student.user_id}</td>
+                    <tr key={student.student_number || student.user_id}>
+                      <td>{student.student_number || student.user_id || '-'}</td>
                       <td>{student.full_name || student.name}</td>
                       <td>{student.email}</td>
                       <td>{student.status || 'Active'}</td>
@@ -1331,7 +1568,7 @@ export function LibrarianDashboard() {
                         <td>{fine.fine_id}</td>
                         <td>
                           <strong>{fine.student_name || 'Unknown student'}</strong>
-                          <div className="muted-line">{fine.student_number || fine.student_email || `Student ${fine.student_id}`}</div>
+                          <div className="muted-line">{fine.student_number || fine.student_email || '-'}</div>
                         </td>
                         <td>{fine.book_title || fine.book_id || 'Unknown book'}</td>
                         <td>{formatCurrency(fine.amount)}</td>

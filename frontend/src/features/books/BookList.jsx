@@ -11,7 +11,7 @@ export function BookList() {
 
   const handleBorrow = async (bookId) => {
     try {
-      const data = await borrowBook({ book_id: bookId, user_id: 1 })
+      const data = await borrowBook({ book_id: bookId })
       setMessage(data.message)
     } catch (error) {
       setMessage('Unable to borrow book')

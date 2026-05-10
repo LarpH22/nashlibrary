@@ -36,6 +36,24 @@ class BookController:
         offset = (page - 1) * limit
         return page, limit, offset, paginate
 
+    def _resolve_student_id_for_issue(self, value):
+        student_value = str(value or '').strip()
+        if not student_value:
+            return None
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT student_id, student_number
+                    FROM students
+                    WHERE student_number=%s
+                    LIMIT 1
+                    """,
+                    (student_value,),
+                )
+                student = cur.fetchone()
+        return student if student else None
+
     def list_books(self):
         books = self.book_repository.list_books()
         for book in books:
@@ -205,16 +223,33 @@ class BookController:
 
         if current_user.get('role') == 'student':
             user_id = current_user.get('student_id')
+            student_number = current_user.get('student_number')
         else:
-            user_id = data.get('student_id') or data.get('user_id')
+            student = self._resolve_student_id_for_issue(data.get('student_number') or data.get('student_id') or data.get('user_id'))
+            user_id = student.get('student_id') if student else None
+            student_number = student.get('student_number') if student else None
         if not user_id:
-            return jsonify({'message': 'Student ID is required'}), 400
+            return jsonify({'message': 'A valid Student ID is required'}), 400
 
         borrowed_at = datetime.utcnow()
         due_date = borrowed_at + timedelta(days=14)
         try:
             loan_id = self.loan_repository.create_loan_for_copy(copy['copy_id'], int(user_id), borrowed_at, due_date)
-            return jsonify({'message': 'Book issued from scan', 'loan_id': loan_id, 'copy': copy}), 201
+            return jsonify({
+                'message': 'Book issued from scan',
+                'loan_id': loan_id,
+                'copy': copy,
+                'borrow_date': borrowed_at.isoformat(),
+                'issue_date': borrowed_at.isoformat(),
+                'due_date': due_date.isoformat(),
+                'transaction': {
+                    'loan_id': loan_id,
+                    'student_id': student_number,
+                    'internal_student_id': int(user_id),
+                    'book_id': copy['book_id'],
+                    'copy_id': copy['copy_id'],
+                }
+            }), 201
         except (TypeError, ValueError) as exc:
             return jsonify({'message': str(exc)}), 400
 

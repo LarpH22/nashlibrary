@@ -211,7 +211,7 @@ export function AdminDashboard() {
   const filteredCategories = categories
   const filteredAuthors = authors
   const filteredBooks = books.filter((book) => matchesSearch(book.title, book.author, book.isbn))
-  const filteredLoans = loans.filter((loan) => matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.status))
+  const filteredLoans = loans.filter((loan) => matchesSearch(loan.loan_id, loan.book_title, loan.student_name, loan.student_number, loan.status))
   const filteredReservations = reservations.filter((reservation) =>
     matchesSearch(reservation.reservation_id, reservation.book_title, reservation.student_name, reservation.student_email, reservation.status)
   )
@@ -457,8 +457,12 @@ export function AdminDashboard() {
 
   async function handleBorrowBook(event) {
     event.preventDefault()
+    if (!/^\d{3}-\d{4}$/.test(borrowForm.user_id.trim())) {
+      setMessage('Student ID must use format 241-0449.')
+      return
+    }
     try {
-      await borrowBook(Number(borrowForm.book_id), Number(borrowForm.user_id))
+      await borrowBook(Number(borrowForm.book_id), borrowForm.user_id.trim())
       setBorrowForm({ book_id: '', user_id: '' })
       await Promise.all([loadBooks(), loadLoans()])
       setMessage('Book issued successfully.')
@@ -503,6 +507,10 @@ export function AdminDashboard() {
     event.preventDefault()
     const trimmedId = studentId.trim()
     if (!trimmedId) return
+    if (!/^\d{3}-\d{4}$/.test(trimmedId)) {
+      setMessage('Student ID must use format 241-0449.')
+      return
+    }
     try {
       const found = await fetchStudent(trimmedId)
       setStudent(found)
@@ -516,7 +524,7 @@ export function AdminDashboard() {
   function openEditStudent(studentRow) {
     setEditingStudent(studentRow)
     setStudentForm({
-      student_id: studentRow.student_id || studentRow.user_id || '',
+      student_id: studentRow.student_number || studentRow.student_id || '',
       full_name: studentRow.full_name || '',
       email: studentRow.email || '',
       student_number: studentRow.student_number || '',
@@ -773,7 +781,7 @@ export function AdminDashboard() {
                     <div className={`activity-dot ${loan.returned || loan.return_date ? 'green' : overdueLoans.some((item) => (item.loan_id || item.borrow_id) === (loan.loan_id || loan.borrow_id)) ? 'red' : 'gold'}`} />
                     <div>
                       <strong>{loan.book_title || loan.book_id || 'Unknown book'}</strong>
-                      <span>{loan.student_name || loan.student_email || `Student ${loan.student_id || ''}`}</span>
+                      <span>{loan.student_name || loan.student_email || loan.student_number || ''}</span>
                     </div>
                     <em>{loan.returned || loan.return_date ? 'Returned' : 'Borrowed'}</em>
                   </div>
@@ -1120,7 +1128,7 @@ export function AdminDashboard() {
             </div>
             <form className="admin-form" onSubmit={handleBorrowBook}>
               <div className="fgroup"><label>Book ID</label><input value={borrowForm.book_id} onChange={(event) => setBorrowForm((current) => ({ ...current, book_id: event.target.value }))} placeholder="Book ID" /></div>
-              <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm((current) => ({ ...current, user_id: event.target.value }))} placeholder="Student ID" /></div>
+              <div className="fgroup"><label>Student ID</label><input value={borrowForm.user_id} onChange={(event) => setBorrowForm((current) => ({ ...current, user_id: event.target.value }))} placeholder="241-0449" /></div>
               <button className="btn btn-gold" type="submit">Issue</button>
             </form>
           </div>
@@ -1136,7 +1144,10 @@ export function AdminDashboard() {
                     <tr key={loan.loan_id}>
                       <td>{loan.loan_id}</td>
                       <td>{loan.book_title || loan.book_id}</td>
-                      <td>{loan.student_name || loan.user_id || loan.student_id}</td>
+                      <td>
+                        {loan.student_name || 'Unknown student'}
+                        <div className="muted-line">{loan.student_number || loan.student_id || '-'}</div>
+                      </td>
                       <td>{loan.status || (loan.returned ? 'Returned' : 'Active')}</td>
                     </tr>
                   ))}
@@ -1187,7 +1198,7 @@ export function AdminDashboard() {
                       <td>{reservation.reservation_id}</td>
                       <td>{reservation.book_title || reservation.book_id}</td>
                       <td>
-                        {reservation.student_name || reservation.student_email || reservation.student_id}
+                        {reservation.student_name || reservation.student_email || reservation.student_number || 'Unknown student'}
                         {reservation.student_number && <div className="muted-line">{reservation.student_number}</div>}
                       </td>
                       <td>{reservation.queue_position || '-'}</td>
@@ -1295,7 +1306,7 @@ export function AdminDashboard() {
                         <td>{fine.fine_id}</td>
                         <td>
                           <strong>{fine.student_name || 'Unknown student'}</strong>
-                          <div className="muted-line">{fine.student_number || fine.student_email || `Student ${fine.student_id}`}</div>
+                          <div className="muted-line">{fine.student_number || fine.student_email || '-'}</div>
                         </td>
                         <td>
                           {fine.book_title || fine.book_id || 'Unknown book'}
@@ -1392,10 +1403,10 @@ export function AdminDashboard() {
                   {filteredStudents.length === 0 ? (
                     <tr><td colSpan="8" className="empty-cell">No registered students found.</td></tr>
                   ) : filteredStudents.map((studentRow) => (
-                    <tr key={studentRow.student_id || studentRow.user_id || studentRow.student_number}>
+                    <tr key={studentRow.student_number || studentRow.student_id || studentRow.user_id}>
                       <td>
                         <strong>{studentRow.full_name || 'Unnamed student'}</strong>
-                        <div className="muted-line">{studentRow.student_number || `Student ${studentRow.student_id || studentRow.user_id}`}</div>
+                        <div className="muted-line">{studentRow.student_number || '-'}</div>
                       </td>
                       <td>{studentRow.email || '-'}</td>
                       <td>
@@ -1416,7 +1427,7 @@ export function AdminDashboard() {
                         <div className="row-actions">
                           <button className="btn btn-gold btn-sm" type="button" onClick={() => openEditStudent(studentRow)}>Edit</button>
                           <button className="btn btn-outline btn-sm" type="button" onClick={() => {
-                            setStudentPasswordForm({ student_id: studentRow.student_id || studentRow.user_id || '', new_password: '', confirm_password: '' })
+                            setStudentPasswordForm({ student_id: studentRow.student_number || '', new_password: '', confirm_password: '' })
                             setStudentPasswordMessage('')
                           }}>Reset Password</button>
                         </div>
@@ -1448,7 +1459,7 @@ export function AdminDashboard() {
               <div className="student-detail-strip">
                 <div>
                   <strong>{student.full_name || student.name || 'Unnamed student'}</strong>
-                  <div className="muted-line">{student.student_number || student.user_id || student.student_id || '-'}</div>
+                  <div className="muted-line">Student ID: {student.student_number || student.student_id || '-'}</div>
                 </div>
                 <div>{student.email || '-'}</div>
                 <div><span className={`student-pill ${student.status || 'active'}`}>{student.status || 'active'}</span></div>
@@ -1566,7 +1577,7 @@ export function AdminDashboard() {
             <form className="admin-form" onSubmit={handleSearchStudent}>
               <div className="fgroup" style={{ flex: 1 }}>
                 <label>Student ID</label>
-                <input value={studentId} onChange={(event) => setStudentId(event.target.value)} placeholder="Student ID" />
+                <input value={studentId} onChange={(event) => setStudentId(event.target.value)} placeholder="241-0449" />
               </div>
               <button className="btn btn-gold" type="submit">Search</button>
             </form>
@@ -1575,7 +1586,7 @@ export function AdminDashboard() {
             <div className="card">
               <div className="card-hdr"><div className="card-title">Student Detail</div></div>
               <p><strong>Name:</strong> {student.full_name || student.name || '—'}</p>
-              <p><strong>ID:</strong> {student.student_number || student.user_id || student.student_id || '—'}</p>
+              <p><strong>Student ID:</strong> {student.student_number || student.student_id || '—'}</p>
               <p><strong>Email:</strong> {student.email || '—'}</p>
               <p><strong>Status:</strong> {student.status || 'Active'}</p>
             </div>
@@ -1770,7 +1781,7 @@ export function AdminDashboard() {
               <div className="modal-header">
                 <div>
                   <div id="fine-review-title" className="modal-title">Verify Fine Payment</div>
-                  <div className="modal-subtitle">Fine #{reviewFine.fine_id} - {reviewFine.student_name || `Student ${reviewFine.student_id}`}</div>
+                  <div className="modal-subtitle">Fine #{reviewFine.fine_id} - {reviewFine.student_name || reviewFine.student_number || 'Unknown student'}</div>
                 </div>
                 <button className="modal-close" type="button" disabled={Boolean(updatingFineId)} onClick={closeFineReviewModal} aria-label="Close payment review">
                   <X size={16} aria-hidden="true" />

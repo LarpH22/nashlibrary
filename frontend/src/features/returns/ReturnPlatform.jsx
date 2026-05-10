@@ -77,7 +77,6 @@ export function ReturnPlatform({ onLoanReturned }) {
     return loans.filter((loan) => {
       const values = [
         String(loan.loan_id || ''),
-        String(loan.student_id || loan.user_id || ''),
         String(loan.student_name || ''),
         String(loan.student_number || ''),
         String(loan.student_email || ''),
@@ -151,9 +150,9 @@ export function ReturnPlatform({ onLoanReturned }) {
                       <td>{loan.copy_code || loan.barcode_value || loan.qr_token || '—'}</td>
                       <td>
                         <div className="loan-student-cell">
-                          <strong>{loan.student_name || loan.student_number || loan.student_id || loan.user_id}</strong>
+                          <strong>{loan.student_name || loan.student_number || 'Unknown student'}</strong>
                           {(loan.student_email || loan.student_number) && (
-                            <span>{loan.student_email || loan.student_number}</span>
+                            <span>{loan.student_number || loan.student_email}</span>
                           )}
                         </div>
                       </td>

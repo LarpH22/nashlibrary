@@ -894,7 +894,9 @@ class LoanRepositoryImpl(LoanRepository):
                     """
                     SELECT
                         br.borrow_id AS loan_id,
-                        br.student_id,
+                        br.student_id AS internal_student_id,
+                        s.student_number AS student_id,
+                        s.student_number,
                         br.book_id,
                         br.copy_id,
                         bc.copy_code,
@@ -906,6 +908,7 @@ class LoanRepositoryImpl(LoanRepository):
                     FROM borrow_records br
                     LEFT JOIN books b ON br.book_id = b.book_id
                     LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
+                    LEFT JOIN students s ON br.student_id = s.student_id
                     WHERE br.borrow_id=%s
                     LIMIT 1
                     """,
@@ -927,7 +930,9 @@ class LoanRepositoryImpl(LoanRepository):
                         """
                         SELECT
                             br.borrow_id AS loan_id,
-                            br.student_id,
+                            br.student_id AS internal_student_id,
+                            s.student_number AS student_id,
+                            s.student_number,
                             br.book_id,
                             br.copy_id,
                             bc.copy_code,
@@ -944,10 +949,11 @@ class LoanRepositoryImpl(LoanRepository):
                         FROM borrow_records br
                         LEFT JOIN books b ON br.book_id = b.book_id
                         LEFT JOIN book_copies bc ON br.copy_id = bc.copy_id
+                        LEFT JOIN students s ON br.student_id = s.student_id
                         LEFT JOIN book_authors ba ON b.book_id = ba.book_id
                         LEFT JOIN authors a ON ba.author_id = a.author_id
                         WHERE br.student_id = %s
-                        GROUP BY br.borrow_id, br.student_id, br.book_id, br.copy_id, bc.copy_code, b.title, b.isbn, b.publisher, b.publication_year, br.borrow_date, br.due_date, br.return_date, br.status
+                        GROUP BY br.borrow_id, br.student_id, s.student_number, br.book_id, br.copy_id, bc.copy_code, b.title, b.isbn, b.publisher, b.publication_year, br.borrow_date, br.due_date, br.return_date, br.status
                         ORDER BY br.borrow_date DESC
                         """,
                         (student_id,)
@@ -974,7 +980,9 @@ class LoanRepositoryImpl(LoanRepository):
                         """
                         SELECT
                             brq.request_id,
-                            brq.student_id,
+                            brq.student_id AS internal_student_id,
+                            s.student_number AS student_id,
+                            s.student_number,
                             brq.book_id,
                             b.title AS book_title,
                             brq.status,
@@ -984,6 +992,7 @@ class LoanRepositoryImpl(LoanRepository):
                             brq.rejection_reason
                         FROM borrow_requests brq
                         LEFT JOIN books b ON brq.book_id = b.book_id
+                        LEFT JOIN students s ON brq.student_id = s.student_id
                         WHERE brq.student_id=%s
                           AND brq.status IN ('pending', 'rejected')
                         ORDER BY brq.requested_at DESC
@@ -1555,7 +1564,9 @@ class LoanRepositoryImpl(LoanRepository):
                         """
                         SELECT
                             br.borrow_id,
-                            br.student_id,
+                            br.student_id AS internal_student_id,
+                            s.student_number AS student_id,
+                            s.student_number,
                             br.book_id,
                             br.copy_id,
                             bc.copy_code,
@@ -1596,7 +1607,9 @@ class LoanRepositoryImpl(LoanRepository):
                         """
                         SELECT
                             br.borrow_id,
-                            br.student_id,
+                            br.student_id AS internal_student_id,
+                            s.student_number AS student_id,
+                            s.student_number,
                             br.book_id,
                             br.copy_id,
                             bc.copy_code,

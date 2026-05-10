@@ -60,8 +60,8 @@ export async function createBook(book) {
   return response.data
 }
 
-export async function borrowBook(bookId, userId) {
-  const response = await api.post('/api/admin/loans', { book_id: bookId, student_id: userId })
+export async function borrowBook(bookId, studentNumber) {
+  const response = await api.post('/api/admin/loans', { book_id: bookId, student_number: studentNumber })
   return response.data
 }
 
